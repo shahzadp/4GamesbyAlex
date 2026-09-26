@@ -1,0 +1,852 @@
+/* =======================================================
+   4 Games by Alex - Mobile-Centric App Design
+   Fast, tactile, native mobile feel
+   ======================================================= */
+
+:root {
+  --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-arcade: 'Press Start 2P', monospace, sans-serif;
+  
+  --bg-app: #090b10;
+  --bg-surface: #131722;
+  --bg-card: rgba(23, 28, 42, 0.9);
+  --bg-card-active: #1e2436;
+  
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-active: rgba(255, 255, 255, 0.25);
+  
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  
+  --accent-gold: #f59e0b;
+  --accent-green: #10b981;
+  --accent-indigo: #6366f1;
+  --accent-red: #ef4444;
+  
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+  
+  --touch-scale: scale(0.96);
+  --transition-fast: 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Page Background Themes */
+body {
+  font-family: var(--font-main);
+  background: #030407;
+  color: var(--text-main);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  overflow-x: hidden;
+}
+
+body.theme-main { background: radial-gradient(circle at 50% 10%, #151a2d 0%, #05070c 85%); }
+body.theme-flappy { background: radial-gradient(circle at 50% 10%, #1c2738 0%, #05070c 85%); }
+body.theme-chess { background: radial-gradient(circle at 50% 10%, #10261f 0%, #05070c 85%); }
+body.theme-solar { background: radial-gradient(circle at 50% 10%, #171838 0%, #05070c 85%); }
+body.theme-fire { background: radial-gradient(circle at 50% 10%, #281212 0%, #05070c 85%); }
+
+* {
+  box-sizing: border-box;
+}
+
+/* ================= MOBILE APP SHELL ================= */
+
+.mobile-app-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  background: var(--bg-app);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+  padding: 1.25rem 1rem env(safe-area-inset-bottom);
+}
+
+.page {
+  display: none;
+  opacity: 0;
+  width: 100%;
+  flex-grow: 1;
+}
+
+.page.active {
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  animation: mobileFadeIn 0.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@keyframes mobileFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================= MOBILE TOP APP BAR ================= */
+
+.mobile-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+  gap: 0.5rem;
+}
+
+.icon-btn-round {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.icon-btn-round:active {
+  transform: var(--touch-scale);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.bar-title-box {
+  text-align: center;
+  flex: 1;
+}
+
+.bar-subtitle {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-gold);
+}
+
+body.theme-chess .bar-subtitle { color: var(--accent-green); }
+body.theme-solar .bar-subtitle { color: var(--accent-indigo); }
+body.theme-fire .bar-subtitle { color: var(--accent-red); }
+
+.bar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* ================= MAIN HOME SCREEN ================= */
+
+.app-home-header {
+  text-align: center;
+  padding: 1.5rem 0 1.25rem;
+}
+
+.app-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.app-logo {
+  font-size: 2.4rem;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(16, 185, 129, 0.25));
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.app-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 2x2 App Grid */
+.app-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.app-launch-card {
+  appearance: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.app-launch-card:active {
+  transform: var(--touch-scale);
+  background: var(--bg-card-active);
+}
+
+.flappy-card { border-bottom: 3px solid var(--accent-gold); }
+.chess-card { border-bottom: 3px solid var(--accent-green); }
+.solar-card { border-bottom: 3px solid var(--accent-indigo); }
+.fire-card { border-bottom: 3px solid var(--accent-red); }
+
+.card-thumb {
+  width: 100%;
+  aspect-ratio: 1/1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.6rem;
+}
+
+.card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Flappy thumbnail inside card */
+.mini-sky {
+  position: absolute;
+  inset: 0;
+  bottom: 14px;
+  background: linear-gradient(to bottom, #4ec0ca, #70c5ce);
+}
+.mini-ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 14px;
+  background: #ded895;
+  border-top: 3px solid #73bf2e;
+}
+.mini-pipe {
+  position: absolute;
+  width: 24px;
+  background: #73bf2e;
+  border: 2px solid #558022;
+}
+.mini-pipe.p-top { top: 0; right: 28%; height: 42px; }
+.mini-pipe.p-bot { bottom: 0; right: 28%; height: 35px; }
+.mini-bird {
+  position: absolute;
+  font-size: 1.4rem;
+  top: 42%;
+  left: 28%;
+}
+
+/* Chess thumbnail inside card */
+.chess-thumb {
+  background: #1e293b;
+}
+.mini-chess-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  width: 75%;
+  height: 75%;
+  border: 2px solid #475569;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mini-chess-preview .sq {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+}
+.mini-chess-preview .sq-w { background: #eeeed2; color: #1e293b; }
+.mini-chess-preview .sq-b { background: #769656; color: #f8fafc; }
+
+.card-meta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.card-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+}
+
+.card-meta h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.app-footer-bar {
+  margin-top: auto;
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+/* ================= GAME STAGE & FULLSCREEN BUTTONS ================= */
+
+.mobile-stage-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  flex: 1;
+}
+
+/* Action Bar Below Game Screen */
+.mobile-bottom-actions {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.mobile-btn {
+  appearance: none;
+  font-family: var(--font-main);
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0.75rem 1.4rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  flex: 1;
+  max-width: 200px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.mobile-btn:active {
+  transform: var(--touch-scale);
+}
+
+.btn-fullscreen {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-reset {
+  background: #10b981;
+  color: #042f2e;
+  border-color: #34d399;
+}
+
+.mobile-stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  font-family: var(--font-arcade);
+  font-size: 0.78rem;
+  color: var(--accent-gold);
+}
+
+.pill-label { color: var(--text-muted); font-size: 0.7rem; }
+
+/* Fullscreen Mode State */
+.mobile-stage-container.fullscreen-active,
+.mobile-stage-container:fullscreen,
+.mobile-stage-container:-webkit-full-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  overflow: hidden;
+  background: #000;
+}
+
+body.android-fullscreen {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body.android-fullscreen .page.active {
+  transform: none !important;
+  animation: none !important;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-bottom-actions {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: 12px;
+  z-index: 30;
+  width: auto;
+  margin: 0;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-bottom-actions > :not(.btn-fullscreen) {
+  display: none;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-bottom-actions .btn-fullscreen {
+  flex: none;
+  width: auto;
+  max-width: none;
+}
+
+/* ================= FLAPPY BIRD STYLING ================= */
+
+.arcade-cabinet {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  height: 520px;
+  background: #000;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 24px rgba(245, 158, 11, 0.25);
+  border: 2px solid rgba(245, 158, 11, 0.7);
+  touch-action: manipulation;
+}
+
+.mobile-stage-container.fullscreen-active .arcade-cabinet {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+#flappy-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.flappy-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 12, 19, 0.85);
+  backdrop-filter: blur(4px);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+  z-index: 20;
+}
+
+.flappy-overlay.active {
+  display: flex;
+}
+
+.retro-title {
+  font-family: var(--font-arcade);
+  font-size: 1.4rem;
+  color: #facc15;
+  text-shadow: 2px 2px #b45309, 0 0 12px rgba(245, 158, 11, 0.8);
+  margin-bottom: 1.2rem;
+}
+
+.bird-avatar-anim {
+  font-size: 3rem;
+  margin-bottom: 1.2rem;
+  animation: birdBounce 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes birdBounce {
+  from { transform: translateY(-4px); }
+  to { transform: translateY(6px); }
+}
+
+.instructions-pill {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-full);
+  margin-bottom: 1.5rem;
+}
+
+.arcade-btn {
+  font-family: var(--font-arcade);
+  font-size: 0.85rem;
+  background: #f59e0b;
+  color: #000;
+  padding: 0.85rem 1.6rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: 0 4px #b45309;
+}
+
+.arcade-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px #b45309;
+}
+
+.retro-gameover {
+  font-family: var(--font-arcade);
+  font-size: 1.45rem;
+  color: #ef4444;
+  text-shadow: 2px 2px #7f1d1d, 0 0 15px rgba(239, 68, 68, 0.6);
+  margin-bottom: 1.2rem;
+}
+
+.score-board {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.75rem;
+  width: 100%;
+  max-width: 240px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-arcade);
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.score-row .score-num {
+  font-size: 1.15rem;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* ================= CHESS STYLING (FILLED SOLID PIECES) ================= */
+
+.mobile-chess-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+}
+
+.chess-turn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 0.82rem;
+  border: 1px solid var(--border-light);
+}
+
+.chess-turn-pill .turn-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.chess-turn-pill.white-turn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+.chess-turn-pill.white-turn .turn-dot {
+  background: #ffffff;
+  box-shadow: 0 0 8px #ffffff;
+}
+
+.chess-turn-pill.black-turn {
+  background: rgba(15, 23, 42, 0.9);
+  color: #94a3b8;
+}
+.chess-turn-pill.black-turn .turn-dot {
+  background: #1e293b;
+  border: 1px solid #94a3b8;
+}
+
+.chess-move-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  padding: 0.35rem 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+}
+
+.board-frame {
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 1/1;
+  background: #2a2824;
+  border: 5px solid #1c1a17;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.7);
+}
+
+.mobile-stage-container.fullscreen-active .board-frame {
+  width: min(100%, calc(100dvh - 150px));
+  max-width: none;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-hint-box {
+  display: none;
+}
+
+.chessboard-grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+}
+
+.chess-square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chess-square.sq-w { background-color: #eeeed2; }
+.chess-square.sq-b { background-color: #769656; }
+
+/* Selected square */
+.chess-square.selected {
+  background-color: #f7ec59 !important;
+}
+
+/* Last move square */
+.chess-square.last-move {
+  background-color: rgba(245, 246, 130, 0.6) !important;
+}
+
+/* Valid move target dots */
+.chess-square.valid-move::after {
+  content: '';
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Valid capture target ring */
+.chess-square.valid-capture::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 3px solid rgba(0, 0, 0, 0.32);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Solid Filled Vector Chess Piece */
+.chess-piece {
+  width: 90%;
+  height: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+  transition: transform 0.1s ease;
+}
+
+.chess-piece svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chess-square:active .chess-piece {
+  transform: scale(0.92);
+}
+
+/* Captured Trays */
+.captured-tray {
+  width: 100%;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-xs);
+  overflow-x: auto;
+  font-size: 1.15rem;
+  margin: 0.2rem 0;
+}
+
+.captured-tray svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mobile-hint-box {
+  width: 100%;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin-top: 0.35rem;
+}
+
+/* ================= DRAWING PAGES (SOLAR, FIRE) ================= */
+
+.mobile-drawing-frame {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 4/3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-light);
+  background: #000;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-drawing-frame {
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  flex: 1;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
+
+.art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.doodle-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  z-index: 5;
+  touch-action: none;
+}
+
+.mobile-palette-bar {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: center;
+}
+
+.color-palette {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--c);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.color-swatch.active {
+  border-color: #fff;
+  transform: scale(1.15);
+  box-shadow: 0 0 10px var(--c);
+}
+
+/* ================= SOUND TOGGLE ================= */
+
+.sound-toggle {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  transition: transform var(--transition-fast);
+}
+
+.sound-toggle:active {
+  transform: var(--touch-scale);
+}

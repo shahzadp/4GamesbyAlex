@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>4 Games by Alex</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body class="theme-main">
+
+  <div class="mobile-app-shell">
+    <!-- ================= MAIN PAGE (HOME SCREEN) ================= -->
+    <section id="page-main" class="page active" data-page="main">
+      <header class="app-home-header">
+        <div class="app-brand">
+          <div class="app-logo">🎮</div>
+          <h1 class="app-title">4 Games by Alex</h1>
+        </div>
+      </header>
+
+      <!-- 2x2 Mobile App Grid -->
+      <div class="app-grid-2x2">
+        <!-- Card 1: Flappy Bird -->
+        <button class="app-launch-card flappy-card" data-target="flappy">
+          <div class="card-thumb">
+            <div class="mini-sky">
+              <div class="mini-pipe p-top"></div>
+              <div class="mini-pipe p-bot"></div>
+              <div class="mini-bird">🐦</div>
+            </div>
+            <div class="mini-ground"></div>
+          </div>
+          <div class="card-meta">
+            <span class="card-badge">01</span>
+            <h2>Flappy Bird</h2>
+          </div>
+        </button>
+
+        <!-- Card 2: Chess -->
+        <button class="app-launch-card chess-card" data-target="chess">
+          <div class="card-thumb chess-thumb">
+            <div class="mini-chess-preview">
+              <span class="sq sq-w">♞</span><span class="sq sq-b">♟</span>
+              <span class="sq sq-b">♙</span><span class="sq sq-w">♜</span>
+            </div>
+          </div>
+          <div class="card-meta">
+            <span class="card-badge">02</span>
+            <h2>Chess</h2>
+          </div>
+        </button>
+
+        <!-- Card 3: Solar System -->
+        <button class="app-launch-card solar-card" data-target="solar">
+          <div class="card-thumb">
+            <img src="images/solar_system.jpg" alt="Solar System" loading="lazy">
+          </div>
+          <div class="card-meta">
+            <span class="card-badge">03</span>
+            <h2>Cosmic Orbit</h2>
+          </div>
+        </button>
+
+        <!-- Card 4: Fire -->
+        <button class="app-launch-card fire-card" data-target="fire">
+          <div class="card-thumb">
+            <img src="images/fire.jpg" alt="Fire" loading="lazy">
+          </div>
+          <div class="card-meta">
+            <span class="card-badge">04</span>
+            <h2>Dancing Flame</h2>
+          </div>
+        </button>
+      </div>
+
+      <footer class="app-footer-bar">
+        <span>4 Games by Alex &bull; Touch & Play</span>
+      </footer>
+    </section>
+
+    <!-- ================= PAGE 1: FLAPPY BIRD ================= -->
+    <section id="page-flappy" class="page" data-page="flappy">
+      <!-- Mobile Top App Bar -->
+      <header class="mobile-top-bar">
+        <button class="icon-btn-round" data-back title="Back to home">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="bar-title-box">
+          <span class="bar-subtitle">Mini Game 01</span>
+          <h2 class="bar-title">Flappy Bird</h2>
+        </div>
+        <button class="icon-btn-round nav-quick-btn" data-target="chess" title="Next: Chess">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </header>
+
+      <!-- Game Stage -->
+      <div class="mobile-stage-container" id="stage-flappy">
+        <div class="arcade-cabinet">
+          <canvas id="flappy-canvas" width="360" height="520"></canvas>
+          
+          <!-- Start Screen Overlay -->
+          <div id="flappy-start-screen" class="flappy-overlay active">
+            <div class="retro-title">FLAPPY BIRD</div>
+            <div class="bird-avatar-anim">🐦</div>
+            <p class="instructions-pill">Tap screen to flap</p>
+            <button id="btn-start-flappy" class="arcade-btn">TAP TO FLY</button>
+          </div>
+
+          <!-- Game Over Screen Overlay -->
+          <div id="flappy-gameover-screen" class="flappy-overlay">
+            <div class="retro-gameover">GAME OVER</div>
+            <div class="score-board">
+              <div class="score-row">
+                <span>SCORE</span>
+                <span id="flappy-final-score" class="score-num">0</span>
+              </div>
+              <div class="score-row">
+                <span>BEST</span>
+                <span id="flappy-best-score" class="score-num">0</span>
+              </div>
+            </div>
+            <button id="btn-restart-flappy" class="arcade-btn">PLAY AGAIN</button>
+          </div>
+        </div>
+
+        <!-- Fullscreen & Action Toolbar Below Game Screen -->
+        <div class="mobile-bottom-actions">
+          <button class="mobile-btn btn-fullscreen" data-target-container="stage-flappy">
+            <span class="btn-icon">⛶</span> Fullscreen
+          </button>
+          <div class="mobile-stat-pill">
+            <span class="pill-label">BEST:</span>
+            <span class="pill-value" id="sidebar-high-score">0</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 2: CHESS ================= -->
+    <section id="page-chess" class="page" data-page="chess">
+      <!-- Mobile Top App Bar -->
+      <header class="mobile-top-bar">
+        <button class="icon-btn-round" data-back title="Back to home">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="bar-title-box">
+          <span class="bar-subtitle">Strategy 02</span>
+          <h2 class="bar-title">Chess</h2>
+        </div>
+        <button class="icon-btn-round nav-quick-btn" data-target="solar" title="Next: Solar System">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </header>
+
+      <!-- Game Stage -->
+      <div class="mobile-stage-container" id="stage-chess">
+        <!-- Turn Status Indicator -->
+        <div class="mobile-chess-header">
+          <div id="chess-turn-pill" class="chess-turn-pill white-turn">
+            <span class="turn-dot"></span>
+            <span id="turn-text">White to move</span>
+          </div>
+          <div class="chess-move-badge">
+            Move <span id="chess-move-count">0</span>
+          </div>
+        </div>
+
+        <!-- Captured Black pieces -->
+        <div class="captured-tray" id="captured-black"></div>
+
+        <!-- 8x8 Board -->
+        <div class="board-frame">
+          <div id="chessboard" class="chessboard-grid"></div>
+        </div>
+
+        <!-- Captured White pieces -->
+        <div class="captured-tray" id="captured-white"></div>
+
+        <!-- Fullscreen & Reset Buttons Below Game Screen -->
+        <div class="mobile-bottom-actions">
+          <button class="mobile-btn btn-fullscreen" data-target-container="stage-chess">
+            <span class="btn-icon">⛶</span> Fullscreen
+          </button>
+          <button id="btn-reset-chess" class="mobile-btn btn-reset">
+            <span class="btn-icon">🔄</span> Reset Board
+          </button>
+        </div>
+
+        <!-- Quick Hint Bar -->
+        <div class="mobile-hint-box">
+          <span>👑 Castling enabled &bull; Tap King then 2 squares over</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 3: SOLAR SYSTEM ================= -->
+    <section id="page-solar" class="page" data-page="solar">
+      <header class="mobile-top-bar">
+        <button class="icon-btn-round" data-back title="Back to home">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="bar-title-box">
+          <span class="bar-subtitle">Experience 03</span>
+          <h2 class="bar-title">Cosmic Orbit</h2>
+        </div>
+        <button class="icon-btn-round nav-quick-btn" data-target="fire" title="Next: Fire">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </header>
+
+      <div class="mobile-stage-container" id="stage-solar">
+        <div class="mobile-drawing-frame">
+          <img src="images/solar_system.jpg" alt="Solar System" class="art-img" id="img-solar">
+          <canvas class="doodle-canvas" id="doodle-solar"></canvas>
+        </div>
+
+        <div class="mobile-bottom-actions">
+          <button class="mobile-btn btn-fullscreen" data-target-container="stage-solar">
+            <span class="btn-icon">⛶</span> Fullscreen
+          </button>
+          <button class="mobile-btn clear-doodle-btn">
+            <span class="btn-icon">🧹</span> Clear Sketch
+          </button>
+        </div>
+
+        <div class="mobile-palette-bar">
+          <div class="color-palette" data-target-canvas="doodle-solar">
+            <button class="color-swatch active" style="--c: #818cf8;" data-color="#818cf8"></button>
+            <button class="color-swatch" style="--c: #38bdf8;" data-color="#38bdf8"></button>
+            <button class="color-swatch" style="--c: #f43f5e;" data-color="#f43f5e"></button>
+            <button class="color-swatch" style="--c: #facc15;" data-color="#facc15"></button>
+            <button class="color-swatch" style="--c: #ffffff;" data-color="#ffffff"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 4: FIRE ================= -->
+    <section id="page-fire" class="page" data-page="fire">
+      <header class="mobile-top-bar">
+        <button class="icon-btn-round" data-back title="Back to home">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="bar-title-box">
+          <span class="bar-subtitle">Experience 04</span>
+          <h2 class="bar-title">Dancing Flames</h2>
+        </div>
+        <button class="icon-btn-round nav-quick-btn" data-target="flappy" title="To Start: Flappy Bird">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </header>
+
+      <div class="mobile-stage-container" id="stage-fire">
+        <div class="mobile-drawing-frame">
+          <img src="images/fire.jpg" alt="Fire" class="art-img" id="img-fire">
+          <canvas class="doodle-canvas" id="doodle-fire"></canvas>
+        </div>
+
+        <div class="mobile-bottom-actions">
+          <button class="mobile-btn btn-fullscreen" data-target-container="stage-fire">
+            <span class="btn-icon">⛶</span> Fullscreen
+          </button>
+          <button class="mobile-btn clear-doodle-btn">
+            <span class="btn-icon">🧹</span> Clear Sketch
+          </button>
+        </div>
+
+        <div class="mobile-palette-bar">
+          <div class="color-palette" data-target-canvas="doodle-fire">
+            <button class="color-swatch active" style="--c: #ff5722;" data-color="#ff5722"></button>
+            <button class="color-swatch" style="--c: #ffb300;" data-color="#ffb300"></button>
+            <button class="color-swatch" style="--c: #ff1744;" data-color="#ff1744"></button>
+            <button class="color-swatch" style="--c: #fff59d;" data-color="#fff59d"></button>
+            <button class="color-swatch" style="--c: #ffffff;" data-color="#ffffff"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Audio Tone Synthesizer Toggle -->
+  <button id="sound-toggle" class="sound-toggle" title="Toggle Sound">
+    <span class="sound-icon">🔊</span>
+  </button>
+
+  <script src="app.js"></script>
+</body>
+</html>
