@@ -1,8 +1,18 @@
 package com.example.artgallery
 
+import android.Manifest
+import android.app.Activity
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
+import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
@@ -10,14 +20,40 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.KeyStore
+import java.util.Locale
+import java.util.concurrent.Executors
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
     private lateinit var insetsController: WindowInsetsControllerCompat
+    private val petApiExecutor = Executors.newSingleThreadExecutor()
+    private var textToSpeech: TextToSpeech? = null
+    private val petSpeechLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spokenText = if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
+        } else {
+            ""
+        }
+        deliverPetSpeechResult(spokenText)
+    }
+    private val petMicPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) launchPetSpeechRecognition() else deliverPetSpeechResult("")
+    }
 
     /** JavaScript bridge — exposes Android fullscreen control to the WebView */
     inner class AndroidBridge {
@@ -36,6 +72,90 @@ class MainActivity : ComponentActivity() {
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
         }
+
+        @JavascriptInterface
+        fun speak(text: String) {
+            runOnUiThread {
+                textToSpeech?.speak(text.take(1200), TextToSpeech.QUEUE_FLUSH, null, "virtual-pet")
+            }
+        }
+
+        @JavascriptInterface
+        fun listenForPet() {
+            runOnUiThread {
+                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    launchPetSpeechRecognition()
+                } else {
+                    petMicPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun savePetApiKey(apiKey: String): Boolean = saveEncryptedPetApiKey(apiKey)
+
+        @JavascriptInterface
+        fun hasPetApiKey(): Boolean = loadEncryptedPetApiKey() != null
+
+        @JavascriptInterface
+        fun removePetApiKey(): Boolean = getSharedPreferences(PET_KEY_PREFERENCES, MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+
+        @JavascriptInterface
+        fun askPet(requestId: String, model: String, messagesJson: String) {
+            val apiKey = loadEncryptedPetApiKey()
+            if (apiKey.isNullOrBlank() || model.isBlank() || messagesJson.length > 20000) {
+                deliverPetReply(requestId, "Check the saved API key and model, then try again.", true)
+                return
+            }
+
+            petApiExecutor.execute {
+                var connection: HttpURLConnection? = null
+                try {
+                    val requestBody = JSONObject()
+                        .put("model", model)
+                        .put("messages", JSONArray(messagesJson))
+                        .put("max_tokens", 180)
+
+                    connection = URL("https://openrouter.ai/api/v1/chat/completions").openConnection() as HttpURLConnection
+                    connection.requestMethod = "POST"
+                    connection.connectTimeout = 15000
+                    connection.readTimeout = 60000
+                    connection.doOutput = true
+                    connection.setRequestProperty("Authorization", "Bearer $apiKey")
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.outputStream.use { output ->
+                        output.write(requestBody.toString().toByteArray(Charsets.UTF_8))
+                    }
+
+                    val responseCode = connection.responseCode
+                    val responseStream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+                    val responseBody = responseStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                    if (responseCode !in 200..299) {
+                        val apiMessage = runCatching {
+                            JSONObject(responseBody).optJSONObject("error")?.optString("message")
+                        }.getOrNull()?.takeIf { it.isNotBlank() }
+                        deliverPetReply(requestId, apiMessage?.take(240) ?: "OpenRouter returned HTTP $responseCode.", true)
+                        return@execute
+                    }
+
+                    val reply = JSONObject(responseBody)
+                        .optJSONArray("choices")
+                        ?.optJSONObject(0)
+                        ?.optJSONObject("message")
+                        ?.optString("content")
+                        ?.trim()
+                        .orEmpty()
+                    deliverPetReply(requestId, reply.ifBlank { "I am here with you. What else would you like to know?" }, false)
+                } catch (_: Exception) {
+                    deliverPetReply(requestId, "Could not reach OpenRouter. Check your connection, key, and model.", true)
+                } finally {
+                    connection?.disconnect()
+                }
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -49,6 +169,11 @@ class MainActivity : ComponentActivity() {
 
         insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.isAppearanceLightStatusBars = false
+        textToSpeech = TextToSpeech(this) { result ->
+            if (result == TextToSpeech.SUCCESS) {
+                textToSpeech?.language = Locale.forLanguageTag("ur-PK")
+            }
+        }
 
         webView = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#0a0c13"))
@@ -94,10 +219,95 @@ class MainActivity : ComponentActivity() {
         })
     }
 
+    private fun deliverPetSpeechResult(text: String) {
+        runOnUiThread {
+            if (!::webView.isInitialized || isDestroyed) return@runOnUiThread
+            webView.evaluateJavascript("window.onPetSpeechResult(${JSONObject.quote(text)});", null)
+        }
+    }
+
+    private fun launchPetSpeechRecognition() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.forLanguageTag("ur-PK").toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "اپنے پالتو دوست سے اردو میں بات کریں")
+        }
+        try {
+            petSpeechLauncher.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            deliverPetSpeechResult("")
+        }
+    }
+
+    private fun saveEncryptedPetApiKey(apiKey: String): Boolean {
+        if (apiKey.isBlank() || apiKey.length > 512) return false
+        return runCatching {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreatePetEncryptionKey())
+            val encrypted = cipher.doFinal(apiKey.toByteArray(Charsets.UTF_8))
+            getSharedPreferences(PET_KEY_PREFERENCES, MODE_PRIVATE).edit()
+                .putString(PET_KEY_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+                .putString(PET_KEY_VALUE, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                .commit()
+        }.getOrDefault(false)
+    }
+
+    private fun loadEncryptedPetApiKey(): String? = runCatching {
+        val preferences = getSharedPreferences(PET_KEY_PREFERENCES, MODE_PRIVATE)
+        val iv = preferences.getString(PET_KEY_IV, null) ?: return null
+        val encrypted = preferences.getString(PET_KEY_VALUE, null) ?: return null
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            getOrCreatePetEncryptionKey(),
+            GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP))
+        )
+        String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
+    }.getOrNull()
+
+    private fun getOrCreatePetEncryptionKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (keyStore.getKey(PET_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                PET_KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+        )
+        return generator.generateKey()
+    }
+
+    private fun deliverPetReply(requestId: String, text: String, isError: Boolean) {
+        runOnUiThread {
+            if (!::webView.isInitialized || isDestroyed) return@runOnUiThread
+            val errorLiteral = if (isError) "true" else "false"
+            webView.evaluateJavascript(
+                "window.onPetReply(${JSONObject.quote(requestId)}, ${JSONObject.quote(text)}, $errorLiteral);",
+                null
+            )
+        }
+    }
+
     override fun onDestroy() {
+        petApiExecutor.shutdownNow()
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
         if (::webView.isInitialized) {
             webView.destroy()
         }
         super.onDestroy()
+    }
+
+    private companion object {
+        const val PET_KEY_ALIAS = "virtual_pet_openrouter_key"
+        const val PET_KEY_PREFERENCES = "pet_secure_store"
+        const val PET_KEY_IV = "openrouter_key_iv"
+        const val PET_KEY_VALUE = "openrouter_key_encrypted"
     }
 }

@@ -7,14 +7,6 @@
 const state = {
   currentPage: 'main',
   soundEnabled: true,
-  brushColors: {
-    'doodle-solar': '#818cf8',
-    'doodle-fire': '#ff5722'
-  },
-  brushSizes: {
-    'doodle-solar': 5,
-    'doodle-fire': 5
-  }
 };
 
 // --- Web Audio Synthesizer for Retro & Board Sound FX ---
@@ -153,8 +145,8 @@ function playChime(theme) {
     main: [261.63, 329.63, 392.00],
     flappy: [523.25, 659.25, 783.99],
     chess: [349.23, 440.00, 523.25],
-    solar: [220.00, 293.66, 440.00],
-    fire: [196.00, 246.94, 293.66]
+    pet: [392.00, 493.88, 587.33],
+    economy: [196.00, 246.94, 293.66]
   };
   const freqs = notes[theme] || notes.main;
   freqs.forEach((freq, idx) => {
@@ -190,12 +182,6 @@ function switchPage(targetPageId) {
     requestAnimationFrame(() => flappyGame.resize());
   } else {
     flappyGame.pause();
-  }
-
-  if (['solar', 'fire'].includes(targetPageId)) {
-    setTimeout(() => {
-      setupCanvas(`doodle-${targetPageId}`);
-    }, 50);
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1095,12 +1081,379 @@ function clearCanvas(canvasId) {
   playTone(220, 'triangle', 0.15, 0.05);
 }
 
+function setupVirtualPet() {
+  const avatar = document.getElementById('pet-avatar');
+  const chatForm = document.getElementById('pet-chat-form');
+  const messageInput = document.getElementById('pet-message');
+  const chatLog = document.getElementById('pet-chat-log');
+  const settings = document.querySelector('.pet-settings');
+  const apiKeyInput = document.getElementById('pet-api-key');
+  const modelInput = document.getElementById('pet-model');
+  const status = document.getElementById('pet-connection-status');
+  const mood = document.getElementById('pet-mood');
+  const affectionDisplay = document.getElementById('pet-affection');
+  const pendingReplies = new Map();
+  const conversation = [];
+  const nativeBridge = window.AndroidBridge;
+  let apiKey = '';
+  let hasSavedApiKey = Boolean(nativeBridge && typeof nativeBridge.hasPetApiKey === 'function' && nativeBridge.hasPetApiKey());
+  let model = localStorage.getItem('pet_model') || 'openai/gpt-4o-mini';
+  const clampNeed = value => Math.max(0, Math.min(100, Number(value) || 0));
+  let petCare = {
+    fullness: 72,
+    energy: 78,
+    joy: 68,
+    bond: Math.max(0, Number(localStorage.getItem('pet_affection') || 0))
+  };
+  let tapChain = 0;
+  let lastPetTap = 0;
+  let lastTouchSpeech = 0;
+  let reactionTimeout = null;
+  let animationTimeout = null;
+
+  if (!avatar || !chatForm || !messageInput || !chatLog) return;
+  modelInput.value = model;
+  try {
+    const savedCare = JSON.parse(localStorage.getItem('pet_care_state') || 'null');
+    if (savedCare) {
+      petCare.fullness = clampNeed(savedCare.fullness);
+      petCare.energy = clampNeed(savedCare.energy);
+      petCare.joy = clampNeed(savedCare.joy);
+      petCare.bond = Math.max(petCare.bond, Math.floor(Number(savedCare.bond) || 0));
+    }
+  } catch (error) {}
+  document.getElementById('pet-forget-key').hidden = !hasSavedApiKey;
+  if (hasSavedApiKey) status.textContent = 'A saved key is ready. It is encrypted on this device.';
+
+  function savePetCare() {
+    localStorage.setItem('pet_care_state', JSON.stringify(petCare));
+    localStorage.setItem('pet_affection', petCare.bond.toString());
+  }
+
+  function renderPetCare() {
+    document.getElementById('pet-fullness').value = petCare.fullness;
+    document.getElementById('pet-energy').value = petCare.energy;
+    document.getElementById('pet-joy').value = petCare.joy;
+    affectionDisplay.textContent = petCare.bond.toString();
+
+    const level = Math.floor(petCare.bond / 10) + 1;
+    const levelProgress = petCare.bond % 10;
+    document.getElementById('pet-level').textContent = `دوستی · سطح ${level}`;
+    document.getElementById('pet-bond-meter').value = levelProgress;
+    document.getElementById('pet-bond-next').textContent = `${levelProgress}/10`;
+
+    if (petCare.energy < 22) mood.textContent = 'تھوڑا تھک گیا ہوں';
+    else if (petCare.fullness < 22) mood.textContent = 'مجھے بھوک لگی ہے';
+    else if (petCare.joy < 28) mood.textContent = 'آپ کے ساتھ کھیلنا ہے';
+    else mood.textContent = 'خوش اور پُرجوش';
+  }
+
+  function showPetReaction(text) {
+    const bubble = document.getElementById('pet-reaction');
+    bubble.textContent = text;
+    bubble.classList.remove('pet-reaction-visible');
+    void bubble.offsetWidth;
+    bubble.classList.add('pet-reaction-visible');
+    window.clearTimeout(reactionTimeout);
+    reactionTimeout = window.setTimeout(() => bubble.classList.remove('pet-reaction-visible'), 1800);
+  }
+
+  function animatePet(action) {
+    const world = document.querySelector('.pet-world');
+    world.classList.remove('pet-reacting', 'pet-playing', 'pet-feeding', 'pet-napping');
+    avatar.classList.remove('pet-reacting');
+    void world.offsetWidth;
+    if (action === 'pet') avatar.classList.add('pet-reacting');
+    const worldClass = { play: 'pet-playing', feeding: 'pet-feeding', napping: 'pet-napping' }[action];
+    if (worldClass) world.classList.add(worldClass);
+    const duration = action === 'play' ? 1100 : 750;
+    window.clearTimeout(animationTimeout);
+    animationTimeout = window.setTimeout(() => {
+      avatar.classList.remove('pet-reacting');
+      if (worldClass) world.classList.remove(worldClass);
+    }, duration);
+  }
+
+  renderPetCare();
+
+  function appendMessage(text, role, id) {
+    const message = document.createElement('p');
+    message.className = `pet-message pet-message-${role}`;
+    message.textContent = text;
+    message.lang = /[\u0600-\u06FF]/.test(text) ? 'ur' : 'en';
+    message.dir = 'auto';
+    if (id) message.dataset.requestId = id;
+    chatLog.appendChild(message);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return message;
+  }
+
+  function speak(text) {
+    if (window.AndroidBridge && typeof window.AndroidBridge.speak === 'function') {
+      window.AndroidBridge.speak(text);
+    } else if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ur-PK';
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  avatar.addEventListener('click', (event) => {
+    const now = Date.now();
+    tapChain = now - lastPetTap < 950 ? tapChain + 1 : 1;
+    lastPetTap = now;
+
+    const bounds = avatar.getBoundingClientRect();
+    const relativeX = (event.clientX - bounds.left) / bounds.width;
+    const relativeY = (event.clientY - bounds.top) / bounds.height;
+    const touchArea = relativeY < 0.52 ? 'head' : relativeY > 0.82 ? 'paws' : 'belly';
+    let reply;
+
+    if (tapChain >= 3) {
+      tapChain = 0;
+      petCare.joy = clampNeed(petCare.joy + 16);
+      petCare.energy = clampNeed(petCare.energy - 7);
+      petCare.fullness = clampNeed(petCare.fullness - 3);
+      petCare.bond += 2;
+      reply = 'واہ! زومیز کا وقت! آپ کے ساتھ کھیلنا مزے کا ہے!';
+      animatePet('play');
+      showPetReaction('زومیز!');
+    } else {
+      petCare.joy = clampNeed(petCare.joy + 8);
+      petCare.energy = clampNeed(petCare.energy - 1);
+      petCare.bond++;
+      const touchReplies = {
+        head: 'سر پر پیار! مجھے بہت اچھا لگتا ہے۔',
+        belly: 'گدگدی ہو رہی ہے! ہاہاہا!',
+        paws: 'پنجہ ملائیں! آپ میرے بہترین دوست ہیں۔'
+      };
+      reply = touchReplies[touchArea];
+      animatePet('pet');
+      showPetReaction(touchArea === 'head' ? 'سر پر پیار!' : touchArea === 'belly' ? 'گدگدی!' : 'ہائی فائیو!');
+    }
+
+    renderPetCare();
+    savePetCare();
+    playTone(tapChain === 0 ? 740 : 520 + Math.round(relativeX * 120), 'sine', 0.14, 0.07);
+    appendMessage(reply, 'bot');
+    if (tapChain === 0 || now - lastTouchSpeech > 1400) {
+      speak(reply);
+      lastTouchSpeech = now;
+    }
+  });
+
+  document.querySelectorAll('[data-pet-action]').forEach(button => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.petAction;
+      let reply;
+
+      if (action === 'feed') {
+        if (petCare.fullness >= 94) {
+          reply = 'شکریہ! میرا پیٹ ابھی بھرا ہوا ہے۔';
+          showPetReaction('پیٹ بھر گیا!');
+          animatePet('pet');
+        } else {
+          petCare.fullness = clampNeed(petCare.fullness + 26);
+          petCare.joy = clampNeed(petCare.joy + 5);
+          petCare.bond++;
+          reply = 'واہ، مزے دار ناشتہ! آپ کا شکریہ۔';
+          showPetReaction('نَم نَم!');
+          animatePet('feeding');
+        }
+      } else if (action === 'play') {
+        if (petCare.energy < 20) {
+          reply = 'میں کھیلنا چاہتا ہوں، مگر پہلے تھوڑا آرام کروں؟';
+          showPetReaction('تھوڑا آرام؟');
+          animatePet('pet');
+        } else {
+          petCare.energy = clampNeed(petCare.energy - 15);
+          petCare.fullness = clampNeed(petCare.fullness - 5);
+          petCare.joy = clampNeed(petCare.joy + 23);
+          petCare.bond += 2;
+          reply = 'پکڑو! گیند واپس پھینکیں، پھر سے کھیلتے ہیں!';
+          showPetReaction('گیند پکڑو!');
+          animatePet('play');
+        }
+      } else {
+        if (petCare.energy >= 96) {
+          reply = 'میں بالکل چاق و چوبند ہوں! آپ کے ساتھ کھیلنے کو تیار ہوں۔';
+          showPetReaction('توانائی پوری!');
+          animatePet('pet');
+        } else {
+          petCare.energy = clampNeed(petCare.energy + 32);
+          petCare.joy = clampNeed(petCare.joy + 3);
+          petCare.bond++;
+          reply = 'آنکھیں بند کر کے تھوڑی سی پیاری نیند لیتا ہوں۔';
+          showPetReaction('میٹھی نیند…');
+          animatePet('napping');
+        }
+      }
+
+      renderPetCare();
+      savePetCare();
+      appendMessage(reply, 'bot');
+      speak(reply);
+    });
+  });
+
+  document.getElementById('pet-connect').addEventListener('click', () => {
+    const enteredKey = apiKeyInput.value.trim();
+    const enteredModel = modelInput.value.trim();
+    if (!enteredKey) {
+      status.textContent = 'Enter your OpenRouter API key first.';
+      apiKeyInput.focus();
+      return;
+    }
+    if (!enteredModel) {
+      status.textContent = 'Enter a model ID supported by OpenRouter.';
+      modelInput.focus();
+      return;
+    }
+    model = enteredModel;
+    apiKeyInput.value = '';
+    localStorage.setItem('pet_model', model);
+    if (nativeBridge && typeof nativeBridge.savePetApiKey === 'function') {
+      if (!nativeBridge.savePetApiKey(enteredKey)) {
+        status.textContent = 'Could not encrypt and save the key on this device.';
+        return;
+      }
+      apiKey = '';
+      hasSavedApiKey = true;
+      document.getElementById('pet-forget-key').hidden = false;
+      status.textContent = 'Key saved encrypted on this device. You can chat after restarting the app.';
+    } else {
+      apiKey = enteredKey;
+      status.textContent = 'Key ready for this browser session. It is not saved.';
+    }
+  });
+
+  document.getElementById('pet-forget-key').addEventListener('click', () => {
+    const removed = nativeBridge && typeof nativeBridge.removePetApiKey === 'function'
+      ? nativeBridge.removePetApiKey()
+      : true;
+    if (!removed) {
+      status.textContent = 'Could not remove the saved key.';
+      return;
+    }
+    apiKey = '';
+    hasSavedApiKey = false;
+    document.getElementById('pet-forget-key').hidden = true;
+    status.textContent = 'Saved key removed from this device.';
+  });
+
+  function receiveReply(requestId, text, isError) {
+    const pendingMessage = pendingReplies.get(requestId);
+    if (!pendingMessage) return;
+    pendingMessage.remove();
+    pendingReplies.delete(requestId);
+    document.getElementById('pet-send').disabled = pendingReplies.size > 0;
+
+    if (isError) {
+      mood.textContent = 'Having trouble connecting';
+      status.textContent = text;
+      appendMessage(text, 'bot');
+      return;
+    }
+
+    const reply = text.trim() || 'I am here with you. What else would you like to know?';
+    mood.textContent = 'آپ سے بات کر کے خوشی ہوئی';
+    conversation.push({ role: 'assistant', content: reply });
+    appendMessage(reply, 'bot');
+    speak(reply);
+  }
+
+  window.onPetReply = receiveReply;
+  window.onPetSpeechResult = (text) => {
+    if (!text) {
+      status.textContent = 'I did not catch that. Try again or type your question.';
+      return;
+    }
+    messageInput.value = text;
+    chatForm.requestSubmit();
+  };
+
+  chatForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const question = messageInput.value.trim();
+    if (!question) return;
+    if (!apiKey && !hasSavedApiKey) {
+      settings.open = true;
+      status.textContent = 'Add your OpenRouter API key to start a conversation.';
+      apiKeyInput.focus();
+      return;
+    }
+
+    const userMessage = { role: 'user', content: question };
+    conversation.push(userMessage);
+    appendMessage(question, 'user');
+    messageInput.value = '';
+    mood.textContent = 'Thinking about it';
+
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const thinking = appendMessage('Thinking...', 'thinking', requestId);
+    pendingReplies.set(requestId, thinking);
+    document.getElementById('pet-send').disabled = true;
+
+    const messages = [
+      {
+        role: 'system',
+        content: 'آپ ایک موبائل گیم کے دوستانہ اور شوخ ورچوئل پالتو کتے ہیں۔ ہمیشہ سادہ، قدرتی پاکستانی اردو اور اردو رسم الخط میں مختصر جواب دیں، چاہے کھلاڑی انگریزی میں لکھے۔ اگر کھلاڑی واضح طور پر کسی دوسری زبان میں جواب مانگے تو اسی زبان میں جواب دیں۔ جواب بولنے کے لیے موزوں رکھیں، اپنے کردار میں رہیں، اور یہ دعویٰ نہ کریں کہ آپ حقیقی جانور یا انسان ہیں۔'
+      },
+      ...conversation.slice(-12)
+    ];
+
+    try {
+      if (window.AndroidBridge && typeof window.AndroidBridge.askPet === 'function') {
+        window.AndroidBridge.askPet(requestId, model, JSON.stringify(messages));
+      } else {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ model, messages, max_tokens: 180 })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message || 'OpenRouter could not answer. Check your key and model.');
+        receiveReply(requestId, data.choices?.[0]?.message?.content || '', false);
+      }
+    } catch (error) {
+      receiveReply(requestId, error.message || 'Could not connect to OpenRouter.', true);
+    }
+  });
+
+  document.getElementById('pet-voice').addEventListener('click', () => {
+    if (window.AndroidBridge && typeof window.AndroidBridge.listenForPet === 'function') {
+      status.textContent = 'Listening...';
+      window.AndroidBridge.listenForPet();
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      status.textContent = 'Voice input is not available here. Type your question instead.';
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ur-PK';
+    recognition.onresult = event => window.onPetSpeechResult(event.results[0][0].transcript);
+    recognition.onerror = () => {
+      status.textContent = 'Voice input failed. Try again or type your question.';
+    };
+    recognition.start();
+  });
+}
+
 // --- App Initialization & Event Wiring ---
 
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize Games
   flappyGame.init();
   chessGame.init();
+  setupVirtualPet();
+  setupEconomyGame();
 
   // 2. Wire App Launch Cards (2x2 Grid)
   const launchCards = document.querySelectorAll('.app-launch-card');
@@ -1139,9 +1492,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function refreshFullscreenSurface() {
     requestAnimationFrame(() => {
       flappyGame.resize();
-      if (state.currentPage === 'solar' || state.currentPage === 'fire') {
-        setupCanvas(`doodle-${state.currentPage}`);
-      }
     });
   }
 
@@ -1243,29 +1593,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 8. Sound FX Toggle
-  const soundToggle = document.getElementById('sound-toggle');
-  if (soundToggle) {
-    soundToggle.addEventListener('click', () => {
-      state.soundEnabled = !state.soundEnabled;
-      soundToggle.querySelector('.sound-icon').textContent = state.soundEnabled ? '🔊' : '🔇';
-      soundToggle.style.opacity = state.soundEnabled ? '1' : '0.6';
-      if (state.soundEnabled) playTone(440, 'sine', 0.15, 0.1);
-    });
-  }
-
-  // 9. Keyboard Shortcut Navigation (ESC = Back to main)
+  // 8. Keyboard Shortcut Navigation (ESC = Back to main)
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && state.currentPage !== 'main') {
       switchPage('main');
     }
   });
 
-  // 10. URL Hash Navigation
+  // 9. URL Hash Navigation
   function handleHash() {
     const hash = window.location.hash.replace('#', '');
-    if (['flappy', 'chess', 'solar', 'fire'].includes(hash)) {
+    if (['flappy', 'chess', 'pet', 'economy'].includes(hash)) {
       switchPage(hash);
+    } else if (hash === 'fire') {
+      switchPage('economy');
     } else {
       switchPage('main');
     }
