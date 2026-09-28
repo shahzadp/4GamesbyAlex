@@ -101,6 +101,25 @@ function playFlapSound() {
   } catch(e) {}
 }
 
+function playBarkSound() {
+  if (!state.soundEnabled) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(680, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(340, ctx.currentTime + 0.09);
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.09);
+  } catch (e) {}
+}
+
 function playScoreSound() {
   if (!state.soundEnabled) return;
   try {
@@ -1235,6 +1254,8 @@ function setupVirtualPet() {
 
     renderPetCare();
     savePetCare();
+    playBarkSound();
+    if (typeof window.barkDog === 'function') window.barkDog();
     playTone(tapChain === 0 ? 740 : 520 + Math.round(relativeX * 120), 'sine', 0.14, 0.07);
     appendMessage(reply, 'bot');
     if (tapChain === 0 || now - lastTouchSpeech > 1400) {

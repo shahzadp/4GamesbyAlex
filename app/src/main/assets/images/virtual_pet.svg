@@ -1,122 +1,416 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="100%" height="100%">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  viewBox="0 0 512 512"
+  width="512"
+  height="512"
+  role="img"
+  aria-label="Animated chibi puppy"
+  style="touch-action: manipulation; user-select: none;"
+>
   <defs>
-    <radialGradient id="bgGrad" cx="50%" cy="42%" r="72%" fx="50%" fy="42%">
-      <stop offset="0%" stop-color="#293d31" />
-      <stop offset="72%" stop-color="#1a2921" />
-      <stop offset="100%" stop-color="#111a16" />
-    </radialGradient>
-    <linearGradient id="tagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFD700" />
-      <stop offset="100%" stop-color="#FFA500" />
+    <linearGradient id="fur" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#E9A45F"/>
+      <stop offset="1" stop-color="#B96832"/>
     </linearGradient>
-    <filter id="shadowBlur" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="8" />
+    <linearGradient id="belly" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF4DD"/>
+      <stop offset="1" stop-color="#EFD8B8"/>
+    </linearGradient>
+    <linearGradient id="ear" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#82451F"/>
+      <stop offset="1" stop-color="#663317"/>
+    </linearGradient>
+    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="7"/>
     </filter>
+    <style>
+      :root {
+        --outline: #3A241A;
+      }
+
+      #dogRoot {
+        transform-box: fill-box;
+        transform-origin: center bottom;
+        animation: idleBob 3.1s ease-in-out infinite;
+        cursor: pointer;
+      }
+
+      #headGroup {
+        transform-box: fill-box;
+        transform-origin: 50% 95%;
+        animation: headSway 4.6s ease-in-out infinite;
+      }
+
+      #leftEar {
+        transform-box: fill-box;
+        transform-origin: 90% 15%;
+        animation: earLeft 3.1s ease-in-out infinite;
+      }
+
+      #rightEar {
+        transform-box: fill-box;
+        transform-origin: 10% 15%;
+        animation: earRight 3.1s ease-in-out infinite;
+      }
+
+      #tail {
+        transform-box: fill-box;
+        transform-origin: 86% 70%;
+        animation: tailWag 1.15s ease-in-out infinite;
+      }
+
+      #eyeL, #eyeR {
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+
+      #eyeL, #eyeR {
+        animation: blink 5.2s infinite;
+      }
+
+      #mouthOpen, #barkMarks {
+        opacity: 0;
+      }
+
+      #mouthSmile {
+        opacity: 1;
+      }
+
+      .barkBurst {
+        animation: barkPulse 420ms ease-out forwards;
+      }
+
+      .barkTilt {
+        animation: barkHead 650ms cubic-bezier(.18,.8,.28,1) forwards !important;
+      }
+
+      .barkBody {
+        animation: barkBounce 650ms cubic-bezier(.18,.8,.28,1) forwards !important;
+      }
+
+      .barkMouthOpen #mouthSmile {
+        opacity: 0;
+      }
+
+      .barkMouthOpen #mouthOpen {
+        opacity: 1;
+        transform-box: fill-box;
+        transform-origin: 50% 50%;
+        animation: mouthPop 650ms ease-in-out forwards;
+      }
+
+      .tapFlash {
+        animation: tapFlash 260ms ease-out forwards;
+      }
+
+      @keyframes idleBob {
+        0%,100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-6px) rotate(-0.6deg); }
+      }
+
+      @keyframes headSway {
+        0%, 100% { transform: rotate(-4deg); }
+        50% { transform: rotate(3deg); }
+      }
+
+      @keyframes earLeft {
+        0%,100% { transform: rotate(-1deg); }
+        50% { transform: rotate(4deg); }
+      }
+
+      @keyframes earRight {
+        0%,100% { transform: rotate(3deg); }
+        50% { transform: rotate(-5deg); }
+      }
+
+      @keyframes tailWag {
+        0%,100% { transform: rotate(-10deg); }
+        50% { transform: rotate(18deg); }
+      }
+
+      @keyframes blink {
+        0%, 91%, 94%, 100% { transform: scaleY(1); }
+        92.3%, 93% { transform: scaleY(0.08); }
+      }
+
+      @keyframes barkHead {
+        0% { transform: rotate(-4deg); }
+        22% { transform: rotate(10deg); }
+        46% { transform: rotate(-7deg); }
+        72% { transform: rotate(5deg); }
+        100% { transform: rotate(-4deg); }
+      }
+
+      @keyframes barkBounce {
+        0% { transform: translateY(0) scale(1); }
+        20% { transform: translateY(-10px) scale(1.025, .985); }
+        42% { transform: translateY(1px) scale(.985, 1.02); }
+        70% { transform: translateY(-4px) scale(1.01, .995); }
+        100% { transform: translateY(0) scale(1); }
+      }
+
+      @keyframes mouthPop {
+        0% { transform: translate(0, 0) scale(.55); }
+        20% { transform: translate(0, 0) scale(1.08); }
+        40%,100% { transform: translate(0, 0) scale(1); }
+      }
+
+      @keyframes barkPulse {
+        0% { opacity: 0; transform: scale(.6); }
+        20% { opacity: 1; transform: scale(1.08); }
+        100% { opacity: 0; transform: scale(1.18); }
+      }
+
+      @keyframes tapFlash {
+        0% { opacity: .35; transform: scale(.8); }
+        100% { opacity: 0; transform: scale(1.45); }
+      }
+
+      .outline {
+        stroke: var(--outline);
+        stroke-width: 7;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #dogRoot, #headGroup, #leftEar, #rightEar, #tail, #eyeL, #eyeR {
+          animation: none !important;
+        }
+      }
+    </style>
+
+    <radialGradient id="tapGlow">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="400" height="500" rx="30" fill="url(#bgGrad)" stroke="#53695a" stroke-opacity="0.65" stroke-width="2" />
-  <ellipse cx="200" cy="460" rx="90" ry="25" fill="#0a120d" opacity="0.7" filter="url(#shadowBlur)">
-    <animate attributeName="rx" values="90; 80; 90; 100; 90" dur="3s" repeatCount="indefinite" />
-    <animate attributeName="ry" values="25; 20; 25; 30; 25" dur="3s" repeatCount="indefinite" />
-  </ellipse>
-  <g>
-    <animateTransform attributeName="transform" type="translate" values="0 0; 0 -12; 0 0; 0 12; 0 0" dur="2.5s" repeatCount="indefinite" />
-    <g>
-      <animateTransform attributeName="transform" type="rotate" values="-10 240 400; 10 240 400; -10 240 400" dur="0.8s" repeatCount="indefinite" />
-      <path d="M 230 390 C 280 370, 350 380, 340 430 C 335 450, 300 460, 280 440 C 260 420, 250 410, 230 410 Z" fill="#F8C784" stroke="#D3834B" stroke-width="3" stroke-linejoin="round" />
-      <path d="M 340 430 C 335 450, 300 460, 280 440 C 290 425, 310 415, 325 420 C 335 425, 340 425, 340 430 Z" fill="#FFF5E1" stroke="#D3834B" stroke-width="3" stroke-linejoin="round" />
+
+  <!-- Ground shadow -->
+  <ellipse cx="256" cy="463" rx="91" ry="15" fill="#000" opacity=".12" filter="url(#softShadow)"/>
+
+  <!-- Entire interactive character -->
+  <g id="dogRoot" tabindex="0" aria-label="Tap puppy to bark">
+
+    <!-- Tap feedback -->
+    <circle id="tapFlash" cx="256" cy="252" r="116" fill="url(#tapGlow)" opacity="0" pointer-events="none"/>
+
+    <!-- Tail behind body -->
+    <g id="tail">
+      <path d="M321 356 C378 315, 438 326, 438 365 C438 398, 401 417, 369 389"
+            fill="url(#fur)" class="outline"/>
+      <path d="M385 340 C416 337, 428 353, 424 370" fill="none"
+            stroke="#F8D7AE" stroke-width="10" stroke-linecap="round" opacity=".7"/>
     </g>
-    <g id="legs">
-      <rect x="145" y="410" width="30" height="60" rx="15" fill="#F8C784" stroke="#D3834B" stroke-width="3" />
-      <ellipse cx="160" cy="470" rx="22" ry="12" fill="#FFF5E1" stroke="#D3834B" stroke-width="3" />
-      <rect x="225" y="410" width="30" height="60" rx="15" fill="#F8C784" stroke="#D3834B" stroke-width="3" />
-      <ellipse cx="240" cy="470" rx="22" ry="12" fill="#FFF5E1" stroke="#D3834B" stroke-width="3" />
+
+    <!-- Body -->
+    <g id="bodyGroup">
+      <path
+        d="M174 285
+           C159 318, 159 380, 175 424
+           C184 450, 211 456, 229 438
+           C243 425, 269 425, 283 438
+           C302 456, 330 450, 339 424
+           C355 380, 353 318, 338 285
+           C316 239, 196 239, 174 285 Z"
+        fill="url(#fur)" class="outline"
+      />
+
+      <!-- cream belly -->
+      <path
+        d="M221 300
+           C201 326, 203 385, 218 415
+           C228 434, 284 434, 294 415
+           C309 385, 311 326, 291 300
+           C272 275, 240 275, 221 300 Z"
+        fill="url(#belly)"
+      />
+
+      <!-- left leg -->
+      <path d="M184 380 C169 402, 167 441, 189 452 C207 460, 228 448, 227 425
+               L224 390 Z" fill="url(#fur)" class="outline"/>
+      <ellipse cx="200" cy="442" rx="26" ry="14" fill="#F7E1C2" class="outline"/>
+
+      <!-- right leg -->
+      <path d="M288 390 L285 425 C284 448, 305 460, 323 452
+               C345 441, 343 402, 328 380 Z" fill="url(#fur)" class="outline"/>
+      <ellipse cx="312" cy="442" rx="26" ry="14" fill="#F7E1C2" class="outline"/>
+
+      <!-- little front paws -->
+      <path d="M184 311 C158 321, 155 353, 177 362 C196 370, 215 357, 215 337
+               C215 320, 201 306, 184 311 Z"
+            fill="#F7E1C2" class="outline"/>
+      <path d="M328 311 C354 321, 357 353, 335 362 C316 370, 297 357, 297 337
+               C297 320, 311 306, 328 311 Z"
+            fill="#F7E1C2" class="outline"/>
     </g>
-    <g id="body">
-      <ellipse cx="200" cy="360" rx="65" ry="80" fill="#F8C784" stroke="#D3834B" stroke-width="4" />
-      <ellipse cx="200" cy="370" rx="45" ry="60" fill="#FFF5E1" />
-    </g>
-    <g id="arms">
-      <rect x="130" y="330" width="25" height="55" rx="12.5" fill="#F8C784" stroke="#D3834B" stroke-width="3" />
-      <ellipse cx="142.5" cy="385" rx="16" ry="10" fill="#FFF5E1" stroke="#D3834B" stroke-width="3" />
-      <rect x="245" y="330" width="25" height="55" rx="12.5" fill="#F8C784" stroke="#D3834B" stroke-width="3" />
-      <ellipse cx="257.5" cy="385" rx="16" ry="10" fill="#FFF5E1" stroke="#D3834B" stroke-width="3" />
-    </g>
-    <g id="collar">
-      <rect x="140" y="295" width="120" height="18" rx="9" fill="#FF5E5E" stroke="#D32F2F" stroke-width="2" />
-      <g>
-        <animateTransform attributeName="transform" type="rotate" values="-8 200 320; 8 200 320; -8 200 320" dur="1.2s" repeatCount="indefinite" />
-        <circle cx="200" cy="320" r="14" fill="url(#tagGrad)" stroke="#B8860B" stroke-width="2" />
-        <circle cx="196" cy="316" r="4" fill="#FFFFFF" opacity="0.7" />
+
+    <!-- Head group, animated independently -->
+    <g id="headGroup">
+
+      <!-- ears -->
+      <g id="leftEar">
+        <path d="M121 128 C72 114, 62 186, 90 238 C107 270, 148 245, 156 211
+                 L170 158 C161 139, 143 131, 121 128 Z"
+              fill="url(#ear)" class="outline"/>
+        <path d="M105 151 C86 154, 88 199, 105 216" fill="none"
+              stroke="#A65B30" stroke-width="13" stroke-linecap="round" opacity=".55"/>
       </g>
-    </g>
-    <g id="head">
-      <animateTransform attributeName="transform" type="rotate" values="0 200 180; 2 200 180; 0 200 180; -2 200 180; 0 200 180" dur="4s" repeatCount="indefinite" />
-      <g id="ears">
-        <g>
-          <animateTransform attributeName="transform" type="rotate" values="-8 110 180; 8 110 180; -8 110 180" dur="1.8s" repeatCount="indefinite" />
-          <ellipse cx="110" cy="200" rx="35" ry="65" fill="#F8C784" stroke="#D3834B" stroke-width="4" transform="rotate(-15 110 200)" />
-          <ellipse cx="110" cy="200" rx="20" ry="45" fill="#E8A558" transform="rotate(-15 110 200)" />
-        </g>
-        <g>
-          <animateTransform attributeName="transform" type="rotate" values="8 290 180; -8 290 180; 8 290 180" dur="1.8s" repeatCount="indefinite" />
-          <ellipse cx="290" cy="200" rx="35" ry="65" fill="#F8C784" stroke="#D3834B" stroke-width="4" transform="rotate(15 290 200)" />
-          <ellipse cx="290" cy="200" rx="20" ry="45" fill="#E8A558" transform="rotate(15 290 200)" />
-        </g>
+
+      <g id="rightEar">
+        <path d="M390 128 C439 114, 449 186, 421 238 C404 270, 363 245, 355 211
+                 L341 158 C350 139, 368 131, 390 128 Z"
+              fill="url(#ear)" class="outline"/>
+        <path d="M406 151 C425 154, 423 199, 406 216" fill="none"
+              stroke="#A65B30" stroke-width="13" stroke-linecap="round" opacity=".55"/>
       </g>
-      <circle cx="200" cy="190" r="110" fill="#F8C784" stroke="#D3834B" stroke-width="4" />
-      <ellipse cx="200" cy="250" rx="65" ry="50" fill="#FFF5E1" stroke="#D3834B" stroke-width="3" />
-      <g id="eyes">
-        <ellipse cx="150" cy="180" rx="28" ry="34" fill="#FFFFFF" stroke="#D3834B" stroke-width="3">
-          <animate attributeName="ry" values="34; 34; 5; 34; 34" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </ellipse>
-        <circle cx="150" cy="185" r="20" fill="#4B9CD3">
-          <animate attributeName="r" values="20; 20; 2; 20; 20" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </circle>
-        <circle cx="150" cy="185" r="12" fill="#1A1A1A">
-          <animate attributeName="r" values="12; 12; 1; 12; 12" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </circle>
-        <circle cx="143" cy="176" r="7" fill="#FFFFFF">
-          <animate attributeName="r" values="7; 7; 0; 7; 7" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </circle>
-        <circle cx="157" cy="192" r="3" fill="#FFFFFF">
-          <animate attributeName="r" values="3; 3; 0; 3; 3" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </circle>
-        <ellipse cx="250" cy="180" rx="28" ry="34" fill="#FFFFFF" stroke="#D3834B" stroke-width="3">
-          <animate attributeName="ry" values="34; 34; 5; 34; 34" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </ellipse>
-        <circle cx="250" cy="185" r="20" fill="#4B9CD3">
-          <animate attributeName="r" values="20; 20; 2; 20; 20" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </circle>
-        <circle cx="250" cy="185" r="12" fill="#1A1A1A">
-          <animate attributeName="r" values="12; 12; 1; 12; 12" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </circle>
-        <circle cx="243" cy="176" r="7" fill="#FFFFFF">
-          <animate attributeName="r" values="7; 7; 0; 7; 7" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </circle>
-        <circle cx="257" cy="192" r="3" fill="#FFFFFF">
-          <animate attributeName="r" values="3; 3; 0; 3; 3" keyTimes="0; 0.4; 0.45; 0.5; 1" dur="4s" repeatCount="indefinite" />
-        </circle>
+
+      <!-- head -->
+      <path
+        d="M256 82
+           C185 80, 119 124, 113 202
+           C108 274, 159 320, 256 327
+           C353 320, 404 274, 399 202
+           C393 124, 327 80, 256 82 Z"
+        fill="url(#fur)" class="outline"
+      />
+
+      <!-- forehead patch -->
+      <path d="M236 95 C218 118, 215 150, 234 177 C242 188, 257 188, 264 173
+               C274 151, 274 115, 257 94 Z"
+            fill="#FFF4DF" opacity=".95"/>
+
+      <!-- cheek/muzzle -->
+      <ellipse cx="256" cy="244" rx="101" ry="68" fill="#F8E4C7"/>
+      <ellipse cx="202" cy="238" rx="45" ry="39" fill="#FFF0D9" opacity=".68"/>
+      <ellipse cx="310" cy="238" rx="45" ry="39" fill="#FFF0D9" opacity=".68"/>
+
+      <!-- eyes -->
+      <g id="eyeL">
+        <ellipse cx="197" cy="193" rx="41" ry="49" fill="#FFFDF8" class="outline"/>
+        <ellipse cx="201" cy="200" rx="24" ry="31" fill="#5A321D"/>
+        <ellipse cx="204" cy="201" rx="16" ry="23" fill="#17110E"/>
+        <circle cx="211" cy="188" r="6.5" fill="#FFF"/>
+        <circle cx="194" cy="211" r="3.2" fill="#FFF" opacity=".75"/>
       </g>
-      <path d="M 135 135 Q 150 125 165 135" fill="none" stroke="#8B5A2B" stroke-width="4" stroke-linecap="round" />
-      <path d="M 265 135 Q 250 125 235 135" fill="none" stroke="#8B5A2B" stroke-width="4" stroke-linecap="round" />
-      <g id="nose">
-        <ellipse cx="200" cy="235" rx="14" ry="10" fill="#2C2C2C" />
-        <ellipse cx="195" cy="232" rx="5" ry="3" fill="#FFFFFF" opacity="0.8" />
+
+      <g id="eyeR">
+        <ellipse cx="315" cy="193" rx="41" ry="49" fill="#FFFDF8" class="outline"/>
+        <ellipse cx="311" cy="200" rx="24" ry="31" fill="#5A321D"/>
+        <ellipse cx="308" cy="201" rx="16" ry="23" fill="#17110E"/>
+        <circle cx="301" cy="188" r="6.5" fill="#FFF"/>
+        <circle cx="318" cy="211" r="3.2" fill="#FFF" opacity=".75"/>
       </g>
-      <g id="mouth" transform="translate(200, 260)">
-        <g>
-          <animateTransform attributeName="transform" type="scale" values="1 1; 1 1.5; 1 1" dur="0.8s" repeatCount="indefinite" />
-          <ellipse cx="0" cy="0" rx="18" ry="10" fill="#2C2C2C" />
-          <path d="M -10 0 Q 0 15 10 0 Z" fill="#FF6B8B" />
-          <path d="M -5 3 Q 0 8 5 3" fill="none" stroke="#FFA3B5" stroke-width="2" stroke-linecap="round" />
-        </g>
+
+      <!-- eyebrows -->
+      <path d="M166 149 Q195 133 221 146" fill="none"
+            stroke="#8B4B27" stroke-width="10" stroke-linecap="round"/>
+      <path d="M291 146 Q317 133 346 149" fill="none"
+            stroke="#8B4B27" stroke-width="10" stroke-linecap="round"/>
+
+      <!-- nose -->
+      <path d="M235 232 Q256 216 277 232 L271 250 Q256 260 241 250 Z"
+            fill="#34251F" class="outline"/>
+      <ellipse cx="248" cy="233" rx="5" ry="3" fill="#FFF" opacity=".35"/>
+
+      <!-- smile -->
+      <g id="mouthSmile" fill="none" stroke="#3A241A" stroke-width="7" stroke-linecap="round">
+        <path d="M256 250 L256 260"/>
+        <path d="M256 260 C243 273, 224 270, 218 258"/>
+        <path d="M256 260 C269 273, 288 270, 294 258"/>
       </g>
-      <circle cx="115" cy="220" r="18" fill="#FF9E9E" opacity="0.5" />
-      <circle cx="285" cy="220" r="18" fill="#FF9E9E" opacity="0.5" />
-      <g>
-        <animateTransform attributeName="transform" type="rotate" values="-6 200 85; 6 200 85; -6 200 85" dur="1.2s" repeatCount="indefinite" />
-        <path d="M 180 85 Q 200 45 220 85 Q 210 75 200 80 Q 190 75 180 85" fill="#F8C784" stroke="#D3834B" stroke-width="3" stroke-linejoin="round" />
+
+      <!-- bark mouth -->
+      <g id="mouthOpen" transform="translate(0 0)" style="transform-box: fill-box; transform-origin: 50% 50%;">
+        <ellipse cx="256" cy="266" rx="34" ry="28" fill="#341C1A" class="outline"/>
+        <ellipse cx="256" cy="278" rx="20" ry="11" fill="#EA7568"/>
+        <path d="M240 251 Q256 259 272 251" fill="#FFF" opacity=".95"/>
+      </g>
+
+      <!-- nose highlight / cheek dots -->
+      <circle cx="174" cy="261" r="4" fill="#D98B67" opacity=".55"/>
+      <circle cx="185" cy="268" r="3" fill="#D98B67" opacity=".45"/>
+      <circle cx="338" cy="261" r="4" fill="#D98B67" opacity=".55"/>
+      <circle cx="327" cy="268" r="3" fill="#D98B67" opacity=".45"/>
+
+      <!-- Bark lines -->
+      <g id="barkMarks" stroke="#6B8FD6" stroke-width="8" stroke-linecap="round" fill="none">
+        <path d="M362 235 L388 225"/>
+        <path d="M366 255 L397 253"/>
+        <path d="M151 235 L125 225"/>
       </g>
     </g>
   </g>
+
+  <script><![CDATA[
+    (function () {
+      const root = document.getElementById('dogRoot');
+      const head = document.getElementById('headGroup');
+      const barkMarks = document.getElementById('barkMarks');
+      const tapFlash = document.getElementById('tapFlash');
+
+      function restartAnimation(el, cls) {
+        el.classList.remove(cls);
+        void el.getBoundingClientRect();
+        el.classList.add(cls);
+      }
+
+      function bark(sourceEvent) {
+        restartAnimation(root, 'barkBody');
+        restartAnimation(head, 'barkTilt');
+
+        root.classList.remove('barkMouthOpen');
+        void root.getBoundingClientRect();
+        root.classList.add('barkMouthOpen');
+
+        restartAnimation(barkMarks, 'barkBurst');
+        restartAnimation(tapFlash, 'tapFlash');
+
+        /*
+          Your app can listen for this custom event when the SVG is inline
+          in the DOM or in a WebView document.
+        */
+        const evt = new CustomEvent('dog:bark', {
+          bubbles: true,
+          detail: { type: 'bark', source: sourceEvent || 'unknown' }
+        });
+        root.dispatchEvent(evt);
+
+        /*
+          Optional bridge for WebViews / iframe-style embedding.
+          Replace "*" with your app's exact origin when practical.
+        */
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'dog:bark' }, '*');
+          }
+        } catch (_) {}
+
+        window.clearTimeout(bark._t);
+        bark._t = window.setTimeout(function () {
+          root.classList.remove('barkBody', 'barkMouthOpen');
+          head.classList.remove('barkTilt');
+          barkMarks.classList.remove('barkBurst');
+          tapFlash.classList.remove('tapFlash');
+        }, 700);
+      }
+
+      root.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        bark(e.pointerType || 'touch');
+      });
+
+      root.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          bark('keyboard');
+        }
+      });
+
+      // Public hook for app logic.
+      window.barkDog = bark;
+    })();
+  ]]></script>
 </svg>

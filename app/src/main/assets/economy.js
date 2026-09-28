@@ -52,7 +52,7 @@ function setupEconomyGame() {
       retired: 0,
       bankFailures: 0,
       history: [],
-      ledger: [{ day: 1, message: 'A new economy is ready. Start the simulation or adjust policy.', kind: 'system' }]
+      ledger: [{ day: 1, message: 'Big Economy simulator loaded. High labor population, segregated map. Press play to start the simulation.', kind: 'system' }]
     };
   }
 
@@ -291,7 +291,7 @@ function setupEconomyGame() {
       if (sim.goodMealDays >= 12 && sim.population < 70) {
         sim.population++;
         sim.goodMealDays = 0;
-        addLedger('A new household joined the workforce.', 'growth');
+        addLedger('A new household joined the Big Economy workforce.', 'growth');
       }
     } else {
       sim.missedMealDays++;
@@ -299,7 +299,7 @@ function setupEconomyGame() {
       if (sim.missedMealDays >= 3 && sim.population > 1) {
         sim.population--;
         sim.missedMealDays = 0;
-        addLedger('Food shortages reduced the workforce by one.', 'warning');
+        addLedger('Big Economy: food shortages reduced workforce by one.', 'warning');
       }
     }
 
@@ -463,7 +463,7 @@ function setupEconomyGame() {
 
   byId('econ-toggle').addEventListener('click', () => {
     sim.running = !sim.running;
-    addLedger(sim.running ? 'Simulation resumed.' : 'Simulation paused.', 'system');
+    addLedger(sim.running ? 'Big Economy simulation resumed.' : 'Big Economy simulation paused.', 'system');
     save();
     render();
   });
