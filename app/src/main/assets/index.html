@@ -453,7 +453,7 @@
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div class="bar-title-box">
-          <span class="bar-subtitle">Big Economy Sandbox</span>
+          <span class="bar-subtitle">Live economic sandbox</span>
           <h2 class="bar-title">Micro Economy</h2>
         </div>
         <button class="icon-btn-round nav-quick-btn" data-target="flappy" title="Next: Flappy Bird">
@@ -475,10 +475,6 @@
           </div>
         </div>
 
-        <div class="econ-big-map-banner" style="padding:0.7rem 0.9rem;background:#152920;border:1px solid #2a4f3a;border-radius:10px;margin-bottom:0.8rem;">
-  <h4 style="margin:0;color:#74d2a7;font-size:0.85rem;">Big Economy Map</h4>
-  <p style="margin:0.15rem 0 0;color:#8aa08e;font-size:0.72rem;">Segregated map loaded. High labor population. Units on random locations. Press Play.</p>
-</div>
 <div class="econ-kpi-grid">
           <div class="econ-kpi"><span>TREASURY</span><strong id="econ-treasury">$100.00</strong><small id="econ-money-change">Bank-backed</small></div>
           <div class="econ-kpi"><span>WORKFORCE</span><strong id="econ-population">19</strong><small id="econ-pop-change">Stable</small></div>
@@ -486,11 +482,11 @@
           <div class="econ-kpi"><span>TRADE FLOW</span><strong id="econ-volume">0</strong><small>transactions</small></div>
         </div>
 
-        <div class="econ-tabs" role="tablist" aria-label="Economy views">
-          <button class="econ-tab active" type="button" role="tab" aria-selected="true" data-econ-tab="market">Market</button>
-          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="trade">Trade</button>
-          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="policy">Policy</button>
-          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="ledger">Ledger</button>
+        <div class="econ-meters" aria-label="Supply health">
+          <label class="econ-meter"><span>Food supply<strong id="econ-food-meter">100%</strong></span><progress id="econ-food-bar" max="100" value="100"></progress></label>
+          <label class="econ-meter"><span>Labour pool<strong id="econ-labor-meter">100%</strong></span><progress id="econ-labor-bar" max="100" value="100"></progress></label>
+          <label class="econ-meter"><span>Household cash<strong id="econ-cash-meter">100%</strong></span><progress id="econ-cash-bar" max="100" value="100"></progress></label>
+        </div>
         </div>
 
         <section class="econ-panel active" id="econ-panel-market" role="tabpanel" data-econ-panel="market">
