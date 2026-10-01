@@ -1,0 +1,175 @@
+<svg id="touch-dog-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
+<defs>
+  <radialGradient id="furU" gradientUnits="userSpaceOnUse" cx="170" cy="330" r="270"><stop offset="0" stop-color="#f3c78f"/><stop offset="1" stop-color="#d9995a"/></radialGradient>
+  <radialGradient id="fur" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#f3c78f"/><stop offset="1" stop-color="#d9995a"/></radialGradient>
+  <radialGradient id="belly" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#fff3df"/><stop offset="1" stop-color="#f4d9b0"/></radialGradient>
+  <linearGradient id="ear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6703a"/><stop offset="1" stop-color="#7d4b22"/></linearGradient>
+</defs>
+<style>
+  svg{-webkit-tap-highlight-color:transparent}
+  .hit{cursor:pointer}
+  .ol{stroke:#4a2a14;stroke-width:4;stroke-linejoin:round;stroke-linecap:round}
+  #torso{transform-origin:200px 556px;animation:breathe 3s ease-in-out infinite}
+  #head{transform-origin:200px 292px;animation:bob 4s ease-in-out infinite}
+  #tail{transform-origin:282px 440px;animation:tail 2.4s ease-in-out infinite}
+  #eyes{transform-origin:200px 202px;animation:blink 4.5s infinite}
+  #pL,#pR{transition:transform .15s;animation:look 7s infinite}
+  #dog{transform-origin:200px 556px}
+  #earL{transform-origin:135px 150px}
+  #earR{transform-origin:265px 150px}
+  #mopen{opacity:0;transform-origin:200px 258px}
+  #noseG{transform-origin:200px 236px}
+  #brows{transform-origin:200px 170px}
+  #happy{opacity:0}
+  #bubble{opacity:0;transform-origin:314px 100px}
+  .heart{opacity:0;transform-box:fill-box;transform-origin:center}
+
+  @keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.022)}}
+  @keyframes bob{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
+  @keyframes tail{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(10deg)}}
+  @keyframes blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.08)}}
+  @keyframes look{0%,40%{transform:translate(0,0)}50%,70%{transform:translate(5px,-2px)}80%,100%{transform:translate(-4px,1px)}}
+  @keyframes pop{0%{opacity:0;transform:scale(.3)}15%{opacity:1;transform:scale(1.1)}25%{transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+  @keyframes chomp{0%,100%{opacity:1;transform:scaleY(.2)}50%{opacity:1;transform:scaleY(1)}}
+  .r #bubble{animation:pop 1s ease-out both}
+
+  /* 1 BARK */
+  @keyframes barkH{0%{transform:rotate(0)}15%{transform:rotate(-8deg) translateY(-6px)}30%{transform:rotate(5deg) translateY(4px) scale(1.05)}45%{transform:rotate(-6deg) translateY(-4px)}60%{transform:rotate(5deg) translateY(3px) scale(1.05)}80%{transform:rotate(0)}100%{transform:none}}
+  @keyframes recoil{50%{transform:scale(1.03,.97)}}
+  @keyframes browUp{0%,100%{transform:none}15%,75%{transform:translateY(-9px)}}
+  .bark #head{animation:barkH 1s ease-out}
+  .bark #torso{animation:recoil .33s 3}
+  .bark #mopen{animation:chomp .33s 3}
+  .bark #brows{animation:browUp 1s}
+
+  /* 2 GIGGLE */
+  @keyframes shake{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-4px) rotate(-1deg)}75%{transform:translateX(4px) rotate(1deg)}}
+  @keyframes squish{0%,100%{transform:scale(1,1)}50%{transform:scale(1.06,.94)}}
+  .giggle #dog{animation:shake .12s 8}
+  .giggle #torso{animation:squish .25s 4}
+  .giggle #mopen{animation:chomp .25s 4}
+  .giggle #eyes,.wag #eyes{opacity:0}
+  .giggle #happy,.wag #happy{opacity:1}
+  .giggle #brows,.wag #brows{animation:none;transform:translateY(-6px)}
+
+  /* 3 BOOP -> SNEEZE */
+  @keyframes boopH{0%{transform:none}10%{transform:translateY(8px) scale(.97)}40%{transform:translateY(-2px)}55%{transform:rotate(-6deg) translateY(-10px)}62%{transform:rotate(7deg) translateY(10px) scale(1.07)}80%{transform:rotate(-1deg)}100%{transform:none}}
+  @keyframes noseP{50%{transform:scale(1.35)}}
+  @keyframes sneezeM{0%,56%{opacity:0;transform:scaleY(.2)}62%,75%{opacity:1;transform:scaleY(1)}100%{opacity:0}}
+  @keyframes browSneeze{0%,100%{transform:none}10%,55%{transform:translateY(4px)}62%,80%{transform:translateY(-8px)}}
+  .boop #head{animation:boopH 1.6s ease-out}
+  .boop #noseG{animation:noseP .3s 3}
+  .boop #pL{animation:none;transform:translateX(7px)}
+  .boop #pR{animation:none;transform:translateX(-7px)}
+  .boop #mopen{animation:sneezeM 1.6s}
+  .boop #brows{animation:browSneeze 1.6s}
+  .boop #bubble{animation-delay:.6s}
+
+  /* 4 EAR FLAP */
+  @keyframes flapL{0%,100%{transform:rotate(0)}50%{transform:rotate(32deg)}}
+  @keyframes flapR{0%,100%{transform:rotate(0)}50%{transform:rotate(-32deg)}}
+  @keyframes hshake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}75%{transform:rotate(7deg)}}
+  .flap #earL{animation:flapL .15s 8}
+  .flap #earR{animation:flapR .15s 8}
+  .flap #head{animation:hshake .2s 6}
+
+  /* 5 TAIL WAG + HOP */
+  @keyframes wag{0%,100%{transform:rotate(-30deg)}50%{transform:rotate(30deg)}}
+  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px)}}
+  @keyframes floatH{0%{opacity:0;transform:translateY(0) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translateY(-70px) scale(1.2)}}
+  .wag #tail{animation:wag .12s 12}
+  .wag #dog{animation:hop .4s 3}
+  .wag #mopen{animation:chomp .5s 3}
+  .wag .heart{animation:floatH 1.4s ease-out both}
+</style>
+
+
+<!-- speech bubble -->
+<g id="bubble">
+  <path d="M252 30 H376 Q392 30 392 46 V74 Q392 90 376 90 H294 L268 118 L272 90 H252 Q236 90 236 74 V46 Q236 30 252 30Z" fill="#fff" stroke="#4a2a14" stroke-width="3" stroke-linejoin="round"/>
+  <text id="bubbleText" x="314" y="69" text-anchor="middle" font-size="24" font-weight="800" fill="#d2452b" font-family="'Comic Sans MS','Trebuchet MS',sans-serif">WOOF!</text>
+</g>
+
+<g id="dog">
+  <!-- tail -->
+  <g id="tail" class="hit">
+    <path class="ol" d="M282 440 Q352 436 340 352" fill="none" stroke-width="30"/>
+    <path d="M282 440 Q352 436 340 352" fill="none" stroke="#e2a566" stroke-width="22" stroke-linecap="round"/>
+    <path d="M282 440 Q352 436 340 352" fill="none" stroke="transparent" stroke-width="48" stroke-linecap="round"/>
+  </g>
+
+  <!-- body -->
+  <g id="torso" class="hit">
+    <!-- legs + feet -->
+    <rect class="ol" x="146" y="486" width="38" height="58" rx="16" fill="url(#fur)"/>
+    <rect class="ol" x="216" y="486" width="38" height="58" rx="16" fill="url(#fur)"/>
+    <ellipse class="ol" cx="158" cy="549" rx="30" ry="13" fill="#f6dcb6"/>
+    <ellipse class="ol" cx="242" cy="549" rx="30" ry="13" fill="#f6dcb6"/>
+    <path d="M142 546 V553 M156 546 V555 M170 547 V554 M230 547 V554 M244 546 V555 M258 546 V553" stroke="#4a2a14" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <!-- torso -->
+    <path class="ol" d="M200 286 C252 286 292 330 293 400 C294 460 280 506 252 514 L148 514 C120 506 106 460 107 400 C108 330 148 286 200 286Z" fill="url(#furU)"/>
+    <ellipse cx="200" cy="420" rx="56" ry="78" fill="url(#belly)"/>
+    <!-- arms: fill merges into torso at the shoulder; outline stays open there -->
+    <path d="M150 318 L133 319 C108 326 94 352 90 390 C88 414 86 432 88 446 L124 450 C124 420 128 392 142 366 C150 352 158 340 160 330Z" fill="url(#furU)"/>
+    <path d="M250 318 L267 319 C292 326 306 352 310 390 C312 414 314 432 312 446 L276 450 C276 420 272 392 258 366 C250 352 242 340 240 330Z" fill="url(#furU)"/>
+    <path class="ol" fill="none" d="M133 319 C108 326 94 352 90 390 C88 414 86 432 88 446 M124 450 C124 420 128 392 142 366"/>
+    <path class="ol" fill="none" d="M267 319 C292 326 306 352 310 390 C312 414 314 432 312 446 M276 450 C276 420 272 392 258 366"/>
+    <circle class="ol" cx="106" cy="452" r="20" fill="#f6dcb6"/>
+    <circle class="ol" cx="294" cy="452" r="20" fill="#f6dcb6"/>
+    <path d="M99 457 V464 M106 459 V467 M113 457 V464 M287 457 V464 M294 459 V467 M301 457 V464" stroke="#4a2a14" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    <!-- collar -->
+    <path d="M128 300 Q200 342 272 300" fill="none" stroke="#4a2a14" stroke-width="22" stroke-linecap="round"/>
+    <path d="M128 300 Q200 342 272 300" fill="none" stroke="#e0453a" stroke-width="15" stroke-linecap="round"/>
+    <circle class="ol" cx="200" cy="338" r="11" fill="#ffc83d" stroke-width="3"/>
+    <circle cx="196" cy="334" r="3" fill="#fff" opacity=".7"/>
+  </g>
+
+  <!-- head -->
+  <g id="head">
+    <g id="earL" class="hit"><path class="ol" d="M130 150 C100 136 70 160 68 202 C66 242 90 264 114 254 C134 246 144 202 144 166Z" fill="url(#ear)"/></g>
+    <g id="earR" class="hit"><path class="ol" d="M270 150 C300 136 330 160 332 202 C334 242 310 264 286 254 C266 246 256 202 256 166Z" fill="url(#ear)"/></g>
+    <g id="hz" class="hit">
+      <path class="ol" d="M200 128 C262 128 302 170 302 218 C302 268 258 304 200 304 C142 304 98 268 98 218 C98 170 138 128 200 128Z" fill="url(#fur)"/>
+      <path class="ol" d="M184 132 C186 112 198 110 201 126 C205 110 219 112 217 132" fill="url(#fur)" stroke-width="3.5"/>
+      <path d="M204 192 C208 160 262 158 278 190 C290 220 262 242 232 238 C208 234 201 214 204 192Z" fill="#b9803f"/>
+      <g id="eyes">
+        <ellipse class="ol" cx="162" cy="202" rx="21" ry="24" fill="#fff" stroke-width="3.5"/>
+        <ellipse class="ol" cx="238" cy="202" rx="21" ry="24" fill="#fff" stroke-width="3.5"/>
+        <g id="pL"><circle cx="165" cy="206" r="12" fill="#2b1b17"/><circle cx="170" cy="200" r="4.5" fill="#fff"/><circle cx="161" cy="211" r="2" fill="#fff"/></g>
+        <g id="pR"><circle cx="235" cy="206" r="12" fill="#2b1b17"/><circle cx="240" cy="200" r="4.5" fill="#fff"/><circle cx="231" cy="211" r="2" fill="#fff"/></g>
+      </g>
+      <g id="happy" fill="none" stroke="#2b1b17" stroke-width="5" stroke-linecap="round">
+        <path d="M142 208 Q162 184 182 208"/><path d="M218 208 Q238 184 258 208"/>
+      </g>
+      <g id="brows" fill="none" stroke="#3a2010" stroke-width="4.5" stroke-linecap="round">
+        <path d="M142 168 Q160 158 182 167"/><path d="M218 167 Q240 158 258 168"/>
+      </g>
+      <circle cx="132" cy="254" r="12" fill="#ff8fa3" opacity=".35"/>
+      <circle cx="268" cy="254" r="12" fill="#ff8fa3" opacity=".35"/>
+      <ellipse cx="200" cy="258" rx="54" ry="40" fill="#fbebd2" stroke="#c99a64" stroke-width="2.5"/>
+      <g fill="#c99a64"><circle cx="176" cy="250" r="1.8"/><circle cx="184" cy="254" r="1.8"/><circle cx="178" cy="259" r="1.8"/><circle cx="224" cy="250" r="1.8"/><circle cx="216" cy="254" r="1.8"/><circle cx="222" cy="259" r="1.8"/></g>
+      <path id="mclosed" d="M200 248 V259 M200 259 C192 273 174 273 168 261 M200 259 C208 273 226 273 232 261" stroke="#3a2010" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <g id="mopen">
+        <path d="M166 258 C190 254 210 254 234 258 C238 296 218 306 200 306 C182 306 162 296 166 258Z" fill="#5a1d22" stroke="#3a2010" stroke-width="3.5" stroke-linejoin="round"/>
+        <path d="M181 292 C186 276 214 276 219 292 C214 304 186 304 181 292Z" fill="#ff7d93"/>
+        <path d="M200 281 V294" stroke="#e0566f" stroke-width="2" stroke-linecap="round"/>
+      </g>
+    </g>
+    <g id="noseG" class="hit">
+      <path d="M179 228 C179 219 221 219 221 228 C221 241 209 249 200 249 C191 249 179 241 179 228Z" fill="#2b1b17"/>
+      <ellipse cx="192" cy="228" rx="6" ry="3" fill="#fff" opacity=".55"/>
+      <circle cx="200" cy="236" r="28" fill="transparent"/>
+    </g>
+  </g>
+
+  <!-- hearts -->
+  <g fill="#ff5a7a">
+    <g transform="translate(120,132)"><path class="heart" d="M0 9 C-16 -2 -9 -15 0 -7 C9 -15 16 -2 0 9Z" style="animation-delay:0s"/></g>
+    <g transform="translate(200,112)"><path class="heart" d="M0 9 C-16 -2 -9 -15 0 -7 C9 -15 16 -2 0 9Z" style="animation-delay:.25s"/></g>
+    <g transform="translate(280,132)"><path class="heart" d="M0 9 C-16 -2 -9 -15 0 -7 C9 -15 16 -2 0 9Z" style="animation-delay:.5s"/></g>
+  </g>
+</g>
+
+
+
+</svg>

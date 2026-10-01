@@ -974,30 +974,6 @@ body.android-fullscreen .page.active {
   perspective: 900px;
 }
 
-.pet-reaction {
-  position: absolute;
-  top: 8%;
-  right: 5%;
-  z-index: 4;
-  max-width: 64%;
-  padding: 0.45rem 0.7rem;
-  border: 1px solid rgba(184, 220, 112, 0.28);
-  border-radius: 10px 10px 3px 10px;
-  background: #24352a;
-  color: #eff4e9;
-  font-size: 0.78rem;
-  font-weight: 700;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(7px) scale(0.94);
-  transition: opacity 150ms ease, transform 180ms ease;
-}
-
-.pet-reaction-visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-
 .pet-toy {
   position: absolute;
   bottom: 20%;
@@ -1041,19 +1017,25 @@ body.android-fullscreen .page.active {
 
 .pet-avatar {
   position: relative;
-  width: min(64vw, 248px);
+  width: min(66vw, 236px);
   max-width: 100%;
   max-height: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 2 / 3;
   padding: 0;
   overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
-  filter: drop-shadow(0 13px 12px rgba(0, 0, 0, 0.4));
   cursor: pointer;
   touch-action: manipulation;
-  transform-style: preserve-3d;
+}
+
+/* Touch-dog renders inline; drop the heavy shadow since it has its own art. */
+.pet-avatar #touch-dog-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 13px 12px rgba(0, 0, 0, 0.4));
 }
 
 .pet-portrait {
@@ -1061,14 +1043,6 @@ body.android-fullscreen .page.active {
   width: 100%;
   height: 100%;
   object-fit: contain;
-}
-
-.pet-original-portrait {
-  display: none;
-}
-
-.pet-avatar.pet-reacting .pet-portrait {
-  animation: petPuppyReact 650ms ease-in-out;
 }
 
 @keyframes petPuppyReact {
@@ -1146,22 +1120,8 @@ body.android-fullscreen .page.active {
   90%, 92% { opacity: 1; }
 }
 
-.pet-avatar.pet-reacting .pet-tail {
-  animation: petTailExcited 180ms ease-in-out infinite alternate;
-}
-
-.pet-avatar.pet-reacting .pet-head {
-  animation: petHeadNuzzle 650ms ease-in-out;
-}
-
-.pet-avatar.pet-reacting .pet-leg-front-left {
-  animation: petPawLift 650ms ease-in-out;
-}
-
-.pet-avatar.pet-reacting .pet-leg-back-right {
-  animation: petRearStep 650ms ease-in-out;
-}
-
+/* Touch-dog SVG drives its own reactions via the `r <name>` class on the root,
+     so the old per-part `pet-reacting` overrides are no longer needed. */
 @keyframes petTailExcited {
   from { transform: rotate(-29deg); }
   to { transform: rotate(31deg); }
@@ -1192,10 +1152,6 @@ body.android-fullscreen .page.active {
   opacity: 0;
   transform: translateY(8px) scale(0.6);
   pointer-events: none;
-}
-
-.pet-avatar.pet-reacting .pet-heart {
-  animation: petHeartPop 650ms ease-out;
 }
 
 @keyframes petHeartPop {

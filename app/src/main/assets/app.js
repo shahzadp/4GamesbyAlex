@@ -1127,10 +1127,8 @@ function setupVirtualPet() {
   let tapChain = 0;
   let lastPetTap = 0;
   let lastTouchSpeech = 0;
-  let reactionTimeout = null;
-  let animationTimeout = null;
+  let animationTimeout = 0;
 
-  if (!avatar || !chatForm || !messageInput || !chatLog) return;
   modelInput.value = model;
   try {
     const savedCare = JSON.parse(localStorage.getItem('pet_care_state') || 'null');
@@ -1167,15 +1165,46 @@ function setupVirtualPet() {
     else mood.textContent = 'خوش اور پُرجوش';
   }
 
+  /* Touch-dog: five reactions, each bound to its own region in the SVG.
+     `bark` = head/face, `giggle` = torso, `boop` = nose, `flap` = ears, `wag` = tail. */
+  const DOG_REACTIONS = {
+    bark:   { text: 'WOOF!',   ms: 1000 },
+    giggle: { text: 'hehehe!', ms: 1100 },
+    boop:   { text: 'ACHOO!',  ms: 1700 },
+    flap:   { text: 'brrrr!',  ms: 1200 },
+    wag:    { text: 'yay!',    ms: 1600 }
+  };
+  const DOG_ZONES = [
+    ['hz', 'bark'], ['torso', 'giggle'], ['noseG', 'boop'],
+    ['earL', 'flap'], ['earR', 'flap'], ['tail', 'wag']
+  ];
+  const dogSvg = document.getElementById('touch-dog-svg');
+  const dogBubbleText = dogSvg ? dogSvg.querySelector('#bubbleText') : null;
+  let dogReactionTimer = 0;
+
   function showPetReaction(text) {
-    const bubble = document.getElementById('pet-reaction');
-    bubble.textContent = text;
-    bubble.classList.remove('pet-reaction-visible');
-    void bubble.offsetWidth;
-    bubble.classList.add('pet-reaction-visible');
-    window.clearTimeout(reactionTimeout);
-    reactionTimeout = window.setTimeout(() => bubble.classList.remove('pet-reaction-visible'), 1800);
+    if (dogBubbleText) dogBubbleText.textContent = text;
   }
+
+  function reactToDog(name) {
+    const reaction = DOG_REACTIONS[name];
+    if (!dogSvg || !reaction) return;
+    showPetReaction(reaction.text);
+    dogSvg.setAttribute('class', '');
+    void dogSvg.getBoundingClientRect();
+    dogSvg.setAttribute('class', 'r ' + name);
+    window.clearTimeout(dogReactionTimer);
+    dogReactionTimer = window.setTimeout(() => dogSvg.setAttribute('class', ''), reaction.ms);
+  }
+
+  DOG_ZONES.forEach(([id, reaction]) => {
+    const zone = dogSvg ? dogSvg.querySelector('#' + id) : null;
+    if (!zone) return;
+    zone.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+      reactToDog(reaction);
+    });
+  });
 
   function animatePet(action) {
     const world = document.querySelector('.pet-world');
@@ -1218,6 +1247,28 @@ function setupVirtualPet() {
     }
   }
 
+  /* Resolve which SVG region a click landed on. Uses the event target when a
+     shape was hit, otherwise falls back to viewBox-space bounds so taps on
+     empty space still map to a sensible region. */
+  function resolveTouchZone(target, clientX, clientY) {
+    const node = target instanceof Element ? target.closest('[id]') : null;
+    if (node && node.id) {
+      if (node.closest('#earL, #earR')) return 'flap';
+      if (node.closest('#hz')) return 'bark';
+      if (node.closest('#noseG')) return 'boop';
+      if (node.closest('#tail')) return 'wag';
+      if (node.closest('#torso')) return 'giggle';
+    }
+    const rect = avatar.getBoundingClientRect();
+    if (!rect.width || !rect.height) return 'bark';
+    const x = ((clientX - rect.left) / rect.width) * 400;
+    const y = ((clientY - rect.top) / rect.height) * 600;
+    if (y >= 330 && x >= 250) return 'wag';
+    if (y < 270 && Math.abs(x - 200) < 36) return 'boop';
+    if (y < 264 && (x < 150 || x > 250)) return 'flap';
+    return y < 306 ? 'bark' : 'giggle';
+  }
+
   avatar.addEventListener('click', (event) => {
     const now = Date.now();
     tapChain = now - lastPetTap < 950 ? tapChain + 1 : 1;
@@ -1225,8 +1276,7 @@ function setupVirtualPet() {
 
     const bounds = avatar.getBoundingClientRect();
     const relativeX = (event.clientX - bounds.left) / bounds.width;
-    const relativeY = (event.clientY - bounds.top) / bounds.height;
-    const touchArea = relativeY < 0.52 ? 'head' : relativeY > 0.82 ? 'paws' : 'belly';
+    const zone = resolveTouchZone(event.target, event.clientX, event.clientY);
     let reply;
 
     if (tapChain >= 3) {
@@ -1243,19 +1293,19 @@ function setupVirtualPet() {
       petCare.energy = clampNeed(petCare.energy - 1);
       petCare.bond++;
       const touchReplies = {
-        head: 'سر پر پیار! مجھے بہت اچھا لگتا ہے۔',
-        belly: 'گدگدی ہو رہی ہے! ہاہاہا!',
-        paws: 'پنجہ ملائیں! آپ میرے بہترین دوست ہیں۔'
+        bark: 'سر پر پیار! مجھے بہت اچھا لگتا ہے۔',
+        giggle: 'گدگدی ہو رہی ہے! ہاہاہا!',
+        boop: 'نک پر چھو! مجھے چٹکی لگی!',
+        flap: 'کان ہلاتے ہیں! بھڑ بھڑ!',
+        wag: 'پیٹھ ہل رہی ہے! خوشی سے!'
       };
-      reply = touchReplies[touchArea];
+      reply = touchReplies[zone] || touchReplies.bark;
       animatePet('pet');
-      showPetReaction(touchArea === 'head' ? 'سر پر پیار!' : touchArea === 'belly' ? 'گدگدی!' : 'ہائی فائیو!');
     }
 
     renderPetCare();
     savePetCare();
     playBarkSound();
-    if (typeof window.barkDog === 'function') window.barkDog();
     playTone(tapChain === 0 ? 740 : 520 + Math.round(relativeX * 120), 'sine', 0.14, 0.07);
     appendMessage(reply, 'bot');
     if (tapChain === 0 || now - lastTouchSpeech > 1400) {
