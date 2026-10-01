@@ -487,7 +487,12 @@
           <label class="econ-meter"><span>Labour pool<strong id="econ-labor-meter">100%</strong></span><progress id="econ-labor-bar" max="100" value="100"></progress></label>
           <label class="econ-meter"><span>Household cash<strong id="econ-cash-meter">100%</strong></span><progress id="econ-cash-bar" max="100" value="100"></progress></label>
         </div>
-        </div>
+        <div class="econ-tabs" role="tablist" aria-label="Economy views">
+          <button class="econ-tab active" type="button" role="tab" aria-selected="true" data-econ-tab="market">Market</button>
+          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="trade">Trade</button>
+          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="policy">Policy</button>
+          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="ledger">Ledger</button>
+        </div>        </div>
 
         <section class="econ-panel active" id="econ-panel-market" role="tabpanel" data-econ-panel="market">
           <div class="econ-section-heading"><div><h3>Production network</h3><p>Inputs, outputs, and active traders</p></div><span id="econ-market-status" class="econ-status-pill">BALANCED</span></div>
