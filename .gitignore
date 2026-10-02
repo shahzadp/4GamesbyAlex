@@ -16,3 +16,51 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# --- Release build artefacts ---------------------------------------------
+# R8 writes the obfuscation mapping and the seeds/usage files here. They are
+# build output, not source. Keep the mapping file out of git but preserve it
+# for any release that ships: it is the only thing that makes a release crash
+# report readable, so archive it with the artefact rather than committing it.
+*.aab
+*.aar
+*.ap_
+*.dex
+mapping.txt
+seeds.txt
+usage.txt
+configuration.txt
+resources.txt
+kotlin-tooling-metadata.json
+*.hprof
+
+# --- Signing material -----------------------------------------------------
+# Never commit a keystore or its credentials. A real release key belongs in
+# the environment, not in the repository.
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+release-keys/
+
+# --- Native / generated ----------------------------------------------------
+*.so
+*.dylib
+*.dll
+obj/
+out/
+release/
+
+# --- Editors and OS --------------------------------------------------------
+*.log
+*.tmp
+*.swp
+*~
+.idea/
+.vscode/
+
+# --- Local tooling ---------------------------------------------------------
+/.kotlin/
+node_modules/
+__pycache__/
+

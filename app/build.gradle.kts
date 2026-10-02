@@ -17,8 +17,24 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // R8 shrinking and obfuscation. Both are required for the release
+            // build to actually obfuscate: isMinifyEnabled is what runs R8 at
+            // all, and isShrinkResources removes the unused assets that would
+            // otherwise ship in the APK.
+            //
+            // The obfuscation is only safe because proguard-rules.pro keeps the
+            // WebView bridge and the serialization surface, both of which are
+            // reached by reflection. See that file before changing anything
+            // about the bridge.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // Keep a mapping file so release stack traces can still be read.
+            // It is written into the build directory and is gitignored.
+            isDebuggable = false
         }
     }
     compileOptions {
