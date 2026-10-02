@@ -18,6 +18,8 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +27,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewClientCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -189,9 +193,43 @@ class MainActivity : ComponentActivity() {
             }
             // Attach the native fullscreen bridge
             addJavascriptInterface(AndroidBridge(), "AndroidBridge")
-            webViewClient = WebViewClient()
+
+            // Serve the assets over a real https origin rather than file://.
+            //
+            // This is not cosmetic. A file:// page has an opaque "null" origin,
+            // and the WebView refuses to construct a Worker whose script is
+            // not same-origin with the page:
+            //
+            //   Failed to construct 'Worker': Script at
+            //   'file:///android_asset/engine/...' cannot be accessed from
+            //   origin 'null'.
+            //
+            // Stockfish runs inside a Worker, so on file:// the bot could never
+            // load at all. appassets.androidplatform.net is the reserved domain
+            // Google documents for exactly this: it is intercepted locally by
+            // the asset loader and never touches the network.
+            val assetLoader = WebViewAssetLoader.Builder()
+                .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this@MainActivity))
+                .build()
+
+            webViewClient = object : WebViewClientCompat() {
+                override fun shouldInterceptRequest(
+                    view: WebView,
+                    request: WebResourceRequest
+                ): WebResourceResponse? {
+                    val url = request.url
+                    // Only ever claim our own asset host. Anything else,
+                    // including a genuine network request, passes through.
+                    return if (url.host == ASSET_HOST) {
+                        assetLoader.shouldInterceptRequest(request.url)
+                    } else {
+                        null
+                    }
+                }
+            }
             webChromeClient = WebChromeClient()
-            loadUrl("file:///android_asset/index.html")
+
+            loadUrl("$ASSET_ORIGIN/index.html")
         }
 
         setContentView(webView)
@@ -305,6 +343,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
+        // Reserved domain Google documents for locally served app assets. The
+        // asset loader intercepts it entirely, so nothing leaves the device,
+        // but it gives the page a genuine https origin instead of file://'s
+        // opaque null origin - which is what allows the Stockfish Worker.
+        const val ASSET_HOST = "appassets.androidplatform.net"
+        const val ASSET_ORIGIN = "https://$ASSET_HOST"
+
         const val PET_KEY_ALIAS = "virtual_pet_openrouter_key"
         const val PET_KEY_PREFERENCES = "pet_secure_store"
         const val PET_KEY_IV = "openrouter_key_iv"

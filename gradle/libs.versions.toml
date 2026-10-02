@@ -1,6 +1,7 @@
 [versions]
 androidGradlePlugin = "9.0.1"
 androidxCore = "1.18.0"
+androidxWebkit = "1.15.0"
 androidxLifecycle = "2.10.0"
 androidxActivity = "1.13.0"
 androidxComposeBom = "2026.03.01"
@@ -16,6 +17,10 @@ lifecycleViewmodelNav3 = "2.10.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
+# Provides WebViewAssetLoader, which serves app assets over a real https
+# origin. Required because a file:// page has a null origin and the WebView
+# refuses to construct a Worker from it, which is what Stockfish runs in.
+androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "androidxWebkit" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3"}

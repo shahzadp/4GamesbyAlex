@@ -112,10 +112,9 @@ dependencies {
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.activity.compose)
-
-  // Arch Components
-  implementation(libs.androidx.lifecycle.runtime.compose)
-  implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // Serves the web assets over an https origin so the Stockfish Web Worker
+    // can be constructed. See the asset loader setup in MainActivity.
+    implementation(libs.androidx.webkit)
 
   // Compose
   implementation(libs.androidx.compose.ui)

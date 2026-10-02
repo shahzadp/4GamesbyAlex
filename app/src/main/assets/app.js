@@ -791,6 +791,8 @@ const chessGame = {
   capturedBlack: [],
   moveLog: [],
   pendingPromotion: null, // { r, c } awaiting a promotion choice
+  // 'local' = both sides played by the human, 'stockfish' = engine plays black.
+  mode: 'local',
   botEnabled: false,
   botSide: 'b',
   botThinking: false,
@@ -807,14 +809,26 @@ const chessGame = {
     this.moveLogEl = document.getElementById('chess-move-log');
     this.botBtn = document.getElementById('btn-stockfish');
     this.promoEl = document.getElementById('promotion-picker');
+    this.modeLocalBtn = document.getElementById('chess-mode-local');
+    this.modeBotBtn = document.getElementById('chess-mode-stockfish');
+    this.modeLabel = document.getElementById('chess-mode-label');
 
     const resetBtn = document.getElementById('btn-reset-chess');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => this.reset());
     }
 
+    if (this.modeLocalBtn) {
+      this.modeLocalBtn.addEventListener('click', () => this.setMode('local'));
+    }
+    if (this.modeBotBtn) {
+      this.modeBotBtn.addEventListener('click', () => this.setMode('stockfish'));
+    }
+
     if (this.botBtn) {
-      this.botBtn.addEventListener('click', () => this.toggleBot());
+      this.botBtn.addEventListener('click', () => {
+        this.setMode(this.mode === 'stockfish' ? 'local' : 'stockfish');
+      });
     }
 
     if (this.promoEl) {
@@ -913,6 +927,9 @@ const chessGame = {
         this.turnText.textContent = 'Draw by stalemate';
       } else if (this.botThinking) {
         this.turnText.textContent = 'Stockfish is thinking';
+      } else if (this.botEnabled && this.state.turn === 'b') {
+        // The engine owns black, so this state is transient.
+        this.turnText.textContent = "Black's move";
       } else {
         this.turnText.textContent = this.state.turn === 'w' ? "White's move" : "Black's move";
       }
@@ -946,7 +963,7 @@ const chessGame = {
       this.moveLogEl.innerHTML = rows.join('') || '<div class="movelog-empty">No moves yet</div>';
     }
 
-    this.updateBotUI();
+    this.updateModeUI();
   },
 
   setStatus(msg) {
@@ -955,10 +972,26 @@ const chessGame = {
 
   // --- Input ------------------------------------------------------------
 
+  // The colour the human is allowed to move. In two-player mode this is
+  // simply whoever's turn it is, so both sides can be played on one device.
+  // Against the bot it stays pinned to white, which is the side the engine
+  // does not play.
+  humanSide() {
+    return this.botEnabled ? 'w' : this.state.turn;
+  },
+
   onSquareClick(r, c) {
     if (this.botThinking) return;
-    if (this.state.turn !== 'w') return;
+    // Guard against a stale pending promotion: if the turn moved on while the
+    // picker was open, drop it rather than letting it capture the next click.
+    if (this.pendingPromotion && this.state.turn !== this.humanSide()) {
+      this.pendingPromotion = null;
+      this.hidePromotion();
+    }
+    if (this.state.turn !== this.humanSide()) return;
     if (chessGameStatus(this.state) !== 'ongoing' && chessGameStatus(this.state) !== 'check') return;
+
+    const side = this.humanSide();
 
     // Choosing the promotion piece takes priority over everything else.
     if (this.pendingPromotion) {
@@ -984,13 +1017,13 @@ const chessGame = {
       }
     }
 
-    if (piece && piece.c === 'w') {
+    if (piece && piece.c === side) {
       if (this.selected && this.selected.r === r && this.selected.c === c) {
         this.selected = null;
         this.legalForSelected = [];
       } else {
         this.selected = { r, c };
-        this.legalForSelected = chessGenerateLegalMoves(this.state, 'w')
+        this.legalForSelected = chessGenerateLegalMoves(this.state, side)
           .filter(m => m.from.r === r && m.from.c === c);
       }
       this.render();
@@ -1013,7 +1046,7 @@ const chessGame = {
       '<div class="promo-title">Promote to</div>' +
       ['q', 'r', 'b', 'n'].map(k =>
         '<button class="promo-choice" data-piece="' + k + '">' +
-        '<span class="promo-piece">' + getPieceSvg(k, 'w') + '</span>' +
+        '<span class="promo-piece">' + getPieceSvg(k, this.humanSide()) + '</span>' +
         '<span class="promo-name">' + names[k] + '</span></button>').join('');
     this.promoEl.classList.add('active');
   },
@@ -1023,7 +1056,10 @@ const chessGame = {
   },
 
   findPromotionMove(r, c, promo) {
-    return chessGenerateLegalMoves(this.state, 'w').find(
+    // Generate for whichever side is actually moving, so black can promote too
+    // in two-player mode.
+    const side = this.state.turn;
+    return chessGenerateLegalMoves(this.state, side).find(
       m => m.from.r === this.selected.r && m.from.c === this.selected.c &&
            m.to.r === r && m.to.c === c && m.isPromotion && m.promotionPiece === promo
     );
@@ -1070,40 +1106,85 @@ const chessGame = {
 
   // --- Stockfish bot ----------------------------------------------------
 
-  toggleBot() {
-    this.botEnabled = !this.botEnabled;
-    this.updateBotUI();
+  // Two explicit modes rather than a single on/off toggle. The old button
+  // could only express "bot on" or "bot off", which made 2-player play look
+  // like an absence of a feature rather than a real choice.
+  //   'local' - both sides played by the human on this device
+  //   'stockfish' - human plays white, engine plays black
+  setMode(mode) {
+    const wantBot = mode === 'stockfish';
 
-    if (!this.botEnabled) {
-      this.setStatus('');
+    if (this.mode === mode && this.botEnabled === wantBot) {
+      this.updateModeUI();
+      return;
+    }
+
+    // Releasing the human's current selection avoids leaving a stale
+    // highlight from the other side's turn on the board.
+    this.selected = null;
+    this.legalForSelected = [];
+    this.pendingPromotion = null;
+    this.hidePromotion();
+
+    this.mode = mode;
+    this.botEnabled = wantBot;
+
+    if (!wantBot) {
       this.botThinking = false;
+      this.setStatus('');
+      this.updateModeUI();
+      this.updateUI();
+      this.render();
       return;
     }
 
     if (!chessEngine.isSupported()) {
       this.setStatus('Engine not supported on this device');
+      // Fall back to two-player rather than leaving a dead mode selected.
+      this.mode = 'local';
       this.botEnabled = false;
-      this.updateBotUI();
+      this.updateModeUI();
       return;
     }
 
     this.setStatus('Loading Stockfish 19...');
+    this.updateModeUI();
     chessEngine.load().then(() => {
       this.setStatus('Stockfish 19 ready');
       this.maybeBotMove();
     }).catch(err => {
-      this.setStatus('Engine failed to load: ' + err.message);
+      this.setStatus('Engine failed to load: ' + err.message + '. Playing two-player.');
+      this.mode = 'local';
       this.botEnabled = false;
-      this.updateBotUI();
+      this.updateModeUI();
+      this.updateUI();
+      this.render();
     });
   },
 
-  updateBotUI() {
-    if (!this.botBtn) return;
-    this.botBtn.classList.toggle('active', this.botEnabled);
-    this.botBtn.disabled = this.botThinking;
-    const label = this.botBtn.querySelector('.btn-label');
-    if (label) label.textContent = this.botEnabled ? 'Stop Bot' : 'Stockfish 19';
+  updateModeUI() {
+    const isBot = this.mode === 'stockfish';
+
+    // Segmented control.
+    if (this.modeLocalBtn) {
+      this.modeLocalBtn.classList.toggle('active', !isBot);
+      this.modeLocalBtn.setAttribute('aria-selected', !isBot ? 'true' : 'false');
+    }
+    if (this.modeBotBtn) {
+      this.modeBotBtn.classList.toggle('active', isBot);
+      this.modeBotBtn.setAttribute('aria-selected', isBot ? 'true' : 'false');
+    }
+    if (this.modeLabel) {
+      this.modeLabel.textContent = isBot ? 'Playing Stockfish 19' : '2-player';
+    }
+
+    // Keep the legacy toggle button working and in sync, in case it is shown.
+    if (this.botBtn) {
+      this.botBtn.classList.toggle('active', isBot);
+      this.botBtn.disabled = this.botThinking;
+      const label = this.botBtn.querySelector('.btn-label');
+      if (label) label.textContent = isBot ? 'Stop Bot' : 'Stockfish 19';
+    }
   },
 
   maybeBotMove() {

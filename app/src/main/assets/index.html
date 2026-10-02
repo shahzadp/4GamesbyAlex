@@ -133,7 +133,7 @@
         <!-- Fullscreen, Mode & Action Toolbar Below Game Screen -->
         <div class="mobile-bottom-actions">
           <button class="mobile-btn btn-fullscreen" data-target-container="stage-flappy">
-            <span class="btn-icon">⛶</span> Fullscreen
+            <span class="btn-icon">⛶</span> <span class="btn-label">Fullscreen</span>
           </button>
           <button id="btn-hardcore" class="mobile-btn btn-hardcore" aria-pressed="false"
                   title="Hardcore mode: faster scroll and a tighter gap">
@@ -188,6 +188,21 @@
         <!-- Captured White pieces -->
         <div class="captured-tray" id="captured-white"></div>
 
+        <!-- Mode selector: 2-player or Stockfish -->
+        <div class="chess-mode-row">
+          <div class="chess-mode-switch" role="tablist" aria-label="Game mode">
+            <button id="chess-mode-local" class="chess-mode-opt active" role="tab"
+                    aria-selected="true" title="Play both sides on this device">
+              <span class="mode-ico">👥</span><span class="mode-txt">2-Player</span>
+            </button>
+            <button id="chess-mode-stockfish" class="chess-mode-opt" role="tab"
+                    aria-selected="false" title="Play white against Stockfish 19">
+              <span class="mode-ico">🤖</span><span class="mode-txt">Stockfish 19</span>
+            </button>
+          </div>
+          <span id="chess-mode-label" class="chess-mode-label">2-player</span>
+        </div>
+
         <!-- Promotion picker: appears only when a pawn reaches the last rank -->
         <div id="promotion-picker" class="promotion-picker" role="dialog" aria-label="Choose promotion piece"></div>
 
@@ -200,16 +215,13 @@
           <div id="chess-move-log" class="chess-movelog"></div>
         </div>
 
-        <!-- Fullscreen, Bot & Reset Buttons Below Game Screen -->
+        <!-- Fullscreen & Reset Buttons Below Game Screen -->
         <div class="mobile-bottom-actions">
           <button class="mobile-btn btn-fullscreen" data-target-container="stage-chess">
-            <span class="btn-icon">⛶</span> Fullscreen
-          </button>
-          <button id="btn-stockfish" class="mobile-btn btn-bot" title="Play against Stockfish 19">
-            <span class="btn-icon">🤖</span> <span class="btn-label">Stockfish 19</span>
+            <span class="btn-icon">⛶</span> <span class="btn-label">Fullscreen</span>
           </button>
           <button id="btn-reset-chess" class="mobile-btn btn-reset">
-            <span class="btn-icon">🔄</span> Reset Board
+            <span class="btn-icon">🔄</span> <span class="btn-label">Reset</span>
           </button>
         </div>
 
