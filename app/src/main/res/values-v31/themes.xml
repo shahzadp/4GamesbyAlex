@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ splash screen.
+
+    Without these the system builds the splash from the launcher icon, which
+    renders the icon's white backing and green background as a white corner
+    around a green square. Pointing the splash at a dedicated icon keeps it to
+    the square artwork alone.
+
+    The window background stays black so the app never flashes white between
+    the splash and the WebView painting its dark theme.
+-->
+<resources>
+
+    <style name="Theme.ArtGallery" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowSplashScreenBackground">@android:color/black</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+    </style>
+</resources>

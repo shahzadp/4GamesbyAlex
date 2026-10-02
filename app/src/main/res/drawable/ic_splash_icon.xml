@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Splash icon.
+
+    Android 12+ derives the splash screen from the app icon unless the theme
+    overrides windowSplashScreenAnimatedIcon. Using the icon meant the splash
+    showed the launcher artwork inside its mask, which left a white corner
+    around a green square: the launcher foreground's white backing filled the
+    mask while the green background layer showed at the edges.
+
+    This drawable is the four quadrant boxes and the triangle on their own,
+    with no backing rectangle and no grid, so the splash shows the square icon
+    and nothing else. It is drawn at 108dp with the artwork filling the canvas,
+    because the splash icon is not masked the way an adaptive icon is.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#EF476F"
+        android:pathData="M8,8h43a5,5 0 0 1 5,5v43a5,5 0 0 1 -5,5h-43a5,5 0 0 1 -5,-5v-43a5,5 0 0 1 5,-5z" />
+    <path
+        android:fillColor="#FFD166"
+        android:pathData="M57,8h43a5,5 0 0 1 5,5v43a5,5 0 0 1 -5,5h-43a5,5 0 0 1 -5,-5v-43a5,5 0 0 1 5,-5z" />
+    <path
+        android:fillColor="#06D6A0"
+        android:pathData="M8,57h43a5,5 0 0 1 5,5v43a5,5 0 0 1 -5,5h-43a5,5 0 0 1 -5,-5v-43a5,5 0 0 1 5,-5z" />
+    <path
+        android:fillColor="#118AB2"
+        android:pathData="M57,57h43a5,5 0 0 1 5,5v43a5,5 0 0 1 -5,5h-43a5,5 0 0 1 -5,-5v-43a5,5 0 0 1 5,-5z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.6"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M26,84L53.2,30L54.8,30L82,84L73,84L65.7,68.5L42.3,68.5L35,84ZM46.2,60.6L61.8,60.6L54,46.5Z" />
+</vector>

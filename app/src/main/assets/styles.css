@@ -1017,15 +1017,21 @@ body.android-fullscreen .page.active {
 
 .pet-avatar {
   position: relative;
-  width: min(66vw, 236px);
-  max-width: 100%;
-  /* The paws sit at y=562 in the 600-unit viewBox, only 6% above the bottom
-     of the canvas. The box therefore has to stay shorter than 2:3 in
-     proportion, or the feet land on the button row below. The height is
-     capped explicitly instead of derived from aspect-ratio, because
-     aspect-ratio grew the box rather than moving the art inside it. */
-  height: min(56vw, 320px);
-  padding: 0;
+  /* The dog fills whatever vertical room the world panel has left over, rather
+     than claiming a fixed height. A fixed height only worked on one screen
+     size: the paws sit at y=562 of the 600-unit viewBox, so a box that is
+     even slightly too tall drops them onto the button row, and the height
+     that is safe on a phone was leaving the dog far too small on a tablet.
+     Filling the space keeps the clearance identical everywhere and lets the
+     art be as large as the layout allows. The bottom padding is the guarantee
+     that the paws stop short of the controls. */
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 0 0 18px;
+  box-sizing: border-box;
   overflow: visible;
   border: 0;
   border-radius: 0;
