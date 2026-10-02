@@ -107,6 +107,7 @@
           <!-- Start Screen Overlay -->
           <div id="flappy-start-screen" class="flappy-overlay active">
             <div class="retro-title">FLAPPY BIRD</div>
+            <div class="flappy-mode-badge">MODE: <span id="flappy-mode-label">CLASSIC</span></div>
             <div class="bird-avatar-anim">🐦</div>
             <p class="instructions-pill">Tap screen to flap</p>
             <button id="btn-start-flappy" class="arcade-btn">TAP TO FLY</button>
@@ -129,16 +130,21 @@
           </div>
         </div>
 
-        <!-- Fullscreen & Action Toolbar Below Game Screen -->
+        <!-- Fullscreen, Mode & Action Toolbar Below Game Screen -->
         <div class="mobile-bottom-actions">
           <button class="mobile-btn btn-fullscreen" data-target-container="stage-flappy">
             <span class="btn-icon">⛶</span> Fullscreen
+          </button>
+          <button id="btn-hardcore" class="mobile-btn btn-hardcore" aria-pressed="false"
+                  title="Hardcore mode: faster scroll and a tighter gap">
+            <span class="btn-icon">🔥</span> <span class="btn-label">Hardcore</span>
           </button>
           <div class="mobile-stat-pill">
             <span class="pill-label">BEST:</span>
             <span class="pill-value" id="sidebar-high-score">0</span>
           </div>
         </div>
+        <div id="flappy-status" class="flappy-status-line" role="status" aria-live="polite"></div>
       </div>
     </section>
 
@@ -182,10 +188,25 @@
         <!-- Captured White pieces -->
         <div class="captured-tray" id="captured-white"></div>
 
-        <!-- Fullscreen & Reset Buttons Below Game Screen -->
+        <!-- Promotion picker: appears only when a pawn reaches the last rank -->
+        <div id="promotion-picker" class="promotion-picker" role="dialog" aria-label="Choose promotion piece"></div>
+
+        <!-- Engine status line -->
+        <div id="chess-status" class="chess-status-line" role="status" aria-live="polite"></div>
+
+        <!-- Move list -->
+        <div class="chess-movelog-wrap">
+          <div class="chess-movelog-title">Moves</div>
+          <div id="chess-move-log" class="chess-movelog"></div>
+        </div>
+
+        <!-- Fullscreen, Bot & Reset Buttons Below Game Screen -->
         <div class="mobile-bottom-actions">
           <button class="mobile-btn btn-fullscreen" data-target-container="stage-chess">
             <span class="btn-icon">⛶</span> Fullscreen
+          </button>
+          <button id="btn-stockfish" class="mobile-btn btn-bot" title="Play against Stockfish 19">
+            <span class="btn-icon">🤖</span> <span class="btn-label">Stockfish 19</span>
           </button>
           <button id="btn-reset-chess" class="mobile-btn btn-reset">
             <span class="btn-icon">🔄</span> Reset Board
@@ -547,6 +568,8 @@
   </div>
 
   <script src="economy.js"></script>
+  <script src="chess-core.js"></script>
+  <script src="chess-engine.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

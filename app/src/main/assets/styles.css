@@ -1937,3 +1937,215 @@ body.theme-economy #page-economy.active {
   outline: 2px solid #81d8b1;
   outline-offset: 2px;
 }
+
+/* =======================================================
+   FLAPPY BIRD - HARDCORE MODE
+   ======================================================= */
+
+/* Inactive: a muted ember tone that still reads as a button. */
+.btn-hardcore {
+  background: linear-gradient(135deg, rgba(239, 71, 111, 0.22), rgba(255, 209, 102, 0.12));
+  border-color: rgba(255, 209, 102, 0.45);
+  color: #ffe8b0;
+}
+
+/* Active: a solid hot gradient with a glow, so the current mode is
+   unmistakable at a glance without needing to read the label. */
+.btn-hardcore.active {
+  background: linear-gradient(135deg, #ef476f, #ff8c42);
+  border-color: #ffd166;
+  color: #2b0a0a;
+  box-shadow: 0 0 0 2px rgba(255, 209, 102, 0.35), 0 6px 18px rgba(239, 71, 111, 0.5);
+}
+
+.btn-hardcore .btn-icon {
+  filter: saturate(1.2);
+}
+
+/* The mode badge on the start overlay. */
+.flappy-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0.1rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffe8b0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+/* While hardcore is on, tint the mode badge to match. */
+#stage-flappy.hardcore-mode .flappy-mode-badge {
+  background: linear-gradient(135deg, rgba(239, 71, 111, 0.85), rgba(255, 140, 66, 0.75));
+  border-color: #ffd166;
+  color: #2b0a0a;
+}
+
+.flappy-status-line {
+  min-height: 1.1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffd166;
+  opacity: 0.9;
+}
+
+/* =======================================================
+   CHESS - STOCKFISH BOT, PROMOTION, MOVE LOG
+   ======================================================= */
+
+/* Bot button in its resting state: clearly secondary. */
+.btn-bot {
+  background: linear-gradient(135deg, rgba(17, 138, 178, 0.28), rgba(6, 214, 160, 0.14));
+  border-color: rgba(6, 214, 160, 0.45);
+  color: #c9f7ea;
+}
+
+/* Bot engaged: solid, so it is obvious the machine is now playing. */
+.btn-bot.active {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  border-color: #7ef0d0;
+  color: #042f2e;
+  box-shadow: 0 0 0 2px rgba(6, 214, 160, 0.3), 0 6px 18px rgba(6, 214, 160, 0.4);
+}
+
+/* Disabled while the engine is calculating: show it, do not allow re-entry. */
+.btn-bot:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Engine status line: loading and error messages land here. */
+.chess-status-line {
+  min-height: 1.15rem;
+  margin: 0.15rem 0 0.35rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #7ef0d0;
+}
+
+/* --- Promotion picker ------------------------------------------------- */
+
+.promotion-picker {
+  display: none;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  margin: 0.5rem 0;
+  padding: 0.7rem;
+  border-radius: var(--radius-md, 14px);
+  border: 1px solid rgba(255, 209, 102, 0.4);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* The JS adds .active; the picker is hidden by default. */
+.promotion-picker.active {
+  display: flex;
+}
+
+.promo-title {
+  width: 100%;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffd166;
+}
+
+.promo-choice {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.7rem;
+  min-width: 62px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.promo-choice:active {
+  transform: var(--touch-scale);
+  background: rgba(255, 209, 102, 0.25);
+}
+
+.promo-piece {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
+
+.promo-piece svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.promo-name {
+  white-space: nowrap;
+}
+
+/* --- Move log --------------------------------------------------------- */
+
+.chess-movelog-wrap {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.chess-movelog-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.35rem;
+}
+
+.chess-movelog {
+  max-height: 132px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.movelog-row {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.1rem 0;
+}
+
+.movelog-num {
+  color: rgba(255, 255, 255, 0.45);
+  text-align: right;
+}
+
+.movelog-san {
+  color: #eaf6ff;
+  font-weight: 600;
+}
+
+.movelog-empty {
+  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+}
