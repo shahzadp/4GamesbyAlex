@@ -1,8 +1,30 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
 }
+
+// Release signing credentials live in keystore.properties at the repo root,
+// which is gitignored. The file is optional on purpose: a machine that only
+// ever builds debug, or a CI checkout without secrets, must still configure
+// successfully. Run tools/make-release-key.ps1 to generate both files.
+//
+// The type is imported rather than written as java.util.Properties because the
+// "java" extension in scope in a Kotlin DSL script shadows the java package,
+// which leaves the fully qualified name unresolved.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { input ->
+        keystoreProperties.load(input)
+    }
+}
+val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null &&
+    keystoreProperties.getProperty("storePassword") != null &&
+    keystoreProperties.getProperty("keyAlias") != null &&
+    keystoreProperties.getProperty("keyPassword") != null
 
 android {
     namespace = "com.example.artgallery"
@@ -15,8 +37,30 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                // storeFile is relative to the repo root, so resolve it there
+                // rather than against the app module.
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Without a signing config Gradle emits app-release-unsigned.apk,
+            // and Android refuses to install an unsigned APK at all. The build
+            // still succeeds, so the failure only shows up on the phone, which
+            // makes it easy to misattribute to the code. Attach the signing
+            // config whenever the credentials are present.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+
             // R8 shrinking and obfuscation. Both are required for the release
             // build to actually obfuscate: isMinifyEnabled is what runs R8 at
             // all, and isShrinkResources removes the unused assets that would
