@@ -1,24 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Launcher foreground only. The splash screen uses ic_splash_icon instead:
-     Android 12+ builds the splash from the app icon by default, which meant
-     the green background and the white backing showed up on the splash as a
-     white corner around a green square. The launcher icon keeps both because
-     that is what it looked like before. -->
+<!-- Launcher foreground only. The splash screen uses ic_splash_icon instead,
+     so nothing here depends on the splash any more.
+
+     The artwork is deliberately left at its original size with no scaling
+     group. Scaling it up to fill the adaptive mask ate into the white
+     backing that surrounds the four boxes, which made the white border
+     thinner than it had always been. The border is the design. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path android:fillColor="#FFFFFF" android:pathData="M0,0h108v108h-108z"/>
-    <group
-        android:pivotX="54"
-        android:pivotY="54"
-        android:scaleX="1.13"
-        android:scaleY="1.13">
-        <path android:fillColor="#EF476F" android:pathData="M28,22h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
-        <path android:fillColor="#FFD166" android:pathData="M61,22h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
-        <path android:fillColor="#06D6A0" android:pathData="M28,55h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
-        <path android:fillColor="#118AB2" android:pathData="M61,55h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
-        <path android:fillColor="#FFFFFF" android:strokeColor="#FFFFFF" android:strokeWidth="2.4" android:strokeLineJoin="round" android:strokeLineCap="round" android:pathData="M32,76L53.12,32L54.88,32L76,76L68.52,76L62.395,63.24L45.605,63.24L39.48,76ZM48.773,56.64L59.227,56.64L54,45.75Z"/>
-    </group>
+    <path android:fillColor="#EF476F" android:pathData="M28,22h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
+    <path android:fillColor="#FFD166" android:pathData="M61,22h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
+    <path android:fillColor="#06D6A0" android:pathData="M28,55h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
+    <path android:fillColor="#118AB2" android:pathData="M61,55h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
+    <path android:fillColor="#FFFFFF" android:strokeColor="#FFFFFF" android:strokeWidth="2.4" android:strokeLineJoin="round" android:strokeLineCap="round" android:pathData="M32,76L53.12,32L54.88,32L76,76L68.52,76L62.395,63.24L45.605,63.24L39.48,76ZM48.773,56.64L59.227,56.64L54,45.75Z"/>
 </vector>
