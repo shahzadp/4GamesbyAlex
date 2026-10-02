@@ -1019,8 +1019,12 @@ body.android-fullscreen .page.active {
   position: relative;
   width: min(66vw, 236px);
   max-width: 100%;
-  max-height: 100%;
-  aspect-ratio: 2 / 3;
+  /* The paws sit at y=562 in the 600-unit viewBox, only 6% above the bottom
+     of the canvas. The box therefore has to stay shorter than 2:3 in
+     proportion, or the feet land on the button row below. The height is
+     capped explicitly instead of derived from aspect-ratio, because
+     aspect-ratio grew the box rather than moving the art inside it. */
+  height: min(56vw, 320px);
   padding: 0;
   overflow: visible;
   border: 0;
