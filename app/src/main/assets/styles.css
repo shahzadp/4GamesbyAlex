@@ -1175,12 +1175,6 @@ body.android-fullscreen .page.active {
   50% { opacity: 1; transform: scale(1.15); }
 }
 
-.pet-touch-hint {
-  margin: 0.15rem 0 0.1rem;
-  color: #9fb49d;
-  font-size: 0.76rem;
-}
-
 .pet-care-actions {
   display: flex;
   gap: 0.5rem;
