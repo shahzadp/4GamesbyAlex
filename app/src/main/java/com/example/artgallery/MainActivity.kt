@@ -208,8 +208,13 @@ class MainActivity : ComponentActivity() {
             // load at all. appassets.androidplatform.net is the reserved domain
             // Google documents for exactly this: it is intercepted locally by
             // the asset loader and never touches the network.
+            //
+            // The path handler and the load URL must agree. A mismatch here is
+            // silent and catastrophic: the handler returns null, the WebView
+            // falls through to a real DNS lookup, and the app dies with
+            // ERR_NAME_NOT_RESOLVED before any of it renders.
             val assetLoader = WebViewAssetLoader.Builder()
-                .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this@MainActivity))
+                .addPathHandler(ASSET_PATH, WebViewAssetLoader.AssetsPathHandler(this@MainActivity))
                 .build()
 
             webViewClient = object : WebViewClientCompat() {
@@ -220,16 +225,57 @@ class MainActivity : ComponentActivity() {
                     val url = request.url
                     // Only ever claim our own asset host. Anything else,
                     // including a genuine network request, passes through.
-                    return if (url.host == ASSET_HOST) {
-                        assetLoader.shouldInterceptRequest(request.url)
-                    } else {
-                        null
+                    if (url.host != ASSET_HOST) return null
+
+                    val response = assetLoader.shouldInterceptRequest(request.url)
+                    if (response != null) return response
+
+                    // A miss means the URL and the registered path handler
+                    // disagree, or the asset is genuinely absent. Serving the
+                    // raw file keeps the app usable instead of returning
+                    // null and letting the request reach the network as a DNS
+                    // failure.
+                    val relative = url.path?.removePrefix(ASSET_PATH)
+                    if (!relative.isNullOrEmpty()) {
+                        try {
+                            val stream = assets.open(relative)
+                            val mime = when {
+                                relative.endsWith(".html") -> "text/html"
+                                relative.endsWith(".js") -> "text/javascript"
+                                relative.endsWith(".css") -> "text/css"
+                                relative.endsWith(".wasm") -> "application/wasm"
+                                relative.endsWith(".svg") -> "image/svg+xml"
+                                relative.endsWith(".png") -> "image/png"
+                                relative.endsWith(".jpg") -> "image/jpeg"
+                                else -> "application/octet-stream"
+                            }
+                            return WebResourceResponse(mime, "utf-8", stream)
+                        } catch (e: java.io.IOException) {
+                            // Fall through to the error page below.
+                        }
                     }
+
+                    // Nothing could serve this: show a real message rather than
+                    // a blank screen or a DNS error.
+                    return WebResourceResponse(
+                        "text/html", "utf-8", 404, "Not Found",
+                        mapOf("Cache-Control" to "no-store"),
+                        java.io.ByteArrayInputStream(
+                            ("<h1>Asset not found</h1><p>" +
+                                (url.toString()) + "</p>").toByteArray()
+                        )
+                    )
                 }
+
+                // onReceivedError is final in WebViewClientCompat, so the
+                // network-level fallback cannot live here. It is not needed:
+                // shouldInterceptRequest above already serves every asset
+                // request itself and returns a real 404 page for anything it
+                // cannot find, so a request never escapes to DNS.
             }
             webChromeClient = WebChromeClient()
 
-            loadUrl("$ASSET_ORIGIN/index.html")
+            loadUrl("$ASSET_ORIGIN$ASSET_PATH/index.html")
         }
 
         setContentView(webView)
@@ -349,6 +395,10 @@ class MainActivity : ComponentActivity() {
         // opaque null origin - which is what allows the Stockfish Worker.
         const val ASSET_HOST = "appassets.androidplatform.net"
         const val ASSET_ORIGIN = "https://$ASSET_HOST"
+        // The handler path and the load URL must use this same prefix. If they
+        // disagree the loader returns null, the request escapes to the real
+        // network, and the app fails to load at all.
+        const val ASSET_PATH = "/assets/"
 
         const val PET_KEY_ALIAS = "virtual_pet_openrouter_key"
         const val PET_KEY_PREFERENCES = "pet_secure_store"
