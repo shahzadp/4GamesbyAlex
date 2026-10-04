@@ -1,0 +1,2200 @@
+/* ==================================================================
+   Proto Web — dark theme
+
+   MOBILE-FIRST. The base rules below are written for a phone held
+   upright at 9:16 (roughly 390x844 CSS px, the narrowest case worth
+   designing for), and every wider layout is an additive layer applied
+   later in this file. The layout is driven by the shorter of the two
+   axes rather than by width alone, because a 9:16 phone and a landscape
+   phone have the same width and completely different room.
+
+   What the phone layout actually is:
+
+     ┌─────────────────┐  topbar    46px   title · phase · transport
+     │  ╭─ canvas ─╮   │
+     │  │ bubble   │   │  stage     fills
+     │  │  map     │   │
+     │  ╰──────────╯   │
+     │                 │
+     │  [ scroll ]     │  panel     fills, own scroll
+     ├─────────────────┤  tabbar    58px   12 screens, thumb reach
+     └─────────────────┘
+
+   The original sidebar was 236px of a phone's ~390px — 60% of the screen
+   spent on navigation. It is now a horizontal tab bar at the bottom,
+   where a thumb reaches without covering the content, and the desktop
+   rail is the additive layer.
+
+   Every surface from the original light UI is converted:
+     · Theme.AppCompat.Light window (#fffafafa)   -> --bg
+     · list_single TableRow @android:color/white  -> --surface
+     · textTraderType / EditTexts @android:color/black -> --text
+     · spinner_big #ff000000                      -> --text
+     · AppTheme.colorPrimary #ff0013c1            -> --accent
+     · AppTheme.colorAccent   #ffff4081           -> --accent-2
+     · tabs #96ff9600                             -> --tab
+     · boot #ff000000 / bigredbutton #80ff0000    -> --danger
+   ================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg:          #0b0e14;
+  --surface:     #12161f;
+  --surface-2:   #171c27;
+  --surface-3:   #1d2431;
+  --sidebar-bg:  #0e1219;
+  --elev:        #1a2029;
+  --overlay:     rgba(6, 9, 14, .72);
+
+  /* lines */
+  --line:        #212a38;
+  --line-soft:   #1a212d;
+
+  /* text (replaces @android:color/black everywhere) */
+  --text:        #e6edf3;
+  --text-2:      #a7b2c1;
+  --text-3:      #6b7686;
+
+  /* brand — derived from the original primaries */
+  --accent:      #4f6bff;   /* was #ff0013c1 */
+  --accent-hover:#6480ff;
+  --accent-2:    #ff4f8d;   /* was #ffff4081 */
+  --tab:         rgba(255, 150, 0, .59);  /* was #96ff9600 */
+
+  /* status */
+  --good:        #22e06a;
+  --warn:        #ffd43b;
+  --bad:         #ff5a5f;
+  --danger:      #ff4d5e;   /* was #80ff0000 */
+
+  /* commodity series */
+  --c-labor:     #22e06a;
+  --c-food:      #ffd43b;
+  --c-tool:      #3fd8ff;
+  --c-coal:      #ff5a5f;
+  --c-iron:      #ff9f43;
+  --c-transport: #ff9ec1;
+  --c-master:    #ffc94d;
+
+  --radius:      10px;
+  --radius-sm:   7px;
+
+  /* Phone-first metrics. A 46px topbar and a 58px tab bar leave the map the
+   * remaining ~700px of an 844px screen, which is the point: the map is the
+   * game. The desktop rail and header are additive and override these. */
+  --topbar-h:    46px;
+  --tabbar-h:    58px;
+  --sidebar-w:   0px;          /* no rail on a phone; see @media (min-width: 900px) */
+  --safe-t:      env(safe-area-inset-top, 0px);
+  --safe-b:      env(safe-area-inset-bottom, 0px);
+  --safe-l:      env(safe-area-inset-left, 0px);
+  --safe-r:      env(safe-area-inset-right, 0px);
+  --gutter:      12px;         /* horizontal page padding */
+  --tap:         44px;         /* minimum touch target, per platform guidance */
+
+  /* Type scale. The original desktop UI ran 14px body text with 21px panel
+   * headings; both are too large for a 390px column and produce
+   * three-word-per-line prose. These are the phone sizes, and the desktop
+   * layer bumps them back up where there is room. */
+  --fs-body:     13px;
+  --fs-small:    11.5px;
+  --fs-tiny:     10.5px;
+  --fs-h2:       17px;
+  --fs-h3:       13.5px;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  /* Stop iOS from zooming the whole page when a form control takes focus —
+     a 16px floor on inputs, not a viewport-wide user-scalable:no, which
+     would lock out anyone who needs to magnify the app. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+/* Phone: a single column — topbar, stage, tab bar. The sidebar is off
+   canvas entirely; CSS moves .nav into .tabbar's place at larger sizes. */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;              /* dvh: survives the collapsing URL bar */
+  height: 100vh;
+  height: 100dvh;
+  padding-left: var(--safe-l);
+  padding-right: var(--safe-r);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #26303f;
+  border-radius: 6px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: #34405166; }
+
+/* ================= RAIL (desktop only) =================
+  *
+  * The rail is not in the DOM on a phone at all - ui.js builds it only when
+  * matchMedia('(min-width: 900px)') matches. It used to exist on both layouts as
+  * a drawer behind a hamburger, which meant every one of the twelve screens was
+  * reachable twice on a phone (bottom bar AND drawer) while the tick counter and
+  * the transport controls were hidden behind a menu you had to know was there.
+  * Duplicated navigation, and the duplicate state had to be kept in sync by hand.
+  *
+  * So these rules are unconditional: there is no off-canvas transform, no
+  * `drawer-open` class and no scrim left to get wrong, because none of that exists
+  * any more. If a rail is ever wanted at a new breakpoint, gate the BUILD in
+  * ui.js - CSS alone cannot make an absent element appear. */
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  z-index: 40;
+  padding-top: var(--safe-t);
+  padding-bottom: var(--safe-b);
+}
+
+/* Phone: no rail element exists, so the app is one column with no offset. */
+#app.layout-phone { --sidebar-w: 0px; }
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 17px 16px 15px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.brand-mark {
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  background: linear-gradient(150deg, #2a2110, #1a1408);
+  border: 1px solid #3d3115;
+  border-radius: 9px;
+  color: var(--c-master);
+  flex: 0 0 34px;
+}
+.brand-mark svg { width: 20px; height: 20px; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.brand-text strong { font-size: 15px; letter-spacing: .2px; }
+.brand-text small {
+  font-size: 10.5px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 11px;
+  min-height: var(--tap);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .13s, color .13s;
+}
+.nav-item:hover { background: var(--surface-3); color: var(--text); }
+.nav-item.is-active {
+  background: linear-gradient(90deg, rgba(79,107,255,.20), rgba(79,107,255,.07));
+  color: #fff;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.nav-ico {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  color: currentColor;
+  flex: 0 0 18px;
+  opacity: .9;
+}
+.nav-ico svg { width: 17px; height: 17px; }
+.nav-item.is-active .nav-ico { color: var(--accent-hover); opacity: 1; }
+.nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.sb-foot {
+  border-top: 1px solid var(--line-soft);
+  padding: 12px 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.run-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+
+.ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 8px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .13s, border-color .13s, color .13s;
+}
+.ctrl:hover { background: var(--surface-2); color: var(--text); border-color: #2c3646; }
+.ctrl-ico { width: 15px; height: 15px; display: grid; place-items: center; }
+.ctrl-ico svg { width: 15px; height: 15px; }
+.ctrl.is-on {
+  background: rgba(79,107,255,.17);
+  border-color: rgba(79,107,255,.5);
+  color: #cfd8ff;
+}
+.ctrl.play.is-on {
+  background: rgba(34,224,106,.15);
+  border-color: rgba(34,224,106,.45);
+  color: #a9f5c8;
+}
+.ctrl.ghost { width: 100%; color: var(--text-3); }
+.ctrl.ghost:hover { color: var(--bad); border-color: rgba(255,90,95,.35); }
+
+.tick-readout {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: center;
+  letter-spacing: .3px;
+}
+.tick-readout span { color: var(--text-2); }
+
+/* ================= MAIN ================= */
+.main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;              /* lets .stage actually shrink inside a flex column */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Compact header. The title yields to the numbers first: on a phone the
+   currency figure is the thing being watched, and "Map" can live in the tab
+   that is already highlighted. */
+.topbar {
+  height: calc(var(--topbar-h) + var(--safe-t));
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--safe-t) calc(var(--gutter) - 4px) 0 4px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+/* The hamburger is gone along with the drawer. The tab bar carries every
+   screen and the transport controls are in this bar, so there is nothing left
+   for a menu button to open. */
+
+.tb-mark {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+.tb-mark svg { width: 20px; height: 20px; display: block; }
+
+/* The back control, which replaces the brand mark when this build is framed by a
+   host launcher. It keeps .brand-mark's box so the header does not reflow, and
+   resets the button parts: a UA button carries its own background, border,
+   padding and font, which would paint over the mark's own styling and make the
+   control a different size from the thing it replaced.
+
+   `min-width: var(--tap)` on a coarse pointer because this is the only way out
+   of the game — it has to be as easy to hit as the play button beside it, which
+   uses the same token. */
+.tb-back {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s, transform .08s;
+}
+.tb-back:hover { border-color: #56461d; }
+.tb-back:active { transform: scale(.94); }
+.tb-back svg { width: 22px; height: 22px; }
+@media (pointer: coarse) { .tb-back { min-width: var(--tap); } }
+
+/* Tick counter, phone only. It used to live at the bottom of the rail, where a
+   phone user could not reach it at all — the rail was behind the drawer. */
+.tb-ticks {
+  min-width: 52px;
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-3);
+  cursor: default;
+}
+
+.tb-title {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: .2px;
+  flex: 0 0 auto;
+  /* One line, ellipsized. Titles like "Information" and "Trader List" used
+     to wrap or push the chips off the edge on a 360px screen. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Transport in the header on a phone. With the rail gone from this layout, this
+   bar is the ONLY place the run controls exist, so it must never be more than
+   one tap away. */
+.tb-transport { display: flex; gap: 4px; flex: 0 0 auto; }
+/* 34px was the visual size; the tap area around it is 44px, which is the part
+   that has to be big. Padding plus a negative inset keeps the icon where it
+   was while giving the button a real target. */
+.tb-btn {
+  width: var(--tap); height: var(--tap);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.tb-btn svg { width: 16px; height: 16px; }
+.tb-btn.is-on { background: rgba(79,107,255,.18); border-color: rgba(79,107,255,.5); color: #cfd8ff; }
+.tb-play.is-on { background: rgba(34,224,106,.16); border-color: rgba(34,224,106,.45); color: #a9f5c8; }
+
+.tb-stats {
+  display: flex;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  /* The two economy figures are the point of the header; the labour count
+     and the phase chip are pushed off on the narrowest screens (see the
+     bottom of this file) rather than shrinking into unreadable slivers. */
+  justify-content: flex-end;
+}
+
+/* A chip dropped by the fit pass must go away completely. `hidden` alone is a
+   UA `display: none`, which a later `.chip { display: inline-flex }` would
+   beat, so state it explicitly. */
+.tb-stats .chip[hidden] { display: none !important; }
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 8px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.chip i {
+  font-style: normal;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-3);
+}
+.chip b { font-family: var(--mono); font-size: 11.5px; font-weight: 650; }
+
+/* cycle chip in the topbar — carries the phase on every screen */
+.cycle-chip { transition: border-color .3s, background .3s; }
+.cycle-chip i { color: var(--text-2); }
+.cycle-chip b { font-family: var(--font); font-size: 10.5px; font-weight: 650; }
+
+/* tone utility, shared by badges, meters and the event log */
+.tone-good  { color: var(--good); }
+.tone-warn  { color: var(--warn); }
+.tone-bad   { color: var(--bad); }
+.tone-info  { color: var(--c-tool); }
+.tone-muted { color: var(--text-3); }
+.tone-bg-good  { background: var(--good); }
+.tone-bg-warn  { background: var(--warn); }
+.tone-bg-bad   { background: var(--bad); }
+.tone-bg-info  { background: var(--c-tool); }
+.tone-bg-muted { background: var(--text-3); }
+
+/* ================= CYCLE PANEL ================= */
+.cycle-hero .cy-phase { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.cy-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 13px;
+  border-radius: 20px;
+  border: 1px solid currentColor;
+  background: var(--surface-3);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .2px;
+}
+.cy-note {
+  margin: 0 0 16px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.meter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 13px 22px;
+}
+.meter { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; }
+.mt-label { font-size: 12.5px; color: var(--text-3); }
+.mt-val { font-family: var(--mono); font-size: 13px; font-weight: 650; }
+.mt-track {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.mt-track i { display: block; height: 100%; border-radius: 3px; transition: width .4s; }
+
+.cy-chart-wrap { margin-top: 4px; }
+.cy-chart {
+  width: 100%;
+  height: 190px;
+  display: block;
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+.cy-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.cy-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.cy-legend i { width: 9px; height: 3px; border-radius: 2px; display: inline-block; }
+
+.shock-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.shock-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.shock-list li span { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
+
+.evlog { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.evlog li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+}
+.evlog li.tone-good { border-left-color: var(--good); }
+.evlog li.tone-warn { border-left-color: var(--warn); }
+.evlog li.tone-bad  { border-left-color: var(--bad); }
+.evlog li.tone-info { border-left-color: var(--c-tool); }
+.ev-t {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  min-width: 68px;
+  white-space: nowrap;
+}
+
+/* ================= THE DEBT PANEL ================= */
+
+/* Lender choice. Two stacked cards on a phone, side by side from 620px. The
+   card carries its own rate, term and creed because the choice between them
+   is the entire decision: expensive and fast, or cheap and slow. */
+.lender-row { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.lender {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  min-height: var(--tap);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s, background .15s;
+}
+.lender.is-on { border-color: var(--accent); background: rgba(79,107,255,.09); }
+.lender.is-on b { color: var(--accent-hover); }
+.lender b { font-size: 13px; font-weight: 680; }
+.lr-rate { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+.lr-creed { font-size: 11px; color: var(--text-3); line-height: 1.4; margin-top: 2px; }
+.lr-out { font-family: var(--mono); font-size: 10.5px; margin-top: 3px; }
+
+/* Outstanding bond issues, each with its own redemption control. */
+.bond-list { display: grid; gap: 6px; margin-bottom: 10px; }
+.bond-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+}
+.bond-row > div { flex: 1 1 auto; min-width: 0; }
+.bond-row b { font-family: var(--mono); font-size: 12.5px; font-weight: 650; }
+.bond-row span { display: block; font-size: 10.5px; color: var(--text-3); }
+.bond-row > span { flex: 0 0 auto; text-align: right; }
+.bond-row .btn { flex: 0 0 auto; padding: 6px 10px; font-size: 11px; min-height: 34px; }
+
+/* Issue-a-bond row: the input grows, the button keeps its size. Fixed widths
+   for both would either clip a nine-figure figure or leave the button
+   stranded across a gap on a 360px screen. */
+.issue-row { display: flex; gap: 8px; align-items: center; }
+.issue-row .input { flex: 1 1 auto; min-width: 0; font-family: var(--mono); }
+.issue-row .btn { flex: 0 0 auto; white-space: nowrap; min-height: var(--tap); }
+
+/* ================= BUBBLE MAP TOOLTIP ================= */
+/* Hover tooltip on desktop. On a touch device there is no hover, so this
+   never appears — the tap-to-pin readout is the mobile equivalent, and it is
+   built as a real element rather than a hover artefact. See .pin-card below. */
+.bubble-tip {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  min-width: 190px;
+  max-width: min(300px, calc(100vw - 24px));
+  padding: 10px 12px;
+  background: rgba(18, 22, 31, .97);
+  border: 1px solid #2f3a4c;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  display: grid;
+  gap: 3px;
+}
+.bubble-tip[hidden] { display: none; }
+.bubble-tip b { font-size: 13px; font-weight: 650; color: var(--text); }
+.tip-row { font-size: 11.5px; color: var(--text-2); font-family: var(--mono); line-height: 1.5; }
+.tip-orders { color: var(--text-3); font-size: 11px; }
+.tip-links {
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 10.5px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+/* The touch equivalent of the hover tooltip. A real anchored card rather than
+   a cursor-following one, because a lifted finger covers whatever it is
+   hovering and the readout is the reason the finger is there. */
+.pin-card {
+  position: fixed;
+  z-index: 55;
+  max-width: min(300px, calc(100vw - 20px));
+  padding: 10px 30px 11px 12px;
+  background: rgba(18, 22, 31, .98);
+  border: 1px solid #33405280;
+  border-radius: var(--radius);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .55);
+  display: grid;
+  gap: 3px;
+  animation: dk-in .15s ease-out;
+}
+.pin-card[hidden] { display: none; }
+.pin-card b { font-size: 13px; font-weight: 650; color: var(--text); }
+.pin-row { font-size: 11px; color: var(--text-2); font-family: var(--mono); line-height: 1.5; }
+.pin-orders { color: var(--text-3); font-size: 10.5px; }
+.pin-links {
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 10.5px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.pin-x {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 24px; height: 24px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.pin-x:active { background: var(--surface-3); color: var(--text); }
+
+/* ================= RULING MODAL =================
+ *
+ * On a phone this is a bottom sheet, not a centred dialog. A dialog at
+ * 680px wide scaled to 390px had to shrink its type and stack three tall
+ * option buttons, which pushed the decisive part of the screen below the
+ * fold and put it squarely under the thumb that has to scroll past it.
+ *
+ * The sheet anchors to the bottom edge (where the thumb already is), rounds
+ * only the top corners, and respects the home indicator. Its header is
+ * sticky so the claimant and the total stay visible while the options are
+ * being considered — the player should never have to scroll back up to
+ * remember what they are ruling on. */
+#docket { position: fixed; inset: 0; z-index: 100; }
+#docket[hidden] { display: none; }
+
+.docket-scrim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(4, 7, 12, .82);
+  backdrop-filter: blur(3px);
+  animation: dk-in .18s ease-out;
+}
+@keyframes dk-in { from { opacity: 0; } to { opacity: 1; } }
+
+.docket {
+  width: 100%;
+  max-height: 92dvh;
+  max-height: 92vh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border: 1px solid #2f3a4c;
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -18px 60px rgba(0, 0, 0, .6);
+  padding: 14px var(--gutter) calc(14px + var(--safe-b));
+  animation: dk-up .24s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes dk-up { from { transform: translateY(14px); opacity: .6; } to { transform: none; opacity: 1; } }
+
+/* grab handle: the visual cue that this thing is dismissible by scrolling */
+.docket::before {
+  content: '';
+  display: block;
+  width: 34px;
+  height: 3px;
+  margin: 0 auto 10px;
+  border-radius: 3px;
+  background: #333e50;
+}
+
+.dk-head {
+  position: sticky;
+  top: -14px;
+  /* the offset cancels the sheet's own top padding so the header can stick
+     flush to the top edge while the body scrolls under it */
+  margin: -14px calc(var(--gutter) * -1) 0;
+  padding: 14px var(--gutter) 9px;
+  background: linear-gradient(var(--surface) 76%, transparent);
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+.dk-tag {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--text-3);
+}
+.docket h2 {
+  margin: 4px 0 6px;
+  font-size: 16px;
+  font-weight: 680;
+  letter-spacing: -.2px;
+}
+.dk-sum { margin: 0 0 6px; font-size: 12px; line-height: 1.55; color: var(--text-2); }
+.dk-sum b { font-family: var(--mono); color: var(--text); }
+.dk-note {
+  margin: 0 0 2px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--warn);
+  font-style: italic;
+}
+.dk-rest { margin: 4px 0 0; font-size: 11px; color: var(--text-3); }
+
+/* The claimant table is the longest block in the sheet and the least
+ * important to read in full — the summary above it already carries the count,
+ * the total and the dominant industry. At 92dvh on a phone this table is what
+ * pushes the three buttons below the fold, and the buttons are the decision.
+ *
+ * So the table collapses to a fixed-height scroll region. The largest three
+ * claims are what a ruling is actually made on, and a scrollable region says
+ * "there is more here" without hiding the controls that matter. */
+/* The claimant table is folded away by default on a phone.
+ *
+ * It is the longest block in the sheet and the least important to read in
+ * full: the summary above it already carries the count, the total, the share
+ * of the money supply and the dominant industry, and a ruling is made on the
+ * three largest claims — which the disclosure shows. Collapsing it means the
+ * three buttons and the surety note sit above the fold on a 390x844 screen
+ * with no scrolling at all, which is the entire point of a decision screen.
+ *
+ * On a tablet and up it stays open: there is room, and a hidden table on a
+ * wide screen just looks like something failed to load. */
+.dk-claims { margin: 8px 0 0; }
+.dk-claims-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  color: var(--text-2);
+  font: inherit;
+  cursor: pointer;
+  min-height: 38px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.dk-sum-claim { font-size: 11.5px; font-weight: 600; }
+.dk-rest { font-size: 10.5px; color: var(--text-3); margin: 0; }
+/* a chevron that rotates, so the control reads as expandable */
+.dk-claims-toggle::after {
+  content: '';
+  margin-left: auto;
+  width: 7px; height: 7px;
+  flex: 0 0 7px;
+  border-right: 1.6px solid var(--text-3);
+  border-bottom: 1.6px solid var(--text-3);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform .18s;
+}
+.dk-claims.is-open .dk-claims-toggle::after { transform: rotate(-135deg) translate(-1px, -1px); }
+.dk-table-wrap[hidden] { display: none; }
+
+.dk-table-wrap {
+  margin-top: 6px;
+  max-height: 168px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-sm);
+  /* fade the cut edge so it reads as scrollable rather than truncated */
+  mask-image: linear-gradient(to bottom, #000 82%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent);
+}
+
+.dk-table { width: 100%; border-collapse: collapse; margin: 10px 0 2px; }
+.dk-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-3);
+  font-weight: 600;
+  text-align: left;
+  padding: 0 6px 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dk-table td {
+  padding: 7px 6px 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12px;
+  vertical-align: baseline;
+}
+.dk-table td b { font-weight: 600; }
+.dk-table td span { display: block; font-size: 10px; color: var(--text-3); }
+.dk-table .num { font-family: var(--mono); text-align: right; white-space: nowrap; }
+.dk-table .verb { display: none; }
+
+/* Three rulings, one per row on a phone. Two-column was the old layout; it
+   forced the third option onto its own full-width row anyway, so it bought
+   nothing and cost the reader a scan across the widest gap on the screen. */
+.dk-choice { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+
+.dk-btn {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  min-height: var(--tap);
+  transition: border-color .15s, background .15s, transform .08s;
+  /* Kill the 300ms tap delay and the blue flash on Android. Both matter on a
+     control the player is expected to press quickly and often. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.dk-btn:active { transform: scale(.985); }
+.dk-forgive:hover { border-color: var(--good); }
+.dk-enforce:hover { border-color: var(--bad); }
+.dk-bailout:hover { border-color: var(--warn); }
+
+/* An exhausted lender is shown disabled rather than hidden: the player needs
+   to know the third option EXISTS and that they are the reason they cannot
+   have it right now. A button that silently vanishes reads as a bug. */
+.dk-btn:disabled { opacity: .5; cursor: not-allowed; }
+.dk-btn:disabled:active { transform: none; }
+.dk-btn:disabled:hover { background: var(--surface-2); }
+
+.dk-b {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+/* the lender tag on the bailout button, so the standing arrangement is
+   visible at the moment of ruling rather than buried on another screen */
+.dk-b em {
+  font-style: normal;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  padding: 2px 6px;
+  border-radius: 20px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  color: var(--text-3);
+}
+.dk-forgive .dk-b { color: var(--good); }
+.dk-enforce .dk-b { color: var(--bad); }
+.dk-bailout .dk-b { color: var(--warn); }
+.dk-t { font-size: 11.5px; line-height: 1.45; color: var(--text-2); }
+.dk-c { font-size: 10.5px; line-height: 1.4; }
+
+/* The surety note. This is the whole argument for why the third option is not
+   free, so it sits with the buttons rather than in a tooltip nobody opens. */
+.dk-surety {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 212, 59, .06);
+  border: 1px solid rgba(255, 212, 59, .22);
+  border-left-width: 2px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.dk-surety b { color: var(--warn); }
+
+.dk-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+.dk-foot b { font-family: var(--mono); color: var(--text-2); }
+
+/* The election is answered by confirming, so the armed state has to be
+   unmistakable at a glance and at arm's length.
+   It is deliberately the loudest thing on the sheet: a solid accent fill, a
+   ring in the same hue, and the label spelled out in words rather than left to
+   a colour change. Half the elections on a handset used to be settled by a
+   thumb landing on a 52px button while the player was trying to read the
+   verdict, so the cost of under-communicating this state is a lost term. */
+.dk-btn.is-armed {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+  animation: dk-armed .5s ease-in-out infinite alternate;
+}
+.dk-btn.is-armed .dk-b { color: var(--accent); }
+@keyframes dk-armed {
+  from { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  to   { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 22%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dk-btn.is-armed { animation: none; }
+}
+
+/* "paused" in the tag line, and the footer's restatement of it. Present on
+   every screen size because the whole point is that the player can tell the
+   country has stopped without having to infer it from a frozen counter. */
+.dk-paused { color: var(--warn); }
+.dk-foot .dk-paused { display: inline; color: var(--warn); }
+
+/* A button that is armed must not also look pressed-inactive. */
+.dk-btn.is-armed:active { transform: scale(1); }
+/* The keyboard hints are noise on a device with no keyboard. */
+.dk-keys { display: none; }
+.dk-foot kbd {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+}
+
+/* ================= ELECTION SHEET ================= */
+.docket.election h2 { font-size: 19px; letter-spacing: -.3px; }
+
+.el-score {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin: 11px 0 0;
+}
+.el-big {
+  flex: 0 0 auto;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-width: 84px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.el-big-l {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--text-3);
+}
+.el-big b { font-family: var(--mono); font-size: 25px; font-weight: 680; line-height: 1.15; }
+
+.el-adjust {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+}
+.el-adjust > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.el-adjust b { font-family: var(--mono); color: var(--text); }
+
+.el-h {
+  margin: 14px 0 7px;
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--text-3);
+}
+
+.el-seats { display: grid; gap: 4px; }
+.el-seat {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+  position: relative;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  isolation: isolate;
+}
+/* the bar is behind the row content, sized as a share of the chamber */
+.el-seat .el-bar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  z-index: -1;
+  opacity: .16;
+  border-radius: var(--radius-sm);
+  transition: width .5s;
+}
+.el-name { font-size: 11.5px; color: var(--text-2); }
+.el-num { font-family: var(--mono); font-size: 12px; font-weight: 650; }
+.el-bloc { margin: 7px 0 0; font-size: 10.5px; color: var(--text-3); line-height: 1.5; }
+
+.el-cost {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgba(255, 90, 95, .06);
+  border: 1px solid rgba(255, 90, 95, .25);
+}
+.el-cost .el-h { margin-top: 0; }
+.el-cost ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.el-cost li { font-size: 11px; line-height: 1.45; color: var(--text-2); }
+.el-cost li b { color: var(--text); }
+.el-cost-note {
+  margin: 8px 0 0;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255, 90, 95, .18);
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.el-mandate {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgba(34, 224, 106, .06);
+  border: 1px solid rgba(34, 224, 106, .22);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+/* The seat chart is the longest block in the election sheet and the least
+ * consequential — the verdict is already in the headline, the big number and
+ * the adjustments beside it. On a phone it folds away so the three things that
+ * decide the game (the verdict, the cost of defying it, and the buttons) all
+ * sit above the fold. Measured 776px of sheet on an 844px screen with the
+   buttons below it. */
+.el-roster-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  color: var(--text-2);
+  font: inherit;
+  cursor: pointer;
+  min-height: 38px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.el-roster-toggle b { font-size: 11.5px; font-weight: 650; }
+.el-roster-toggle span { font-size: 10.5px; color: var(--text-3); margin-left: auto; }
+.el-roster-toggle::after {
+  content: '';
+  width: 7px; height: 7px;
+  flex: 0 0 7px;
+  border-right: 1.6px solid var(--text-3);
+  border-bottom: 1.6px solid var(--text-3);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform .18s;
+}
+.el-roster.is-open .el-roster-toggle::after { transform: rotate(-135deg) translate(-1px, -1px); }
+.el-roster-body[hidden] { display: none; }
+.el-choice { margin-top: 13px; }
+.el-stepdown:hover { border-color: var(--text-2); }
+.el-stepdown .dk-b { color: var(--text-2); }
+
+/* ================= THE STATE PANEL ================= */
+.approval-gauge { margin: 16px 0 4px; }
+.ag-track {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.ag-fill { display: block; height: 100%; border-radius: 6px; transition: width .5s; }
+.ag-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(255, 255, 255, .22);
+}
+.ag-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 10px;
+  letter-spacing: .3px;
+  color: var(--text-3);
+}
+
+.choice-row { display: flex; gap: 9px; flex-wrap: wrap; }
+
+.decree-list { display: grid; gap: 11px; margin-top: 4px; }
+.decree {
+  padding: 13px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.decree.is-on { border-color: rgba(255, 90, 95, .45); background: rgba(255, 90, 95, .05); }
+.dz-head { display: flex; align-items: center; gap: 9px; margin-bottom: 5px; }
+.dz-head b { font-size: 13.5px; font-weight: 650; }
+.dz-on {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .7px;
+  color: var(--bad);
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.dz-desc { margin: 0 0 8px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.dz-trade { display: grid; gap: 3px; margin-bottom: 10px; }
+.dz-good { font-size: 11.5px; color: var(--good); line-height: 1.45; }
+.dz-good::before { content: '+ '; }
+.dz-bad { font-size: 11.5px; color: var(--bad); line-height: 1.45; }
+.dz-bad::before { content: '− '; }
+.decree .btn { margin-top: 0; }
+.decree .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+.faction-list { display: grid; gap: 9px; }
+.faction {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 10px;
+  padding: 11px 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.fx-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.fx-name i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; flex: 0 0 9px; }
+.fx-creed { grid-column: 1 / -1; font-size: 11.5px; font-style: italic; color: var(--text-3); }
+.fx-bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+  margin: 4px 0 2px;
+}
+.fx-bar i { display: block; height: 100%; transition: width .4s; }
+.fx-pow { font-family: var(--mono); font-size: 11.5px; }
+.fx-pow.pos { color: var(--good); }
+.fx-pow.neg { color: var(--bad); }
+
+.house { border-color: rgba(224, 182, 74, .3); }
+.house .fx-name i { background: #e0b64a; }
+
+/* forgive / enforce ledger bar */
+.ledger {
+  display: flex;
+  height: 22px;
+  margin: 12px 0 8px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface-3);
+  font-size: 10.5px;
+  letter-spacing: .4px;
+}
+.ledger span {
+  display: grid;
+  place-items: center;
+  /* A segment narrower than its own label must not push the strip wider than
+     the container — it has to clip instead, and the legend underneath carries
+     the full names. Measured 46px of overflow on a 358px row before this. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #0b0e14;
+  font-weight: 700;
+}
+.ld-forgive { background: var(--good); }
+.ld-enforce { background: var(--bad); color: #fff; }
+/* The third ruling gets its own colour. It is deliberately amber, not a
+   blend of the other two: forgiveness and enforcement are both ways of
+   destroying the claim, and the bailout is the only one that settles it in
+   new money, which is not a mixture of the two. */
+.ld-bailout { background: var(--warn); color: #241d00; }
+/* The legend sits under the strip rather than inside it: three segments in a
+   320px row leave no room for text within the segments, and a label that has
+   to be clipped to be shown is not a label. */
+.ledger-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+.ledger-note span { display: inline-flex; align-items: center; gap: 5px; }
+/* swatch first, matching the order of the segments above it */
+.ledger-note span::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  flex: 0 0 8px;
+}
+.ledger-note .tone-good::before { background: var(--good); }
+.ledger-note .tone-warn::before { background: var(--warn); }
+.ledger-note .tone-bad::before  { background: var(--bad); }
+
+/* three-orders stack */
+.class-stack {
+  display: flex;
+  height: 26px;
+  margin: 12px 0 9px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface-3);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.class-stack span {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  color: #0b0e14;
+  transition: width .5s;
+}
+.cs-commons { background: #6b7686; color: #e6edf3; }
+.cs-middle  { background: var(--c-tool); }
+.cs-elite   { background: #e0b64a; }
+.class-legend {
+  display: grid;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.class-legend span { display: flex; align-items: center; gap: 8px; }
+.class-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; flex: 0 0 9px; }
+/* Slider thumbs must be grabbable on a touchscreen: the default thumb is
+   around 13px, and smaller on some Android builds, which is well under the
+   44px target. The padding grows the hit area to 44px without making the
+   visible track taller, and the negative margin gives back the space it took
+   so the layout does not shift. */
+.slider-field input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+  padding: 12px 0;
+  margin: -12px 0;
+  touch-action: manipulation;
+}
+.slider-field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px; height: 20px;
+  background: var(--accent);
+  border: 2px solid #0b0e14;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.slider-field input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px;
+  background: var(--accent);
+  border: 2px solid #0b0e14;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.sf-read {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-2);
+  min-height: 16px;
+}
+
+.stage {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* The bubble map is drawn to the canvas' pixel size; letting the browser
+     scale it would blur every label. touch-action stops a drag on the map
+     from scrolling the page underneath it. */
+  touch-action: manipulation;
+}
+.canvas[hidden] { display: none; }
+
+/* ================= TAB BAR (phone navigation) =================
+ * Twelve screens will not fit across 390px as full-width tabs, so the bar
+ * scrolls horizontally with snap points. Each tab stays at least 62px so the
+ * labels are never truncated, and the active tab scrolls itself into view on
+ * navigation — otherwise tapping "Debt" on a 10th tab leaves it off-screen
+ * with no indication of where you are. */
+.tabbar {
+  flex: 0 0 auto;
+  height: calc(var(--tabbar-h) + var(--safe-b));
+  padding-bottom: var(--safe-b);
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tabbar::-webkit-scrollbar { display: none; }
+
+.tab {
+  flex: 1 0 62px;
+  min-width: 62px;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: none;
+  border: 0;
+  border-top: 2px solid transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.tab-ico { display: grid; place-items: center; }
+.tab-ico svg { width: 18px; height: 18px; }
+.tab-label {
+  font-size: 9.5px;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab:active { background: var(--surface-2); }
+.tab.is-active {
+  color: var(--accent-hover);
+  border-top-color: var(--accent);
+  background: rgba(79, 107, 255, .07);
+}
+/* Faded to the left and right so the bar visibly continues off-screen when
+   there are more screens than fit — a hard cut at the edge reads as "that is
+   all of them", which was the whole problem with hiding eight tabs. */
+.tabbar {
+  mask-image: linear-gradient(to right, transparent 0, #000 14px,
+                              #000 calc(100% - 14px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px,
+                              #000 calc(100% - 14px), transparent 100%);
+}
+
+/* ================= PANELS ================= */
+.panel-host {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* -webkit-overflow-scrolling was for momentum scrolling and is deprecated,
+     but it is still the only way to get momentum inside a nested scroller on
+     older iOS. Harmless where it is ignored. */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: var(--gutter) var(--gutter) 28px;
+}
+
+.panel { max-width: 1080px; margin: 0 auto; }
+
+.panel-head { margin-bottom: 14px; }
+.panel-head h2 {
+  margin: 0 0 4px;
+  font-size: var(--fs-h2);
+  font-weight: 680;
+  letter-spacing: -.2px;
+}
+.panel-head p {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.panel-body { display: flex; flex-direction: column; gap: 12px; }
+.panel-body.two-col { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+
+/* cards — replaces white panel backgrounds */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.card h3 {
+  margin: 0 0 13px;
+  font-size: 13px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--text-2);
+}
+.card.danger { border-color: rgba(255,77,94,.35); }
+.card.danger h3 { color: var(--danger); }
+.card.credit { background: var(--surface-2); }
+.card.credit p { margin: 0 0 10px; line-height: 1.6; color: var(--text-2); font-size: 13.5px; }
+.card.credit p:last-child { margin-bottom: 0; }
+
+.hint { margin: -6px 0 12px; font-size: 12px; color: var(--text-3); line-height: 1.55; }
+.hint.dim { color: #58616f; }
+/* A hint that follows a control rather than a heading sits flush. */
+.issue-row + .hint { margin: 8px 0 0; }
+
+/* stat strip */
+/* Stat strips are the most common panel element and the most likely to blow
+   the width. minmax(170px, 1fr) gave two columns on a 390px phone with 12px
+   of dead gutter on each side; 130px gives three, which is the difference
+   between reading a figure and squinting at it. The six-up variant exists
+   because The State now reports three counters x two money totals. */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+.stat-strip.three { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.ss {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ss i {
+  font-style: normal;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-3);
+}
+.ss b { font-family: var(--mono); font-size: 15px; font-weight: 650; letter-spacing: -.3px; }
+.ss b.pos { color: var(--good); }
+.ss b.neg { color: var(--bad); }
+.ss b.tone-warn { color: var(--warn); }
+
+/* ---- forms: no black text on white anywhere ---- */
+.field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.field-grid.two { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.field-stack { display: flex; flex-direction: column; gap: 12px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.field.col { min-width: 0; }
+.field > span {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.field em {
+  position: absolute;
+  right: 11px;
+  bottom: 9px;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+.input, .select {
+  width: 100%;
+  /* 16px, not 13.5px: iOS zooms the viewport to fit any input under 16px on
+     focus, which on a phone means the layout jumps and the field ends up off
+     screen. 16px is the smallest size that prevents that, so the phone layout
+     uses it and the desktop layer steps it back down. */
+  font-size: 16px;
+  padding: 10px 11px;
+  min-height: var(--tap);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);              /* was @android:color/black */
+  font-family: inherit;
+  transition: border-color .13s, background .13s;
+  /* numeric fields on a phone should bring up a numeric keypad */
+  -webkit-appearance: none;
+  appearance: none;
+}
+.input:focus, .select:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 3px rgba(79,107,255,.16);
+}
+.input::placeholder { color: var(--text-3); }
+.field .input { padding-right: 32px; }
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' stroke='%236b7686' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 12px;
+  padding-right: 30px;
+  cursor: pointer;
+}
+.select option { background: var(--surface-2); color: var(--text); }
+
+.inline-row { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+/* Fixed 150px fields overflow a 358px row the moment a second control joins
+   them, so they share the space instead. */
+.inline-row .input { flex: 1 1 130px; min-width: 0; }
+.inline-row .select { flex: 1 1 200px; min-width: 170px; }
+
+.form-msg { margin: 10px 0 0; font-size: 12.5px; color: var(--text-3); min-height: 16px; }
+.form-msg.err { color: var(--danger); font-weight: 600; }
+
+/* buttons */
+.btn {
+  padding: 10px 16px;
+  /* Buttons are pressed constantly and often while moving a thumb, so they
+     meet the 44px target and drop the hover-only affordances on touch. */
+  min-height: var(--tap);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .3px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .13s, border-color .13s, transform .06s;
+}
+.btn:hover { background: var(--surface-2); border-color: #2c3646; }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-accent {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #fff;
+}
+.btn-accent:hover { filter: brightness(1.1); }
+.btn-danger {
+  background: rgba(255,77,94,.13);
+  border-color: rgba(255,77,94,.45);
+  color: var(--danger);
+}
+.btn-danger:hover { background: rgba(255,77,94,.22); border-color: var(--danger); }
+.btn-ghost { color: var(--text-2); }
+.card > .btn { margin-top: 14px; }
+
+/* ---- trader grid (was: white list_single rows, black text) ---- */
+.panel-list .trader-grid {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Eight columns cannot fit 390px, and the old layout only hid the extras
+ * below 760px — which left the phone showing a grid 600px wide inside a 360px
+ * container, scrolling sideways under every row.
+ *
+ * The phone layout is a card, not a table: identity and type on the first
+ * line, the four numbers as a compact strip beneath. It is the only shape that
+ * keeps all eight fields legible without horizontal scrolling, and a trader row
+ * is read at a glance rather than scanned column-to-column. The header row is
+ * dropped entirely and its labels move onto the values themselves (see the
+ * .tg-n::after rules), so nothing is left unlabelled. */
+.tg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 0;
+  padding: 9px 12px;
+}
+/* the header keeps a grid so the desktop column alignment is unchanged */
+.tg-head { display: none; }
+.tg-head {
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-3);
+  position: sticky;
+  top: calc(var(--gutter) * -1);
+  z-index: 5;
+}
+/* A trader row is a two-line card on a phone:
+     LABOR#1#7(born)                · Food
+     stk 12  sld 4  prc $26.07  …
+   The four numeric cells share a wrapping strip beneath the identity, so all
+   of them stay legible instead of the grid overflowing sideways. */
+/* The identity takes the full first line; the five numeric cells then flow
+   and wrap beneath it. `flex-basis: 100%` on the id is what forces the break,
+   which is more robust than grid areas here because the cells genuinely do
+   reflow as the values change width. */
+.tg-row > .tg-id { flex: 0 0 100%; }
+.tg-row > .tg-type { display: none; }
+.tg-row > .tg-flags { flex: 0 0 100%; margin-top: 4px; }
+.tg-row > .tg-num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.tg-row > .tg-num::before {
+  content: attr(data-l);
+  font-family: var(--font);
+  font-size: 9px;
+  color: var(--text-3);
+  letter-spacing: .3px;
+}
+.tg-row > .tg-num + .tg-num::before {
+  margin-left: 7px;
+  padding-left: 7px;
+  border-left: 1px solid var(--line-soft);
+}
+.tg-row { border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+.tg-row:last-child { border-bottom: 0; }
+.tg-row:nth-child(even) { background: rgba(255,255,255,.014); }
+.tg-row:hover { background: var(--surface-3); }
+
+.tg-id { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.tg-id b {
+  font-weight: 600;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tg-ico {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  flex: 0 0 26px;
+}
+.tg-ico svg { width: 16px; height: 16px; }
+.tg-ico.c0 { color: var(--c-labor); }
+.tg-ico.c1 { color: var(--c-food); }
+.tg-ico.c2 { color: var(--c-tool); }
+.tg-ico.c3 { color: var(--c-coal); }
+.tg-ico.c4 { color: var(--c-iron); }
+.tg-ico.c5 { color: var(--c-transport); }
+
+.tg-type { font-size: 12.5px; font-weight: 650; }
+.tg-num { font-family: var(--mono); font-size: 12.5px; color: var(--text-2); }
+.tg-num.accent { color: var(--c-food); }
+.tg-num.neg { color: var(--bad); }
+.tg-flags { display: flex; gap: 5px; flex-wrap: wrap; }
+
+.flag {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 2.5px 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.flag.warn { background: rgba(255,212,59,.12); border-color: rgba(255,212,59,.4); color: var(--warn); }
+.flag.bad  { background: rgba(255,90,95,.12);  border-color: rgba(255,90,95,.4);  color: var(--bad); }
+
+/* ---- presets ---- */
+.preset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.preset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .14s, background .14s, transform .1s;
+}
+.preset-card:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+  transform: translateY(-2px);
+}
+.preset-card b { font-size: 14.5px; letter-spacing: .3px; }
+.preset-card span { font-size: 12.5px; color: var(--text-3); line-height: 1.5; }
+
+/* ---- readout (bank) ---- */
+.readout {
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.85;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* ---- order log ---- */
+.order-log {
+  margin-top: 13px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-3);
+  min-height: 44px;
+  line-height: 1.7;
+}
+
+/* ---- prose (Information panel) ---- */
+.prose { line-height: 1.72; font-size: 14px; color: var(--text-2); }
+.prose h4 {
+  margin: 22px 0 9px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--accent-hover);
+}
+.prose p { margin: 0 0 13px; }
+.prose b { color: var(--text); font-weight: 650; }
+.prose ul.chain { margin: 0 0 15px; padding-left: 20px; }
+.prose ul.chain li { margin-bottom: 7px; }
+
+/* ---- toasts ---- */
+#toasts {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  z-index: 100;
+  pointer-events: none;
+}
+.toast {
+  padding: 10px 17px;
+  background: var(--elev);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 550;
+  box-shadow: 0 8px 28px rgba(0,0,0,.55);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .22s, transform .22s;
+}
+.toast.in { opacity: 1; transform: translateY(0); }
+.toast.err { border-left-color: var(--danger); }
+
+/* ---- fullscreen mode ---- */
+/* The full-screen toggle hides every navigation surface: on a phone that is
+   the rail and the tab bar both, so the map gets the entire viewport. */
+body.is-fullscreen .sidebar { display: none; }
+body.is-fullscreen .tabbar { display: none; }
+body.is-fullscreen .topbar { opacity: .25; transition: opacity .2s; }
+body.is-fullscreen .topbar:hover { opacity: 1; }
+
+/* ==================================================================
+   RESPONSIVE — additive layers only
+   ==================================================================
+   The base stylesheet above is the 9:16 phone. Everything wider is layered
+   on here, in ascending order of space. The old file did this in reverse
+   (a desktop layout plus shrinking overrides), which is why a phone ended
+   up with a 62px icon rail and a topbar that hid its own numbers.
+
+   Breakpoints are chosen by what the layout can do, not by device names:
+     420px  two-column data is genuinely impossible; tighten further
+     620px  tablet — the sheet can become a centred dialog, the tab bar can
+            afford to show every tab at once
+     900px  desktop — the rail returns, the header can be generous
+   ================================================================== */
+
+/* ---------- very narrow phones (≤420px: iPhone SE, small Androids) ----------
+   At this width the two remaining chips plus a phase chip will not fit
+   beside a title. The economy figures win because they are what the player
+   came to watch; the phase is already on the Cycle screen and is restated
+   in full on the map's own readout. */
+@media (max-width: 420px) {
+  :root { --gutter: 10px; }
+  .tb-title { display: none; }
+  .tb-stats .chip:nth-child(3) { display: none; }   /* labour count */
+  .tb-stats .chip i { display: none; }              /* label text */
+  .tb-stats .chip { padding: 3px 7px; }
+  .tb-stats .chip b { font-size: 11px; }
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+  .stat-strip.three { grid-template-columns: 1fr 1fr; }
+  .el-big { min-width: 72px; padding: 8px 10px; }
+  .el-big b { font-size: 21px; }
+  .field-grid, .field-grid.two { grid-template-columns: 1fr 1fr; }
+  .preset-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- short viewports ----------
+   A phone rotated (844x390) and a small phone held upright (320x568) have the
+   same problem: not enough height for a sheet whose buttons are the decision.
+
+   The response is the same in both cases — make the sheet horizontal, and give
+   the vertical axis to the three rulings rather than to prose about them. The
+   `dk-t` explanation is dropped because it is reference material a player reads
+   once, while the buttons are read every single time. The claimant table folds
+   away regardless of width, since 390px of height cannot hold it. */
+/* ---------- tablets (≥620px) ----------
+   Everything fits, so the tab bar stops scrolling and the sheet stops being
+   a sheet. Below this the twelve tabs need ~750px of bar to show at their
+   62px minimum, which is wider than most phones and narrower than most
+   tablets — the honest answer is that it scrolls, which is what it does. */
+@media (min-width: 620px) {
+  :root {
+    --gutter: 16px;
+    --topbar-h: 52px;
+    --tabbar-h: 60px;
+    --fs-body: 14px;
+    --fs-small: 12px;
+    --fs-h2: 19px;
+    --fs-h3: 14.5px;
+  }
+
+  .tb-title { display: block; }
+  .tb-stats .chip:nth-child(3) { display: inline-flex; }
+  .tb-stats .chip i { display: inline; }
+
+  .panel-body.two-col { grid-template-columns: 1fr 1fr; }
+  .stat-strip.three { grid-template-columns: repeat(3, 1fr); }
+  .lender-row { grid-template-columns: 1fr 1fr; }
+
+  /* The sheet becomes a dialog again — there is now room to centre it, and
+     three options side by side is genuinely easier to compare. */
+  .docket-scrim { align-items: center; padding: 20px; }
+  .docket {
+    width: min(720px, 100%);
+    max-height: 90dvh;
+    max-height: 90vh;
+    border-radius: 14px;
+    border-bottom: 1px solid #2f3a4c;
+    padding: 18px 24px 18px;
+  }
+  .docket::before { display: none; }
+  .dk-head { position: static; margin: 0 0 4px; padding: 0; background: none; backdrop-filter: none; }
+  .docket h2 { font-size: 19px; }
+  .dk-sum { font-size: 13px; }
+  .dk-note { font-size: 12px; }
+  .dk-rest { font-size: 11.5px; }
+  .dk-table { margin: 12px 0 4px; }
+  .dk-table th { font-size: 10px; padding: 0 8px 7px 0; }
+  .dk-table td { font-size: 13px; padding: 9px 8px 9px 0; }
+  .dk-table td span { font-size: 11px; }
+  .dk-table .verb { display: table-cell; }
+  .dk-choice { grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+  /* room to spare in a centred dialog: the table is visible without folding.
+     Both the toggle and the inline `hidden` attribute are overridden here,
+     which is why this is a button and not a <details> element. */
+  .dk-claims-toggle { display: none; }
+  .dk-table-wrap[hidden] { display: block; }
+  .dk-table-wrap { max-height: 260px; }
+  .dk-btn { padding: 13px 14px; gap: 5px; }
+  .dk-b { font-size: 14px; }
+  .dk-t { font-size: 12px; }
+  .dk-c { font-size: 11px; }
+  .dk-surety { font-size: 11.5px; }
+  .dk-foot { font-size: 11.5px; }
+  .dk-keys { display: inline; }
+  /* enough height here to show the chamber in full */
+  .el-roster-toggle { display: none; }
+  .el-roster-body[hidden] { display: block; }
+
+  .el-big b { font-size: 25px; }
+  .el-adjust > div { font-size: 12px; }
+  .el-name, .el-num { font-size: 12.5px; }
+  .el-cost li, .el-mandate { font-size: 12px; }
+
+  .panel-body { gap: 14px; }
+  .panel-head { margin-bottom: 18px; }
+  .panel-head p { font-size: 13.5px; }
+
+    /* Restore the table: from here up there is room for real columns, so the
+     header reappears and the per-cell labels are dropped in favour of it. */
+  .tg-head {
+    display: grid;
+    grid-template-columns: minmax(150px, 2fr) 84px 60px 60px 90px;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 15px;
+  }
+  .tg-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 2fr) 84px 60px 60px 90px;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 15px;
+    font-size: 13px;
+  }
+  .tg-head span:nth-child(n+6), .tg-row > span:nth-child(n+6) { display: none; }
+  .tg-row > .tg-type { display: block; }
+  .tg-row > .tg-flags { margin-top: 0; }
+  .tg-row > .tg-num::before { content: none; }
+  .tg-row > .tg-num + .tg-num::before { margin: 0; padding: 0; border: 0; }
+}
+
+/* ---------- desktop (≥900px) ----------
+   The rail comes back. It is worth it here: with 900px of width, navigation
+   costs 236px and leaves 664px for the map, and the navigation is at the
+   left edge where a mouse finds it without the hand crossing the content. */
+@media (min-width: 900px) {
+  :root {
+    --sidebar-w: 236px;
+    --gutter: 20px;
+    --topbar-h: 56px;
+    --fs-body: 14px;
+    --fs-small: 12px;
+    --fs-tiny: 11px;
+    --fs-h2: 21px;
+    --fs-h3: 15px;
+  }
+
+  #app { flex-direction: row; }
+
+  /* The rail's own block above is already unconditional, so there is nothing to
+     undo here any more. The desktop layer only has to widen it. */
+  .sidebar { padding-top: 0; padding-bottom: 0; }
+  /* the header duplicates the sidebar controls from here up, so the topbar
+     transport pair and the tick chip are hidden — the rail shows both */
+  .tb-transport { display: none; }
+  /* a mouse targets the icon, so the 44px phone padding is no longer needed
+     and would visibly unbalance the header */
+  .tb-btn { width: 34px; height: 34px; padding: 0; }
+  .input, .select { font-size: 13.5px; min-height: 0; padding: 9px 11px; }
+  .inline-row .input { flex: 0 0 150px; }
+
+  /* the tab bar is redundant beside a full rail */
+  .tabbar { display: none; }
+
+  .main { height: 100vh; height: 100dvh; }
+
+  .topbar { padding: 0 20px; gap: 16px; }
+  .tb-title { display: block; font-size: 15px; }
+  .tb-stats { gap: 8px; justify-content: flex-end; }
+  .tb-stats .chip { padding: 5px 10px; gap: 7px; }
+  .tb-stats .chip i { font-size: 10px; letter-spacing: .6px; }
+  .tb-stats .chip b { font-size: 12.5px; }
+  .tb-stats .chip:nth-child(3) { display: inline-flex; }
+
+  .panel-host { padding: 22px; }
+  .panel-head { margin-bottom: 20px; }
+  .panel-body { gap: 16px; }
+  .panel-body.two-col { gap: 16px; }
+
+  .docket-scrim { align-items: center; padding: 24px; }
+  .docket {
+    width: min(680px, 100%);
+    padding: 24px 26px 20px;
+  }
+  .docket.election { width: min(600px, 100%); }
+  .dk-table-wrap { max-height: 300px; }
+
+  .stat-strip.three { grid-template-columns: repeat(6, 1fr); }
+  .field-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .field-grid.two { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .preset-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+}
+
+/* ---------- very wide (≥1500px): cap the reading measure ----------
+   A panel stretched across 1800px of 13px prose is one enormous line and
+   unreadable. The map should keep using the space; the text should not. */
+@media (min-width: 1500px) {
+  .panel { max-width: 1160px; }
+  .prose { max-width: 74ch; }
+}
+
+/* ---------- motion & contrast preferences ---------- */
+/* ---------- short viewports, applied LAST ----------
+   These have to come after the width breakpoints, because a rotated phone is
+   844px wide — past the 620px and 900px thresholds — and therefore matches
+   every desktop rule above. Declaring `max-height` earlier in the file lost
+   the cascade entirely, which is why a rotated phone rendered the 800px-tall
+   desktop dialog into a 390px viewport: measured 351px of a sheet needing
+   500, with the buttons below the fold.
+
+   Ordering by height after ordering by width is the only way to express
+   "this is a big screen that happens to be short". */
+@media (max-height: 760px) {
+  .docket { max-height: 97dvh; max-height: 97vh; }
+  .docket-scrim { padding: 8px; }
+  /* three rulings side by side: horizontal space is the axis this layout has
+     plenty of, and vertical is exactly what it lacks */
+  .dk-choice { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .dk-t { display: none; }
+  .dk-btn { padding: 10px 11px; gap: 3px; }
+  .dk-b { font-size: 13px; }
+  .dk-c { font-size: 10px; line-height: 1.35; }
+  .dk-b em { display: inline; }
+  .dk-surety { font-size: 10.5px; padding: 7px 10px; margin-top: 8px; }
+  .dk-foot { font-size: 10px; margin-top: 8px; padding-top: 7px; }
+  .dk-keys { display: none; }
+  /* a sticky header inside a 350px scroller only obscures the content */
+  .dk-head { position: static; margin: 0 0 3px; padding: 0; background: none; backdrop-filter: none; }
+  .docket::before { display: none; }
+  .dk-table-wrap[hidden] { display: block; }
+  .dk-claims-toggle { display: none; }
+  .dk-table-wrap { max-height: 120px; }
+  .docket h2 { font-size: 15px; margin: 2px 0 4px; }
+  .dk-sum, .dk-note { font-size: 11px; }
+  /* the election sheet runs longer than the docket sheet, so it loses its
+     roster first — the headline vote number carries the verdict alone */
+  .el-roster-toggle { min-height: 34px; padding: 6px 9px; }
+  .el-choice { margin-top: 10px; }
+  .el-cost ul { gap: 2px; }
+  .el-cost-note { display: none; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --tabbar-h: 44px; --topbar-h: 40px; }
+  .tab-label { display: none; }
+  .tab-ico svg { width: 20px; height: 20px; }
+  .docket { max-height: 98dvh; max-height: 98vh; }
+  .dk-table-wrap { max-height: 92px; }
+  /* rotated phone: 390px of height cannot hold the verdict, the arithmetic,
+     the consequence list and the buttons. It keeps the verdict and the cost —
+     the two things that decide the choice — and folds the arithmetic into a
+     single line under the vote, because the penalties are also visible on The
+     State screen. */
+  .el-cost ul { display: none; }
+  .el-cost .el-h { margin-bottom: 3px; }
+  .el-cost-note, .el-mandate, .el-bloc { display: none; }
+  .el-score { margin-top: 7px; gap: 7px; }
+  .el-big { min-width: 64px; padding: 5px 9px; }
+  .el-big b { font-size: 19px; }
+  .el-big-l { font-size: 8px; }
+  /* one row of adjustments instead of a stacked list */
+  .el-adjust { grid-auto-flow: column; align-items: center; gap: 10px; }
+  .el-adjust > div { gap: 4px; font-size: 10px; }
+  .el-h { margin: 8px 0 4px; }
+  .el-roster-toggle { min-height: 30px; padding: 4px 9px; }
+  .el-choice { gap: 8px; margin-top: 8px; }
+  .el-choice .dk-btn { padding: 7px 10px; }
+  .el-choice .dk-t { display: none; }
+  /* 390px of height cannot hold a header, a vote block, a roster disclosure,
+     a cost block and two buttons. Everything above the vote line goes: the
+     verdict is repeated in the big number, and the button label says plainly
+     whether you are being returned or overruling the chamber. */
+  .docket.election h2 { display: none; }
+  .docket.election .dk-sum { font-size: 10.5px; margin-bottom: 0; }
+  .docket.election .dk-tag { font-size: 9px; }
+  .docket.election .dk-head { margin-bottom: 6px; }
+  .docket.election .dk-foot { display: none; }
+  .el-roster { display: none; }
+  .el-mandate { display: none; }
+  .el-big b { font-size: 21px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+  /* keep the cycle chart animating only if the user wants it */
+  .el-seat .el-bar { transition: none; }
+}
+
+/* Coarse pointers get bigger targets and no hover-only affordances. */
+@media (pointer: coarse) {
+  .dk-btn:hover { background: var(--surface-2); transform: none; }
+  .dk-btn { min-height: 52px; }
+  .nav-item:hover { background: none; }
+  .preset-card:hover, .decree:hover { transform: none; }
+}
+
+/* ---------- short viewports (landscape phone) ----------
+   LAST in the file, deliberately. A rotated phone is 844px wide and therefore
+   matches every desktop width rule above — including the one that un-hides the
+   rail — so any rule for a short screen has to outrank them all. Putting this
+   block earlier meant the rail appeared on a landscape phone for exactly as long
+   as it took to notice. */
+@media (max-height: 520px) and (orientation: landscape) {
+  /* The rail is gone from a landscape phone for the same reason it is gone from
+     a portrait one: 844px of width does not make a phone a desktop. The
+     breakpoint that decides is width, and 900px is only reachable here by
+     rotating a handset. */
+  #app.layout-wide .sidebar { display: none; }
+  #app.layout-wide { --sidebar-w: 0px; }
+  #app.layout-wide .tb-transport { display: flex; }
+  #app.layout-wide .tabbar { display: flex; }
+}

@@ -196,6 +196,10 @@ function switchPage(targetPageId) {
 
   playChime(targetPageId);
 
+  /* Game 4 is Proto 2 in an iframe: mount it on first entry and re-measure
+     when the page comes back. See the comment on mountProtoFrame below. */
+  mountProtoFrame(targetPageId);
+
   if (targetPageId === 'flappy') {
     flappyGame.resume();
     requestAnimationFrame(() => flappyGame.resize());
@@ -1732,7 +1736,6 @@ document.addEventListener('DOMContentLoaded', () => {
   flappyGame.init();
   chessGame.init();
   setupVirtualPet();
-  setupEconomyGame();
 
   // 2. Wire App Launch Cards (2x2 Grid)
   const launchCards = document.querySelectorAll('.app-launch-card');
@@ -1896,3 +1899,96 @@ document.addEventListener('DOMContentLoaded', () => {
     handleHash();
   }
 });
+
+// =======================================================
+// PROTO 2 (GAME 4) — IFRAME MOUNT
+// =======================================================
+
+/* Lazily attach the iframe, once.
+ *
+ * The src is deliberately absent from the markup. Proto 2 is 15 files and about
+ * 512 KB of ES modules, and three of the four games in this launcher have
+ * nothing to do with it — so it is not fetched until the player actually opens
+ * game 4. Setting it more than once would restart the app and throw away the
+ * simulation, hence the guard.
+ *
+ * A second case is easy to miss, and is why the reflow below is unconditional:
+ * this launcher hides pages with `display: none`, and an iframe at zero size
+ * gets no animation frames and never receives a resize event when it is shown
+ * again. Proto 2 sizes its map canvas from its own clientWidth, so without the
+ * nudge it would keep the 0x0 bitmap it built while hidden — a blank map, and
+ * no error anywhere to say why. Same-origin, so the child window is directly
+ * reachable. */
+let protoFrameMounted = false;
+
+function mountProtoFrame(pageId) {
+  const frame = document.getElementById('proto-frame');
+  if (!frame) return;
+
+  const wantsProto = pageId === 'economy';
+
+  if (wantsProto && !protoFrameMounted && !frame.getAttribute('src')) {
+    frame.setAttribute('src', 'proto2/index.html');
+    protoFrameMounted = true;
+    frame.addEventListener('load', () => publishSafeArea(), { once: true });
+    /* contentDocument is null until the child parses; on load is the first
+       moment the document exists AND has the app mounted in it. */
+  }
+
+  if (!wantsProto) return;
+
+  /* Re-measure once the page is actually laid out. Two frames: the first runs
+     after the class flip has been styled, the second after the iframe has been
+     given a size by that layout. */
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    try {
+      const w = frame.contentWindow;
+      if (!w) return;
+      /* Proto 2 listens for resize to re-fit its canvas and to re-evaluate
+         matchMedia for the rail/tab-bar layout switch. */
+      w.dispatchEvent(new w.Event('resize'));
+      if (w.app && typeof w.app.refreshCanvas === 'function') w.app.refreshCanvas();
+    } catch (e) {
+      /* Child not reachable yet; its own resize handler will catch up. */
+    }
+    /* Insets are a property of the display, so they arrive as 0 inside the
+       frame; hand the child the real values. See publishSafeArea. */
+    publishSafeArea();
+  }));
+}
+
+/* The insets change when the device rotates, and the child is already mounted by
+   then, so this has to be re-run outside the first-entry path. */
+window.addEventListener('resize', () => publishSafeArea(), { passive: true });
+window.addEventListener('orientationchange', () => publishSafeArea());
+/* Write this document's safe-area insets into the Proto 2 child document.
+ *
+ * env() is measured with a throwaway probe element rather than guessed: there is
+ * no JS API for safe-area insets, but a fixed-position element sized with
+ * env(safe-area-inset-top) reports the real value through getBoundingClientRect.
+ * One element, two reads, removed immediately. */
+function readSafeAreaInsets() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;visibility:hidden;'
+    + 'pointer-events:none;height:env(safe-area-inset-top,0px)';
+  document.body.appendChild(probe);
+  const top = probe.getBoundingClientRect().height;
+  probe.style.height = 'env(safe-area-inset-bottom,0px)';
+  const bottom = probe.getBoundingClientRect().height;
+  probe.remove();
+  return { top, bottom };
+}
+
+function publishSafeArea() {
+  const frame = document.getElementById('proto-frame');
+  if (!frame || !frame.getAttribute('src')) return;
+  let doc = null;
+  try { doc = frame.contentDocument; } catch (e) { return; }
+  /* Not loaded yet, or a cross-origin document (impossible here — same origin). */
+  if (!doc || !doc.documentElement) return;
+  if (!doc.getElementById('app')) return;   // still parsing
+  const { top, bottom } = readSafeAreaInsets();
+  const root = doc.documentElement.style;
+  root.setProperty('--safe-t', top + 'px');
+  root.setProperty('--safe-b', bottom + 'px');
+}

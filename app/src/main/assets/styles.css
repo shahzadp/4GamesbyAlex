@@ -1066,12 +1066,35 @@ body.android-fullscreen .page.active {
   touch-action: manipulation;
 }
 
-/* Touch-dog renders inline; drop the heavy shadow since it has its own art. */
+/* Touch-dog renders inline and carries its own shading, so there is no shadow here —
+   which is what the comment above this rule always said. The rule had re-added a
+   13px/12px drop-shadow, and because a transform animation inside the SVG repaints
+   its raster, that blur was re-rasterised on every frame of every idle loop. Worth
+   ~15% of a core on its own.
+
+   The one animation here is deliberately on the SVG ELEMENT and not on one of its
+   parts: an HTML box transform is compositor-accelerated, an SVG child transform is
+   not. See tools/fix-pet-perf.js for the measurements. */
 .pet-avatar #touch-dog-svg {
   display: block;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 13px 12px rgba(0, 0, 0, 0.4));
+  animation: petIdle 5.5s ease-in-out infinite;
+  will-change: transform;
+  transform-origin: 50% 78%;
+}
+
+@keyframes petIdle {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%      { transform: translateY(-1.5px) scaleY(1.018); }
+}
+
+/* Honoured for the idle loops, not for the player-triggered reactions: if someone
+   has asked the system for less motion, a dog that breathes on its own forever is
+   exactly the thing they asked not to see. A tap still gets a bark. */
+@media (prefers-reduced-motion: reduce) {
+  .pet-avatar #touch-dog-svg, .pet-spark, .pet-card-emoji { animation: none !important; }
+  #eyes { animation: none !important; }
 }
 
 .pet-portrait {
@@ -2291,3 +2314,78 @@ body.theme-economy #page-economy.active {
   font-family: var(--font-main);
   font-size: 0.78rem;
 }
+
+/* ================= PROTO 2 (GAME 4) LAYOUT =================
+ * Proto 2 is a self-contained document with its own topbar, canvas and bottom
+ * tab bar, so it gets the whole page: no host chrome, and its own in-game back
+ * control where the brand mark would be. See tools/embed-proto2.cjs.
+ */
+
+/* The frame fills the page box. `.page.active` is a flex column, so flex:1 gives
+   the frame the full height between the status bar and the system nav bar. */
+.proto-frame {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  display: block;
+  border: 0;            /* the UA 2px inset border would shrink clientWidth by 4px */
+  background: #0b0e14;
+  color-scheme: dark;
+}
+
+/* Undo the old economy page's scrolling-page overrides (see header note). The old
+   rules made the body a scrolling block and stopped the page growing; an embedded
+   app wants the opposite — a fixed viewport that never scrolls the host document,
+   because the game scrolls its own panels. */
+body.theme-economy {
+  display: block;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The shell carries 1rem of horizontal padding and a safe-area bottom inset for the
+   other games, which sit inside a frame. Proto 2 draws its own edges and handles its
+   own safe areas, so both would show up as a dead border around the game. */
+body.theme-economy .mobile-app-shell {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
+body.theme-economy #page-economy.active {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+/* The host's page-fade animation translates the page; on a canvas that reads as a
+   smear every time the game is entered, and it also creates a compositing layer
+   that makes the iframe repaint on the wrong cadence. */
+body.theme-economy #page-economy.active {
+  animation: none;
+}
+
+/* ---- launcher card artwork ---- */
+
+/* Card underline. Same hue as the crown in the icon below, so the accent and
+   the artwork cannot drift apart. */
+.proto2-card { border-bottom: 3px solid #ffdf94; }
+
+/* The thumbnail box: a hairline in the icon's own champagne, on the same
+   periwinkle the icon's background gradient starts from. */
+.proto2-thumb {
+  border: 1px solid rgba(255, 223, 148, .22);
+  background: #2a2f45;
+}
+
+/* The icon fills the 1:1 thumb. `object-fit` is irrelevant here — it is an
+   inline SVG, not a replaced image — so this is a plain fill, and the
+   thumb's own overflow:hidden + border-radius crop it to the card shape. */
+.proto2-thumb-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+

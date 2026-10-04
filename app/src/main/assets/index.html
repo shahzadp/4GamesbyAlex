@@ -64,16 +64,43 @@
           </div>
         </button>
 
-        <!-- Card 4: Micro Economy -->
-        <button class="app-launch-card economy-card" data-target="economy">
-          <div class="card-thumb economy-thumb">
-            <span class="economy-thumb-currency">$</span>
-            <div class="economy-thumb-chart" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-            <span class="economy-thumb-arrow" aria-hidden="true">↗</span>
+        <!-- Card 4: Proto 2 -->
+        <button class="app-launch-card proto2-card" data-target="economy">
+          <div class="card-thumb proto2-thumb">
+            <!-- The Proto 2 adaptive launcher icon, transcribed from the APK's
+                 ic_launcher_background.xml + ic_launcher_foreground.xml. Inline SVG
+                 because a res/ drawable is not addressable from a WebView page. -->
+            <svg class="proto2-thumb-icon" viewBox="0 0 108 108" aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="p2-bg" x1="0" y1="0" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#3B4363"/>
+                  <stop offset="1" stop-color="#5A5480"/>
+                </linearGradient>
+                <radialGradient id="p2-bloom" cx="30" cy="26" r="54" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#BFC6F5" stop-opacity=".4"/>
+                  <stop offset="1" stop-color="#BFC6F5" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="p2-crown" x1="0" y1="0" x2="0" y2="24" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#FFF2CD"/>
+                  <stop offset="1" stop-color="#FFDF94"/>
+                </linearGradient>
+              </defs>
+              <rect width="108" height="108" fill="url(#p2-bg)"/>
+              <rect width="108" height="108" fill="url(#p2-bloom)"/>
+              <g transform="translate(27.6 27.6) scale(2.2)">
+                <path d="M3.4 8.6l3.5 2.9L12 4.8l5.1 6.7 3.5-2.9-1.4 8.8H4.8L3.4 8.6z"
+                      fill="url(#p2-crown)" stroke="#A8801F" stroke-width="1.15" stroke-linejoin="round"/>
+                <path d="M5.2 15.4h13.6" fill="none" stroke="#A8801F" stroke-width="1.1" stroke-linecap="round"/>
+                <circle cx="12" cy="13.2" r="1.5" fill="#FFFAF0"/>
+                <circle cx="3.4" cy="8.6" r="1.5" fill="#FFF2CD"/>
+                <circle cx="20.6" cy="8.6" r="1.5" fill="#FFF2CD"/>
+                <circle cx="12" cy="4.8" r="1.6" fill="#FFFAF0"/>
+              </g>
+            </svg>
           </div>
           <div class="card-meta">
             <span class="card-badge">04</span>
-            <h2>Micro Economy</h2>
+            <h2>Proto 2</h2>
           </div>
         </button>
       </div>
@@ -280,11 +307,20 @@
   svg{-webkit-tap-highlight-color:transparent}
   .hit{cursor:pointer}
   .ol{stroke:#4a2a14;stroke-width:4;stroke-linejoin:round;stroke-linecap:round}
-  #torso{transform-origin:200px 556px;animation:breathe 3s ease-in-out infinite}
-  #head{transform-origin:200px 292px;animation:bob 4s ease-in-out infinite}
-  #tail{transform-origin:282px 440px;animation:tail 2.4s ease-in-out infinite}
+  /* Idle motion moved OFF the SVG internals and onto the SVG element, which is an
+     HTML box the compositor can animate. A transform on #torso/#head/#tail is NOT
+     compositable: each frame repainted the whole 400x600 raster and re-rasterised
+     the 12px drop-shadow over it. Five of those, permanently, cost 130% of a core
+     on an itel S685LN. As one container animation the dog still breathes and sways,
+     for about 5%. Measurements and method: tools/fix-pet-perf.js.
+
+     transform-origin stays on the individual parts: the transient reactions
+     (.bark, .flap, .wag, ...) still rotate and scale them from those points. */
+  #torso{transform-origin:200px 556px}
+  #head{transform-origin:200px 292px}
+  #tail{transform-origin:282px 440px}
   #eyes{transform-origin:200px 202px;animation:blink 4.5s infinite}
-  #pL,#pR{transition:transform .15s;animation:look 7s infinite}
+  #pL,#pR{transition:transform .15s}
   #dog{transform-origin:200px 556px}
   #earL{transform-origin:135px 150px}
   #earR{transform-origin:265px 150px}
@@ -477,109 +513,20 @@
         </section>
       </div>
     </section>
+    <!-- ================= PAGE 4: PROTO 2 ================= -->
+    <!-- Proto 2, the economy simulator, running as a same-origin iframe so it keeps
+         its own document, module scope and 100dvh layout. See tools/embed-proto2.cjs
+         for why it is framed rather than inlined.
 
-    <!-- ================= PAGE 4: MICRO ECONOMY ================= -->
+         No src in the markup: app.js attaches it on first entry, so the whole module
+         graph (about 512 KB across 15 files) is not fetched by a player who only ever
+         opens the other three games. -->
     <section id="page-economy" class="page" data-page="economy">
-      <header class="mobile-top-bar">
-        <button class="icon-btn-round" data-back title="Back to home">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-        <div class="bar-title-box">
-          <span class="bar-subtitle">Live economic sandbox</span>
-          <h2 class="bar-title">Micro Economy</h2>
-        </div>
-        <button class="icon-btn-round nav-quick-btn" data-target="flappy" title="Next: Flappy Bird">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
-      </header>
-
-      <div class="mobile-stage-container economy-stage" id="stage-economy">
-        <div class="econ-commandbar">
-          <div class="econ-day-display">
-            <span>SIMULATION DAY</span>
-            <strong id="econ-day">001</strong>
-            <span id="econ-run-state" class="econ-run-state">PAUSED</span>
-          </div>
-          <div class="econ-command-buttons">
-            <button id="econ-step" class="econ-icon-button" type="button" title="Advance one day">+1</button>
-            <button id="econ-speed" class="econ-icon-button" type="button" title="Change simulation speed">1×</button>
-            <button id="econ-toggle" class="econ-run-button" type="button">Run</button>
-          </div>
-        </div>
-
-<div class="econ-kpi-grid">
-          <div class="econ-kpi"><span>TREASURY</span><strong id="econ-treasury">$100.00</strong><small id="econ-money-change">Bank-backed</small></div>
-          <div class="econ-kpi"><span>WORKFORCE</span><strong id="econ-population">19</strong><small id="econ-pop-change">Stable</small></div>
-          <div class="econ-kpi"><span>PRICE INDEX</span><strong id="econ-price-index">100.0</strong><small id="econ-price-change">Base 100</small></div>
-          <div class="econ-kpi"><span>TRADE FLOW</span><strong id="econ-volume">0</strong><small>transactions</small></div>
-        </div>
-
-        <div class="econ-meters" aria-label="Supply health">
-          <label class="econ-meter"><span>Food supply<strong id="econ-food-meter">100%</strong></span><progress id="econ-food-bar" max="100" value="100"></progress></label>
-          <label class="econ-meter"><span>Labour pool<strong id="econ-labor-meter">100%</strong></span><progress id="econ-labor-bar" max="100" value="100"></progress></label>
-          <label class="econ-meter"><span>Household cash<strong id="econ-cash-meter">100%</strong></span><progress id="econ-cash-bar" max="100" value="100"></progress></label>
-        </div>
-        <div class="econ-tabs" role="tablist" aria-label="Economy views">
-          <button class="econ-tab active" type="button" role="tab" aria-selected="true" data-econ-tab="market">Market</button>
-          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="trade">Trade</button>
-          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="policy">Policy</button>
-          <button class="econ-tab" type="button" role="tab" aria-selected="false" data-econ-tab="ledger">Ledger</button>
-        </div>        </div>
-
-        <section class="econ-panel active" id="econ-panel-market" role="tabpanel" data-econ-panel="market">
-          <div class="econ-section-heading"><div><h3>Production network</h3><p>Inputs, outputs, and active traders</p></div><span id="econ-market-status" class="econ-status-pill">BALANCED</span></div>
-          <div id="econ-map" class="econ-node-grid" aria-label="Economy production network"></div>
-          <div class="econ-section-heading econ-chart-heading"><div><h3>Commodity prices</h3><p>Recent market history</p></div><span id="econ-chart-range">12 days</span></div>
-          <div class="econ-chart-wrap">
-            <svg id="econ-chart" viewBox="0 0 360 112" role="img" aria-label="Commodity price history">
-              <path class="econ-chart-gridline" d="M0 20H360M0 48H360M0 76H360M0 104H360" />
-              <polyline id="econ-line-food" class="econ-line econ-line-food" points="" />
-              <polyline id="econ-line-labor" class="econ-line econ-line-labor" points="" />
-              <polyline id="econ-line-tools" class="econ-line econ-line-tools" points="" />
-            </svg>
-            <div class="econ-chart-legend"><span><i class="legend-food"></i>Food</span><span><i class="legend-labor"></i>Labor</span><span><i class="legend-tools"></i>Tools</span></div>
-          </div>
-          <div class="econ-section-heading econ-activity-heading"><div><h3>Market signals</h3><p>Latest simulation events</p></div></div>
-          <ol id="econ-activity" class="econ-activity-list"></ol>
-        </section>
-
-        <section class="econ-panel" id="econ-panel-trade" role="tabpanel" data-econ-panel="trade" hidden>
-          <div class="econ-section-heading"><div><h3>Master trader</h3><p>Trade against current market supply</p></div><span class="econ-status-pill">MARKET ORDERS</span></div>
-          <div id="econ-trade-list" class="econ-trade-list"></div>
-          <div class="econ-inventory-strip"><span>Your reserves</span><strong id="econ-inventory">No commodities held</strong></div>
-        </section>
-
-        <section class="econ-panel" id="econ-panel-policy" role="tabpanel" data-econ-panel="policy" hidden>
-          <div class="econ-section-heading"><div><h3>Monetary policy</h3><p>Balance growth, prices, and stability</p></div></div>
-          <div class="econ-mode-control" role="group" aria-label="Pricing model">
-            <button class="econ-mode-button" type="button" data-econ-mode="stable">Stable prices</button>
-            <button class="econ-mode-button active" type="button" data-econ-mode="supply">Supply &amp; demand</button>
-          </div>
-          <button id="econ-tax-toggle" class="econ-tax-toggle" type="button" aria-pressed="true">Transaction taxes: On</button>
-          <label class="econ-policy-slider"><span>Universal transaction tax <strong id="econ-tax-value">5%</strong></span><input id="econ-tax" type="range" min="0" max="20" value="5"></label>
-          <label class="econ-policy-slider"><span>Bank interest <strong id="econ-interest-value">3%</strong></span><input id="econ-interest" type="range" min="0" max="12" value="3"></label>
-          <label class="econ-policy-slider"><span>Reserve requirement <strong id="econ-reserve-value">20%</strong></span><input id="econ-reserve" type="range" min="5" max="50" value="20"></label>
-          <div class="econ-bank-summary"><div><span>Reserves</span><strong id="econ-bank-reserves">$0.00</strong></div><div><span>Debt</span><strong id="econ-bank-debt">$0.00</strong></div><div><span>Bank health</span><strong id="econ-bank-health">Stable</strong></div></div>
-          <div class="econ-fiscal-tools">
-            <h3>Fiscal operations</h3>
-            <label for="econ-money-amount">Amount ($)</label>
-            <div class="econ-money-row"><input id="econ-money-amount" type="number" min="1" step="1" value="25"><button id="econ-create-money" type="button">Issue</button><button id="econ-destroy-money" type="button">Retire</button></div>
-            <label for="econ-stimulus-sector">Distribute stimulus</label>
-            <div class="econ-money-row"><select id="econ-stimulus-sector"><option value="labor">Workforce</option><option value="food">Food producers</option><option value="tools">Toolmakers</option><option value="mines">Mines</option></select><button id="econ-stimulus" type="button">Distribute</button></div>
-          </div>
-        </section>
-
-        <section class="econ-panel" id="econ-panel-ledger" role="tabpanel" data-econ-panel="ledger" hidden>
-          <div class="econ-section-heading"><div><h3>Economic ledger</h3><p>Policy actions and notable events</p></div><button id="econ-reset" class="econ-reset-button" type="button">Reset</button></div>
-          <ol id="econ-ledger" class="econ-ledger-list"></ol>
-          <p class="econ-save-note">Progress saves automatically on this device.</p>
-        </section>
-        <p class="econ-footer-note">A living model. Every policy change has trade-offs.</p>
-      </div>
+      <iframe class="proto-frame" id="proto-frame" title="Proto 2 economy simulator"
+              allow="autoplay"></iframe>
     </section>
   </div>
 
-  <script src="economy.js"></script>
   <script src="chess-core.js"></script>
   <script src="chess-engine.js"></script>
   <script src="app.js"></script>
