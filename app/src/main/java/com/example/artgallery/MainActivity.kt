@@ -4,10 +4,17 @@ import android.Manifest
 import android.app.Activity
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.speech.RecognizerIntent
@@ -31,6 +38,7 @@ import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.KeyStore
@@ -106,6 +114,43 @@ class MainActivity : ComponentActivity() {
             .edit()
             .clear()
             .commit()
+
+        /* --- PGN export (2x Stockfish match) --------------------------
+         *
+         * A WebView has no filesystem, and an <a download> against a blob URL
+         * silently does nothing here: there is no DownloadListener on this
+         * WebView and nothing would handle the download intent. Writing the
+         * file has to happen natively, which is what these two calls are for.
+         *
+         * @JavascriptInterface methods are invoked on the WebView's private
+         * JavaBridge thread, not the main thread, so the blocking file IO here
+         * does not stall rendering. Nothing in these methods touches the UI.
+         */
+
+        /**
+         * Writes a PGN to the device's Downloads folder.
+         *
+         * Returns a human readable location on success and an empty string on
+         * failure, so the page can report the outcome in one call without a
+         * second round trip.
+         */
+        @JavascriptInterface
+        fun savePgn(fileName: String, content: String): String {
+            if (content.isEmpty() || content.length > MAX_PGN_CHARS) return ""
+            val safeName = sanitizePgnFileName(fileName)
+            return runCatching { writePgn(safeName, content) }.getOrDefault("")
+        }
+
+        /** Copies text to the system clipboard. Returns false if it could not. */
+        @JavascriptInterface
+        fun copyToClipboard(text: String): Boolean {
+            if (text.isEmpty() || text.length > MAX_PGN_CHARS) return false
+            return runCatching {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("PGN", text))
+                true
+            }.getOrDefault(false)
+        }
 
         @JavascriptInterface
         fun askPet(requestId: String, model: String, messagesJson: String) {
@@ -303,6 +348,69 @@ class MainActivity : ComponentActivity() {
         })
     }
 
+    /**
+     * Strips anything that could escape the Downloads folder or that a file
+     * system would reject, and guarantees the .pgn extension. The name comes
+     * from JavaScript, so it is untrusted input.
+     */
+    private fun sanitizePgnFileName(raw: String): String {
+        val cleaned = raw
+            .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
+            .trim()
+            .take(120)
+            .ifBlank { "chess-game" }
+        return if (cleaned.endsWith(".pgn", ignoreCase = true)) cleaned else "$cleaned.pgn"
+    }
+
+    /**
+     * Two paths, because there is one on modern Android and a different one
+     * below it.
+     *
+     * API 29+ writes through MediaStore into the shared Downloads collection,
+     * which needs no runtime permission at all - scoped storage made that
+     * write legal without asking. The two-step IS_PENDING dance is what stops
+     * a half-written file from ever appearing in the user's Downloads view.
+     *
+     * Below API 29 there is no MediaStore Downloads collection to write to,
+     * and asking for WRITE_EXTERNAL_STORAGE just to save a game would put a
+     * scary permission prompt in front of a child for no good reason, so the
+     * file goes to the app's own external Downloads directory. That is
+     * writable with no permission on every version, and the returned path
+     * tells the page exactly where it went.
+     */
+    private fun writePgn(fileName: String, content: String): String {
+        val bytes = content.toByteArray(Charsets.UTF_8)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, PGN_MIME_TYPE)
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: return ""
+            try {
+                contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: return ""
+            } finally {
+                // Always clear IS_PENDING, including when the write throws.
+                // A row left pending is invisible in the user's Downloads view
+                // but is still a row in MediaStore, and a run of failed saves
+                // would quietly fill the table with them.
+                values.clear()
+                values.put(MediaStore.Downloads.IS_PENDING, 0)
+                contentResolver.update(uri, values, null, null)
+            }
+            return Environment.DIRECTORY_DOWNLOADS
+        }
+
+        val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
+        if (!dir.exists() && !dir.mkdirs()) return ""
+        val file = File(dir, fileName)
+        file.writeBytes(bytes)
+        return file.absolutePath
+    }
+
     private fun deliverPetSpeechResult(text: String) {
         runOnUiThread {
             if (!::webView.isInitialized || isDestroyed) return@runOnUiThread
@@ -404,5 +512,14 @@ class MainActivity : ComponentActivity() {
         const val PET_KEY_PREFERENCES = "pet_secure_store"
         const val PET_KEY_IV = "openrouter_key_iv"
         const val PET_KEY_VALUE = "openrouter_key_encrypted"
+
+        // The registered MIME type for PGN. Chess sites and desktop GUIs use
+        // this to offer "open with", which is why it is set rather than
+        // falling back to application/octet-stream.
+        const val PGN_MIME_TYPE = "application/x-chess-pgn"
+        // A guard rail on data crossing the bridge. A PGN is kilobytes; a
+        // megabyte means something is wrong upstream, not that the game
+        // genuinely produced that much.
+        const val MAX_PGN_CHARS = 1_000_000
     }
 }

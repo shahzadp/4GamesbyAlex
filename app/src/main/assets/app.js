@@ -180,6 +180,12 @@ function playChime(theme) {
 function switchPage(targetPageId) {
   if (state.currentPage === targetPageId) return;
 
+  // Captured before state.currentPage is reassigned below. Testing it after
+  // that assignment is a silent no-op: it has already become the target page,
+  // so "are we leaving chess?" never evaluates true and the cleanup never
+  // runs.
+  const leavingPage = state.currentPage;
+
   const currentEl = document.getElementById(`page-${state.currentPage}`);
   const targetEl = document.getElementById(`page-${targetPageId}`);
   if (!targetEl) return;
@@ -205,6 +211,16 @@ function switchPage(targetPageId) {
     requestAnimationFrame(() => flappyGame.resize());
   } else {
     flappyGame.pause();
+  }
+
+  /* The 2x Stockfish match keeps two wasm-backed workers alive between
+     moves. Leaving the chess page stops the match and frees both, which
+     matters on a phone; they reload in about a second when the match restarts. */
+  if (leavingPage === 'chess') {
+    chessDuel.suspend();
+    // The 1x bot's engine lives here rather than on the duel controller, so
+    // it is released alongside it.
+    chessGame.releaseBotEngine();
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -717,6 +733,23 @@ const flappyGame = {
 // =======================================================
 
 function getPieceSvg(type, color) {
+  // Twelve possible outputs. The board asks for one per occupied square on
+  // every render, so without this the same multi-line template string is
+  // rebuilt and re-parsed hundreds of times a second during a match. The SVG is
+  // a pure function of these two values, so caching it is free of any risk
+  // beyond the memory for twelve strings.
+  const cacheKey = type + color;
+  const cached = getPieceSvg.cache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const svg = buildPieceSvg(type, color);
+  getPieceSvg.cache.set(cacheKey, svg);
+  return svg;
+}
+
+getPieceSvg.cache = new Map();
+
+function buildPieceSvg(type, color) {
   const isWhite = color === 'w';
   // Solid, rich fills: Solid white #ffffff for white, deep charcoal black #1e293b for black
   const fill = isWhite ? '#ffffff' : '#1e293b';
@@ -795,9 +828,16 @@ const chessGame = {
   capturedBlack: [],
   moveLog: [],
   pendingPromotion: null, // { r, c } awaiting a promotion choice
-  // 'local' = both sides played by the human, 'stockfish' = engine plays black.
+  // Three explicit modes rather than one on/off toggle, because "bot off"
+  // alone makes 2-player play look like an absence of a feature rather than
+  // a real choice, and because the engine-vs-engine match is a third thing
+  // entirely rather than a flavour of the second.
+  //   'local'    - both sides played by the human on this device
+  //   'stockfish'- human plays white, engine plays black
+  //   'duel'     - two engines play each other (see chessDuel below)
   mode: 'local',
   botEnabled: false,
+  duelActive: false,
   botSide: 'b',
   botThinking: false,
   botDepth: 12,
@@ -815,6 +855,7 @@ const chessGame = {
     this.promoEl = document.getElementById('promotion-picker');
     this.modeLocalBtn = document.getElementById('chess-mode-local');
     this.modeBotBtn = document.getElementById('chess-mode-stockfish');
+    this.modeDuelBtn = document.getElementById('chess-mode-duel');
     this.modeLabel = document.getElementById('chess-mode-label');
 
     const resetBtn = document.getElementById('btn-reset-chess');
@@ -827,6 +868,9 @@ const chessGame = {
     }
     if (this.modeBotBtn) {
       this.modeBotBtn.addEventListener('click', () => this.setMode('stockfish'));
+    }
+    if (this.modeDuelBtn) {
+      this.modeDuelBtn.addEventListener('click', () => this.setMode('duel'));
     }
 
     if (this.botBtn) {
@@ -842,11 +886,36 @@ const chessGame = {
       });
     }
 
+    // The board is built once and then only ever updated in place.
+    //
+    // It used to be rebuilt from scratch on every render, and a render happens
+    // on every single tap. That meant each tap created 64 elements, attached
+    // 64 event listeners, threw all of that away, and then re-parsed up to 32
+    // inline SVG strings for the pieces. On a phone that is the difference
+    // between a responsive board and one that feels like it is underwater.
+    this.buildBoard();
+
+    // The duel controller is initialised *before* this object's first render,
+    // not after. reset() calls updateUI() calls updateModeUI() calls
+    // chessDuel.syncVisibility(), so anything reached from there runs against
+    // a controller whose element map is still being built. Building it first
+    // means the ordering stops being load-bearing.
+    chessDuel.init();
+
     this.reset();
   },
 
-  reset() {
-    this.state = chessInitialState();
+  // `startState` lets the 2x match hand in a chosen starting position - an
+  // engine match set up from an opening, or from a pasted FEN - without this
+  // object needing to know anything about where that position came from.
+  reset(startState) {
+    // The duel controller has to be told first. Resetting writes a record of
+    // the match that was in progress, and it takes that record from the move
+    // log, the clocks and the final position - all of which this method is
+    // about to throw away.
+    if (this.duelActive) chessDuel.onBoardReset();
+
+    this.state = startState || chessInitialState();
     this.selected = null;
     this.legalForSelected = [];
     this.capturedWhite = [];
@@ -858,13 +927,19 @@ const chessGame = {
     this.setStatus('');
     this.updateUI();
     this.render();
-    if (this.botEnabled) this.maybeBotMove();
+    if (this.botEnabled && !this.duelActive) this.maybeBotMove();
   },
 
   // --- Rendering --------------------------------------------------------
 
-  render() {
+  // Creates the 64 squares once and hangs a single delegated listener off the
+  // board, instead of one listener per square that is thrown away on every
+  // render. The squares carry their own coordinates in data attributes, which
+  // is all the click handler needs.
+  buildBoard() {
     if (!this.boardEl) return;
+    this.boardEl.innerHTML = '';
+    this.squares = [];
     const frag = document.createDocumentFragment();
 
     for (let r = 0; r < 8; r++) {
@@ -873,44 +948,76 @@ const chessGame = {
         sq.className = 'chess-square ' + (((r + c) % 2 === 0) ? 'sq-w' : 'sq-b');
         sq.dataset.row = String(r);
         sq.dataset.col = String(c);
-
-        if (this.selected && this.selected.r === r && this.selected.c === c) {
-          sq.classList.add('selected');
-        }
-
-        const target = this.legalForSelected.find(m => m.to.r === r && m.to.c === c);
-        if (target) {
-          if (target.isEnPassant) sq.classList.add('valid-capture');
-          else if (target.isCastle) sq.classList.add('valid-castle');
-          else if (target.captured) sq.classList.add('valid-capture');
-          else sq.classList.add('valid-move');
-        }
-
-        if (this.pendingPromotion && this.pendingPromotion.r === r && this.pendingPromotion.c === c) {
-          sq.classList.add('valid-capture');
-        }
-
-        const king = this.state.board[r][c];
-        if (king && king.t === 'k' && this.kingInCheck === king.c) {
-          sq.classList.add('in-check');
-        }
-
-        const piece = this.state.board[r][c];
-        if (piece) {
-          const pDiv = document.createElement('div');
-          pDiv.className = 'chess-piece piece-' + piece.c;
-          pDiv.innerHTML = getPieceSvg(piece.t, piece.c);
-          sq.appendChild(pDiv);
-        }
-
-        // Bound the listener's closure to this square only.
-        sq.addEventListener('click', () => this.onSquareClick(r, c));
+        this.squares.push(sq);
         frag.appendChild(sq);
       }
     }
-
-    this.boardEl.innerHTML = '';
     this.boardEl.appendChild(frag);
+
+    this.boardEl.addEventListener('click', (e) => {
+      const sq = e.target.closest('.chess-square');
+      if (!sq || !this.boardEl.contains(sq)) return;
+      this.onSquareClick(parseInt(sq.dataset.row, 10), parseInt(sq.dataset.col, 10));
+    });
+  },
+
+  // Updates the squares in place. Nothing is created or destroyed here, and a
+  // square whose class has not changed is left completely alone - which, after
+  // a move, is most of them.
+  render() {
+    if (!this.squares) {
+      if (!this.boardEl) return;
+      this.buildBoard();
+      if (!this.squares) return;
+    }
+
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const sq = this.squares[r * 8 + c];
+
+        let cls = 'chess-square ' + (((r + c) % 2 === 0) ? 'sq-w' : 'sq-b');
+        if (this.selected && this.selected.r === r && this.selected.c === c) cls += ' selected';
+
+        const target = this.legalForSelected.find(m => m.to.r === r && m.to.c === c);
+        if (target) {
+          if (target.isEnPassant) cls += ' valid-capture';
+          else if (target.isCastle) cls += ' valid-castle';
+          else if (target.captured) cls += ' valid-capture';
+          else cls += ' valid-move';
+        }
+
+        if (this.pendingPromotion && this.pendingPromotion.r === r && this.pendingPromotion.c === c) {
+          cls += ' valid-capture';
+        }
+
+        const piece = this.state.board[r][c];
+        if (piece && piece.t === 'k' && this.kingInCheck === piece.c) cls += ' in-check';
+
+        // Assigning className unconditionally would dirty the element and make
+        // the browser recalculate style for all 64 squares on every tap.
+        if (sq.className !== cls) sq.className = cls;
+
+        // Same reasoning for the piece: only touch the DOM when the piece on
+        // this square has actually changed.
+        const key = piece ? piece.t + piece.c : '';
+        if (sq._pieceKey !== key) {
+          sq._pieceKey = key;
+          if (piece) {
+            let p = sq._pieceEl;
+            if (!p || !p.parentNode) {
+              p = document.createElement('div');
+              sq.appendChild(p);
+              sq._pieceEl = p;
+            }
+            p.className = 'chess-piece piece-' + piece.c;
+            p.innerHTML = getPieceSvg(piece.t, piece.c);
+          } else if (sq._pieceEl) {
+            sq.removeChild(sq._pieceEl);
+            sq._pieceEl = null;
+          }
+        }
+      }
+    }
   },
 
   updateUI() {
@@ -929,6 +1036,10 @@ const chessGame = {
         this.turnText.textContent = winner + ' wins by checkmate';
       } else if (status === 'stalemate') {
         this.turnText.textContent = 'Draw by stalemate';
+      } else if (this.duelActive) {
+        // The duel controller owns this text while a match is selected: it
+        // knows whether the match has finished and which engine is thinking.
+        this.turnText.textContent = chessDuel.turnText(status);
       } else if (this.botThinking) {
         this.turnText.textContent = 'Stockfish is thinking';
       } else if (this.botEnabled && this.state.turn === 'b') {
@@ -945,26 +1056,33 @@ const chessGame = {
       this.moveCountEl.textContent = String(Math.floor(this.moveLog.length / 2));
     }
 
-    if (this.capturedWhiteEl) {
-      this.capturedWhiteEl.innerHTML = this.capturedWhite
+    // Both trays only change when something is captured, but updateUI() runs many
+    // times a second during a match. Rebuilding the same icon list every time
+    // is wasted work on a page that is already trying to stay light.
+    const blackTray = this.capturedBlack.map(p => p.t + p.c).join(',');
+    if (this.capturedBlackEl && blackTray !== this._blackTraySig) {
+      this._blackTraySig = blackTray;
+      this.capturedBlackEl.innerHTML = this.capturedBlack
         .map(p => '<span class="captured-icon">' + getPieceSvg(p.t, 'w') + '</span>').join('');
     }
-    if (this.capturedBlackEl) {
-      this.capturedBlackEl.innerHTML = this.capturedBlack
+    const whiteTray = this.capturedWhite.map(p => p.t + p.c).join(',');
+    if (this.capturedWhiteEl && whiteTray !== this._whiteTraySig) {
+      this._whiteTraySig = whiteTray;
+      this.capturedWhiteEl.innerHTML = this.capturedWhite
         .map(p => '<span class="captured-icon">' + getPieceSvg(p.t, 'b') + '</span>').join('');
     }
 
     if (this.moveLogEl) {
-      const rows = [];
-      for (let i = 0; i < this.moveLog.length; i += 2) {
-        const num = Math.floor(i / 2) + 1;
-        const w = this.moveLog[i] || '';
-        const b = this.moveLog[i + 1] || '';
-        rows.push('<div class="movelog-row"><span class="movelog-num">' + num +
-                  '.</span><span class="movelog-san">' + w + '</span>' +
-                  '<span class="movelog-san">' + b + '</span></div>');
+      // The log only changes when a move is made, but updateUI() runs on every
+      // render and during a match that is several times a second. Rebuilding
+      // the same rows every time is pure waste.
+      const signature = this.moveLog.length + ':' + (this.moveLog[this.moveLog.length - 1] || '');
+      if (signature !== this._moveLogSignature) {
+        this._moveLogSignature = signature;
+        this.moveLogEl.innerHTML = this.moveLog.length
+          ? buildMoveRows(this.moveLog)
+          : '<div class="movelog-empty">No moves yet</div>';
       }
-      this.moveLogEl.innerHTML = rows.join('') || '<div class="movelog-empty">No moves yet</div>';
     }
 
     this.updateModeUI();
@@ -979,23 +1097,29 @@ const chessGame = {
   // The colour the human is allowed to move. In two-player mode this is
   // simply whoever's turn it is, so both sides can be played on one device.
   // Against the bot it stays pinned to white, which is the side the engine
-  // does not play.
+  // does not play. In the 2x match there is no human at all, and null is the
+  // signal that every square is off limits.
   humanSide() {
+    if (this.duelActive) return null;
     return this.botEnabled ? 'w' : this.state.turn;
   },
 
   onSquareClick(r, c) {
     if (this.botThinking) return;
+    // An engine-vs-engine match has no human player, so the board becomes a
+    // spectator view. This is checked up front rather than left to the turn
+    // comparison below, because that comparison would still let a tap that
+    // happened to land on the side to move open a promotion picker.
+    const side = this.humanSide();
+    if (side === null) return;
     // Guard against a stale pending promotion: if the turn moved on while the
     // picker was open, drop it rather than letting it capture the next click.
-    if (this.pendingPromotion && this.state.turn !== this.humanSide()) {
+    if (this.pendingPromotion && this.state.turn !== side) {
       this.pendingPromotion = null;
       this.hidePromotion();
     }
-    if (this.state.turn !== this.humanSide()) return;
+    if (this.state.turn !== side) return;
     if (chessGameStatus(this.state) !== 'ongoing' && chessGameStatus(this.state) !== 'check') return;
-
-    const side = this.humanSide();
 
     // Choosing the promotion piece takes priority over everything else.
     if (this.pendingPromotion) {
@@ -1050,7 +1174,7 @@ const chessGame = {
       '<div class="promo-title">Promote to</div>' +
       ['q', 'r', 'b', 'n'].map(k =>
         '<button class="promo-choice" data-piece="' + k + '">' +
-        '<span class="promo-piece">' + getPieceSvg(k, this.humanSide()) + '</span>' +
+        '<span class="promo-piece">' + getPieceSvg(k, this.state.turn) + '</span>' +
         '<span class="promo-name">' + names[k] + '</span></button>').join('');
     this.promoEl.classList.add('active');
   },
@@ -1105,20 +1229,27 @@ const chessGame = {
 
     this.updateUI();
     this.render();
-    this.maybeBotMove();
+
+    // Exactly one controller owns "what plays next". A human move and the
+    // 1x bot both go through maybeBotMove; an engine-vs-engine move goes to
+    // the duel controller, which has its own clocks and draw rules.
+    if (this.duelActive) chessDuel.onMovePlayed();
+    else this.maybeBotMove();
   },
 
   // --- Stockfish bot ----------------------------------------------------
 
-  // Two explicit modes rather than a single on/off toggle. The old button
+  // Three explicit modes rather than a single on/off toggle. The old button
   // could only express "bot on" or "bot off", which made 2-player play look
   // like an absence of a feature rather than a real choice.
-  //   'local' - both sides played by the human on this device
-  //   'stockfish' - human plays white, engine plays black
+  //   'local'    - both sides played by the human on this device
+  //   'stockfish'- human plays white, engine plays black
+  //   'duel'     - two engines play each other, see chessDuel
   setMode(mode) {
     const wantBot = mode === 'stockfish';
+    const wantDuel = mode === 'duel';
 
-    if (this.mode === mode && this.botEnabled === wantBot) {
+    if (this.mode === mode && this.botEnabled === wantBot && this.duelActive === wantDuel) {
       this.updateModeUI();
       return;
     }
@@ -1130,8 +1261,12 @@ const chessGame = {
     this.pendingPromotion = null;
     this.hidePromotion();
 
+    const leavingDuel = this.duelActive && !wantDuel;
+    if (leavingDuel) chessDuel.stop();
+
     this.mode = mode;
     this.botEnabled = wantBot;
+    this.duelActive = wantDuel;
 
     if (!wantBot) {
       this.botThinking = false;
@@ -1139,6 +1274,10 @@ const chessGame = {
       this.updateModeUI();
       this.updateUI();
       this.render();
+      // Switching modes always starts from a clean board, otherwise the two
+      // sides of an abandoned match stay on the board with no explanation.
+      if (wantDuel || leavingDuel) this.reset();
+      if (wantDuel) chessDuel.onEntered();
       return;
     }
 
@@ -1151,36 +1290,47 @@ const chessGame = {
       return;
     }
 
-    this.setStatus('Loading Stockfish 19...');
+    // Deliberately no engine load here. Selecting the tab is not the same as
+    // playing a move, and the engine is a wasm module with a worker thread
+    // behind it - on a phone, keeping two of those alive for a game that
+    // never starts is what makes the whole page feel heavy. maybeBotMove()
+    // starts it on the first move, which is the first moment it is genuinely
+    // needed.
+    this.setStatus('Play a move to start the engine.');
     this.updateModeUI();
-    chessEngine.load().then(() => {
-      this.setStatus('Stockfish 19 ready');
-      this.maybeBotMove();
-    }).catch(err => {
-      this.setStatus('Engine failed to load: ' + err.message + '. Playing two-player.');
-      this.mode = 'local';
-      this.botEnabled = false;
-      this.updateModeUI();
-      this.updateUI();
-      this.render();
-    });
+  },
+
+  // Hands back the memory and the worker thread the bot engine was holding.
+  // Called when a game against it is over, and when the chess page is left.
+  releaseBotEngine() {
+    if (!chessEngine.worker && !chessEngine.ready) return;
+    if (this.botThinking) return;
+    chessEngine.dispose();
   },
 
   updateModeUI() {
     const isBot = this.mode === 'stockfish';
+    const isDuel = this.mode === 'duel';
 
     // Segmented control.
     if (this.modeLocalBtn) {
-      this.modeLocalBtn.classList.toggle('active', !isBot);
-      this.modeLocalBtn.setAttribute('aria-selected', !isBot ? 'true' : 'false');
+      this.modeLocalBtn.classList.toggle('active', !isBot && !isDuel);
+      this.modeLocalBtn.setAttribute('aria-selected', (!isBot && !isDuel) ? 'true' : 'false');
     }
     if (this.modeBotBtn) {
       this.modeBotBtn.classList.toggle('active', isBot);
       this.modeBotBtn.setAttribute('aria-selected', isBot ? 'true' : 'false');
     }
-    if (this.modeLabel) {
-      this.modeLabel.textContent = isBot ? 'Playing Stockfish 19' : '2-player';
+    if (this.modeDuelBtn) {
+      this.modeDuelBtn.classList.toggle('active', isDuel);
+      this.modeDuelBtn.setAttribute('aria-selected', isDuel ? 'true' : 'false');
     }
+    if (this.modeLabel) {
+      this.modeLabel.textContent = isDuel ? '2x Stockfish 19' : (isBot ? 'Playing Stockfish 19' : '2-player');
+    }
+
+    // The match setup panel and the clocks only exist for the 2x mode.
+    chessDuel.syncVisibility(isDuel);
 
     // Keep the legacy toggle button working and in sync, in case it is shown.
     if (this.botBtn) {
@@ -1193,11 +1343,35 @@ const chessGame = {
 
   maybeBotMove() {
     if (!this.botEnabled || this.botThinking) return;
-    if (!chessEngine.ready) return;
     if (this.state.turn !== this.botSide) return;
 
     const status = chessGameStatus(this.state);
     if (status === 'checkmate' || status === 'stalemate') return;
+
+    // This is the first point at which the engine is actually wanted: the
+    // player has moved and somebody has to answer. Loading it here rather than
+    // when the mode was selected means an engine is only ever compiled for a
+    // game that is about to happen, and the load is already off the critical
+    // path of the tap that triggered it.
+    if (!chessEngine.ready) {
+      if (!chessEngine.loadPromise) {
+        this.setStatus('Loading Stockfish 19...');
+        chessEngine.load().then(() => {
+          if (this.mode !== 'stockfish') return;
+          this.setStatus('Stockfish 19 ready');
+          this.maybeBotMove();
+        }).catch(err => {
+          if (this.mode !== 'stockfish') return;
+          this.setStatus('Engine failed to load: ' + err.message + '. Playing two-player.');
+          this.mode = 'local';
+          this.botEnabled = false;
+          this.updateModeUI();
+          this.updateUI();
+          this.render();
+        });
+      }
+      return;
+    }
 
     this.botThinking = true;
     this.updateUI();
@@ -1225,6 +1399,1864 @@ const chessGame = {
       });
   }
 };
+
+// =======================================================
+// 2x STOCKFISH 19 — ENGINE VS ENGINE MATCH
+// =======================================================
+//
+// The third chess mode. Two independent Stockfish workers play each other
+// under real clocks with a Fischer increment, which is the setup Cute Chess
+// calls an engine match. Neither side is handicapped: a match is a strength
+// comparison, not a game for a human to win.
+//
+// Why a separate controller rather than another flag on chessGame:
+//   * Clocks. chessGame has no notion of time, and a flag-on-time loss cannot
+//     be expressed through its checkmate/stalemate status at all.
+//   * Two engines. chessGame owns exactly one bot on exactly one side. A
+//     match needs a mover on both sides.
+//   * Draw rules. An engine match at a real time control hits threefold
+//     repetition and the fifty-move rule constantly, and those need game
+//     history, which chessGame does not keep.
+// It still drives the board through chessGame.playMove, so there is one set of
+// rendering, sounds and move-log code rather than two.
+//
+// Everything here is inert until the player picks the mode and presses Start.
+
+// The PGN seven tag roster includes FEN, but FEN is only required - and only
+// conventional - when a game does not start from the standard position. A
+// match started from a chosen opening does, so SetUp/FEN are emitted only for
+// a custom starting position.
+const CHESS_STANDARD_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+// Match history lives in localStorage, which the WebView has enabled
+// (domStorageEnabled). A record is small - a PGN is a kilobyte or two - so the
+// cap is generous, but it is a cap: without one a long-running install fills
+// the origin's quota and then every write fails, including the settings.
+const CHESS_HISTORY_KEY = 'chess_match_history';
+const CHESS_HISTORY_LIMIT = 200;
+
+// Opening choices are persisted by ECO plus name rather than by index, so
+// reordering or inserting entries in the book cannot silently change which
+// opening a saved setup refers to.
+function chessOpeningId(entry) {
+  return entry.eco + '|' + entry.name;
+}
+
+function chessFindOpeningById(id) {
+  if (!id) return null;
+  for (const entry of CHESS_OPENINGS) {
+    if (chessOpeningId(entry) === id) return entry;
+  }
+  return null;
+}
+
+// Escapes text before it goes into innerHTML. The opening names are authored
+// constants today, but they contain apostrophes and accents and the habit is
+// worth having before someone adds one with an ampersand in it.
+function chessEscapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+const chessDuel = {
+  DEFAULTS: { baseSeconds: 180, incrementSeconds: 2, perMoveSeconds: 2 },
+  LIMITS: {
+    baseSeconds: { min: 30, max: 3600 },
+    incrementSeconds: { min: 0, max: 60 },
+    perMoveSeconds: { min: 1, max: 60 }
+  },
+  // Pause between moves so the game is watchable. Charged to the side that
+  // just moved rather than to the side about to move, so the animation cannot
+  // flag somebody who was not even thinking.
+  MOVE_DELAY_MS: 220,
+  // Slack left between the clock and the time handed to the engine. Stockfish
+  // returns a few milliseconds after `movetime` elapses, and the round trip
+  // through postMessage costs more again; without this margin a side flags
+  // itself while the engine was still obeying the limit it was given.
+  FLAG_MARGIN_MS: 400,
+  // Backstop so a game with a huge time control cannot run forever. Real
+  // clocks end games on their own, but "real clocks" assumes the operators
+  // chose a sensible control.
+  MAX_PLIES: 600,
+
+  visible: false,
+  loading: false,
+  // running and paused are mutually exclusive and both mean "there is a match
+  // in progress". Neither set means idle or finished. Pausing keeps the
+  // position, the move list, the repetition history and the clocks, so Resume
+  // picks the game up exactly where it stopped.
+  running: false,
+  paused: false,
+  finished: false,
+  thinking: false,
+  thinkSide: null,
+  lastMover: null,
+  thinkStart: 0,
+  thinkBudget: 0,
+  generation: 0,
+  // Identifies one attempt at starting a match. Bumped by stop() so a match
+  // whose engines are still loading can be called off.
+  startToken: 0,
+  result: null,
+  outcome: null,
+  termination: 'normal',
+  positionHistory: [],
+  matchStart: 0,
+  matchEnd: 0,
+  // Time spent paused is not match time, so it is accumulated here and taken
+  // back out of the recorded duration. Without this a game paused over lunch
+  // looks like a three hour thriller.
+  pauseStartedAt: 0,
+  pausedTotalMs: 0,
+  startFen: CHESS_STANDARD_START_FEN,
+  clocks: { w: 0, b: 0 },
+  baseMs: 0,
+  incrementMs: 0,
+  perMoveMs: 0,
+  tickTimer: null,
+  delayTimer: null,
+
+  // --- Starting position -------------------------------------------------
+  // 'opening' covers "no opening chosen" as well, because a plain match from
+  // the initial position needs no separate state.
+  setupSource: 'opening',
+  selectedOpeningId: null,
+  openingSide: 'both',
+  openingQuery: '',
+  customFen: CHESS_STANDARD_START_FEN,
+  enginesReleased: false,
+  // The script for this match. Each kept move remembers the position it
+  // expects, so a deviation by the free side ends the script instead of
+  // producing an illegal move.
+  script: [],
+  scriptIndex: 0,
+
+  // --- History ------------------------------------------------------------
+  history: [],
+  historyOpen: false,
+  // Bumped for every recorded match, so ids stay unique even after deletions.
+  recordSeq: 0,
+  // What the result overlay is currently showing: a live match result or a
+  // saved record. The action row differs between the two, so the overlay has
+  // to know which it is.
+  overlayTarget: null,
+
+  init() {
+    this.el = {
+      panel: document.getElementById('chess-duel-panel'),
+      base: document.getElementById('duel-base'),
+      increment: document.getElementById('duel-increment'),
+      perMove: document.getElementById('duel-permove'),
+      startBtn: document.getElementById('btn-duel-start'),
+      saveBtn: document.getElementById('btn-duel-save'),
+      historyBtn: document.getElementById('btn-duel-history'),
+      srcOpeningBtn: document.getElementById('duel-src-opening'),
+      srcFenBtn: document.getElementById('duel-src-fen'),
+      openingBox: document.getElementById('duel-opening-box'),
+      fenBox: document.getElementById('duel-fen-box'),
+      openingSearch: document.getElementById('duel-opening-search'),
+      openingList: document.getElementById('duel-opening-list'),
+      openingChip: document.getElementById('duel-opening-chip'),
+      openingNote: document.getElementById('duel-opening-note'),
+      sideSwitch: document.getElementById('duel-side-switch'),
+      fen: document.getElementById('duel-fen'),
+      fenNote: document.getElementById('duel-fen-note'),
+      historyPanel: document.getElementById('chess-history-panel'),
+      historyList: document.getElementById('history-list'),
+      historyCount: document.getElementById('history-count'),
+      historyClearBtn: document.getElementById('btn-history-clear'),
+      historyCloseBtn: document.getElementById('btn-history-close'),
+      clocksRow: document.getElementById('chess-clocks'),
+      clockW: document.getElementById('chess-clock-white'),
+      clockB: document.getElementById('chess-clock-black'),
+      infoW: document.getElementById('duel-info-white'),
+      infoB: document.getElementById('duel-info-black'),
+      overlay: document.getElementById('chess-result-overlay'),
+      badge: document.getElementById('chess-result-badge'),
+      title: document.getElementById('chess-result-title'),
+      sub: document.getElementById('chess-result-sub'),
+      stats: document.getElementById('chess-result-stats'),
+      moves: document.getElementById('chess-result-moves'),
+      pgn: document.getElementById('chess-result-pgn'),
+      note: document.getElementById('chess-result-note'),
+      btnSave: document.getElementById('btn-result-save'),
+      btnCopy: document.getElementById('btn-result-copy'),
+      btnRematch: document.getElementById('btn-result-rematch'),
+      btnDelete: document.getElementById('btn-result-delete'),
+      btnClose: document.getElementById('btn-result-close')
+    };
+
+    this.restoreSettings();
+
+    // Reading the inputs is the only place time control is interpreted, so a
+    // value typed into the panel cannot disagree with the match it starts.
+    const onConfigChange = () => {
+      this.readSettings();
+      this.saveSettings();
+      if (!this.running) this.resetMatchState();
+      this.renderAll();
+    };
+    [this.el.base, this.el.increment, this.el.perMove].forEach(input => {
+      if (!input) return;
+      // 'input' alone would recompute on every keystroke, which turns a
+      // half-typed "15" into 1 and then 15 and scrubs the clocks while the
+      // field is still being edited.
+      input.addEventListener('change', onConfigChange);
+      input.addEventListener('blur', onConfigChange);
+    });
+
+    if (this.el.startBtn) {
+      this.el.startBtn.addEventListener('click', () => {
+        // One button for four states. Cancel has to come first: a match can
+        // only be paused once it is actually running, and only started once
+        // it is neither loading nor paused.
+        if (this.loading) this.stop();
+        else if (this.paused) this.resume();
+        else if (this.running) this.pause();
+        else this.start();
+      });
+    }
+    if (this.el.saveBtn) this.el.saveBtn.addEventListener('click', () => this.savePgn());
+    if (this.el.btnSave) this.el.btnSave.addEventListener('click', () => this.saveFromOverlay());
+    if (this.el.btnCopy) this.el.btnCopy.addEventListener('click', () => this.copyFromOverlay());
+    if (this.el.btnRematch) {
+      this.el.btnRematch.addEventListener('click', () => {
+        this.hideResultOverlay();
+        this.start();
+      });
+    }
+    if (this.el.btnDelete) this.el.btnDelete.addEventListener('click', () => this.deleteFromOverlay());
+    if (this.el.btnClose) this.el.btnClose.addEventListener('click', () => this.hideResultOverlay());
+
+    // --- Starting position controls ---------------------------------------
+    if (this.el.srcOpeningBtn) {
+      this.el.srcOpeningBtn.addEventListener('click', () => this.setSetupSource('opening'));
+    }
+    if (this.el.srcFenBtn) {
+      this.el.srcFenBtn.addEventListener('click', () => this.setSetupSource('fen'));
+    }
+    if (this.el.openingSearch) {
+      // No debounce. The book is a few dozen entries and the filter is a
+      // precomputed substring test, so a keystroke is cheaper than the
+      // bookkeeping a debounce would need. renderOpeningList() skips the
+      // rebuild when the query has not actually changed.
+      this.el.openingSearch.addEventListener('input', () => {
+        this.openingQuery = this.el.openingSearch.value;
+        this.renderOpeningList();
+        this.saveSettings();
+      });
+    }
+    if (this.el.openingList) {
+      // Delegated, because the list is re-rendered on every keystroke and a
+      // listener per row would be re-attached constantly.
+      this.el.openingList.addEventListener('click', (e) => {
+        const row = e.target.closest('.duel-open');
+        if (!row) return;
+        this.selectOpeningByIndex(parseInt(row.dataset.index, 10));
+      });
+    }
+    if (this.el.sideSwitch) {
+      this.el.sideSwitch.addEventListener('click', (e) => {
+        const opt = e.target.closest('.duel-side-opt');
+        if (!opt) return;
+        this.setOpeningSide(opt.dataset.side);
+      });
+    }
+    if (this.el.fen) {
+      // 'input' keeps the validation live; it is one FEN parse per keystroke.
+      this.el.fen.addEventListener('input', () => {
+        this.customFen = this.el.fen.value;
+        this.renderFenNote();
+        this.saveSettings();
+      });
+    }
+
+    // --- History ------------------------------------------------------------
+    if (this.el.historyBtn) {
+      this.el.historyBtn.addEventListener('click', () => this.toggleHistory());
+    }
+    if (this.el.historyCloseBtn) {
+      this.el.historyCloseBtn.addEventListener('click', () => this.toggleHistory(false));
+    }
+    if (this.el.historyClearBtn) {
+      this.el.historyClearBtn.addEventListener('click', () => this.clearHistory());
+    }
+    if (this.el.historyList) {
+      this.el.historyList.addEventListener('click', (e) => {
+        const row = e.target.closest('.history-entry');
+        if (!row) return;
+        this.openHistoryEntry(row.dataset.id);
+      });
+    }
+
+    // Depth and score from each engine, so the panel shows which side is
+    // thinking and how deep it has got. Registered once; init() is called a
+    // single time, from chessGame.init().
+    chessEngineWhite.onLine(evt => this.onEngineLine('w', evt));
+    chessEngineBlack.onLine(evt => this.onEngineLine('b', evt));
+
+    this.readSettings();
+    this.loadHistory();
+    this.resetMatchState();
+    this.renderSetup();
+    this.renderHistory();
+    this.renderAll();
+  },
+
+  // --- Starting position --------------------------------------------------
+
+  setSetupSource(source) {
+    if (this.running) return;
+    this.setupSource = source;
+    this.saveSettings();
+    this.renderSetup();
+    this.resetMatchState();
+    this.renderAll();
+  },
+
+  selectedOpening() {
+    return chessFindOpeningById(this.selectedOpeningId);
+  },
+
+  selectOpeningByIndex(index) {
+    if (this.running) return;
+    const entry = CHESS_OPENINGS[index];
+    if (!entry) return;
+    this.selectedOpeningId = chessOpeningId(entry);
+    this.saveSettings();
+    // The list is not rebuilt here. It holds a few dozen rows and only the
+    // highlight can have changed; re-rendering all of them on every tap is the
+    // single most expensive thing this panel could do.
+    this.markSelectedOpening();
+    this.renderOpeningNote();
+    this.resetMatchState();
+    this.renderAll();
+  },
+
+  setOpeningSide(side) {
+    if (side !== 'w' && side !== 'b' && side !== 'both') return;
+    if (this.running) return;
+    this.openingSide = side;
+    this.saveSettings();
+    this.renderSetupChrome();
+    this.renderOpeningNote();
+    this.resetMatchState();
+    this.renderAll();
+  },
+
+  // The position the match actually begins from.
+  startState() {
+    if (this.setupSource === 'fen') {
+      const parsed = chessFromFen(this.customFen);
+      if (parsed) return parsed;
+    }
+    return chessInitialState();
+  },
+
+  // Checks the FEN before a match is allowed to start on it. A position that
+  // is already over would produce a game that ends before the engines have
+  // even opened, which reads as a bug rather than as a rejection.
+  validateFen() {
+    const raw = String(this.customFen || '').trim();
+    if (!raw) return { ok: false, message: 'Enter a FEN, or switch back to Opening.' };
+    const state = chessFromFen(raw);
+    if (!state) {
+      return { ok: false, message: 'That FEN cannot be read. It needs board, side to move, castling, en passant and move numbers.' };
+    }
+    const status = chessGameStatus(state);
+    if (status !== 'ongoing' && status !== 'check') {
+      return { ok: false, message: 'That position is already ' + status + ', so a match cannot start there.' };
+    }
+    const who = state.turn === 'w' ? 'White' : 'Black';
+    if (chessInsufficientMaterial(state)) {
+      return { ok: true, state, warning: 'Valid, but neither side has mating material, so the match will be drawn at once.' };
+    }
+    return { ok: true, state, message: 'Valid — ' + who + ' to move' };
+  },
+
+  // Replays the chosen opening from the initial position and returns the moves
+  // this side is meant to play. Pure: it builds its own position and touches
+  // nothing on this controller, so the panel can ask what the line would do
+  // without disturbing a match already in progress.
+  computeScript(wants, opening) {
+    const script = [];
+    if (!opening) return script;
+
+    let state = chessInitialState();
+    for (let i = 0; i < opening.moves.length; i++) {
+      const san = opening.moves[i];
+      const move = chessSanToMove(state, san);
+      // The book is checked by tools/check-openings.js, so this cannot happen
+      // with the shipped data. If an entry ever does go bad, the line is
+      // truncated here rather than producing an illegal move mid-match.
+      if (!move) break;
+
+      if (wants === 'both' || state.turn === wants) {
+        const number = Math.floor(i / 2) + 1;
+        script.push({
+          fen: chessToFen(state),
+          uci: chessMoveToUci(move),
+          label: number + (state.turn === 'w' ? '.' : '...') + san,
+          side: state.turn
+        });
+      }
+      chessApplyMove(state, move);
+    }
+    return script;
+  },
+
+  // Installs the script for this match.
+  //
+  // Each kept move remembers the position it expects to be played from. That
+  // is what makes the line safe: if the free side deviates from the book, the
+  // position no longer matches, the script is abandoned, and the engines carry
+  // on from wherever the game actually is. Checking legality alone would not
+  // do it - most book moves stay legal after a deviation, and quietly forcing
+  // them through would fight the engine that just made a good move.
+  buildScript() {
+    this.script = this.setupSource === 'opening'
+      ? this.computeScript(this.openingSide, this.selectedOpening())
+      : [];
+    this.scriptIndex = 0;
+  },
+
+  // Returns the next book move when it is this side's turn and the position is
+  // still the one the line expected, otherwise null.
+  takeScriptedMove(side) {
+    if (this.scriptIndex >= this.script.length) return null;
+    const entry = this.script[this.scriptIndex];
+    if (entry.side !== side) return null;
+
+    if (chessToFen(chessGame.state) !== entry.fen) {
+      this.scriptIndex = this.script.length;
+      return null;
+    }
+    const move = chessUciToMoveObj(entry.uci, chessGame.state);
+    if (!move) {
+      this.scriptIndex = this.script.length;
+      return null;
+    }
+    this.scriptIndex++;
+    return { move, entry };
+  },
+
+  openingSideLabel() {
+    if (this.setupSource === 'fen') return 'custom position';
+    const opening = this.selectedOpening();
+    if (!opening) return '';
+    if (this.openingSide === 'both') return opening.name;
+    return opening.name + ' (' + (this.openingSide === 'w' ? 'White' : 'Black') + ')';
+  },
+
+  renderSetup() {
+    const el = this.el;
+    if (!el) return;
+
+    this.renderSetupChrome();
+
+    if (this.setupSource === 'opening') {
+      if (el.openingSearch) el.openingSearch.value = this.openingQuery;
+      this.renderOpeningList();
+      this.renderOpeningNote();
+    } else {
+      this.renderFenNote();
+    }
+  },
+
+  // The source tabs, which box is showing, and the side-of-opening buttons.
+  // Everything here is a class toggle on a handful of elements, so it is cheap
+  // enough to run on any setup change.
+  renderSetupChrome() {
+    const el = this.el;
+    if (!el) return;
+
+    const isOpening = this.setupSource === 'opening';
+    if (el.srcOpeningBtn) {
+      el.srcOpeningBtn.classList.toggle('active', isOpening);
+      el.srcOpeningBtn.setAttribute('aria-selected', isOpening ? 'true' : 'false');
+    }
+    if (el.srcFenBtn) {
+      el.srcFenBtn.classList.toggle('active', !isOpening);
+      el.srcFenBtn.setAttribute('aria-selected', !isOpening ? 'true' : 'false');
+    }
+    if (el.openingBox) el.openingBox.classList.toggle('active', isOpening);
+    if (el.fenBox) el.fenBox.classList.toggle('active', !isOpening);
+
+    if (!el.sideSwitch) return;
+    const wants = this.openingSide;
+    for (const opt of el.sideSwitch.querySelectorAll('.duel-side-opt')) {
+      const active = opt.dataset.side === wants;
+      opt.classList.toggle('active', active);
+      opt.setAttribute('aria-checked', active ? 'true' : 'false');
+    }
+  },
+
+  renderOpeningList(force) {
+    const el = this.el;
+    if (!el || !el.openingList) return;
+    // Only rebuild when the query actually changed. This runs from renderSetup()
+    // on several paths and the list is dozens of rows.
+    if (!force && el.openingList.dataset.query === this.openingQuery) {
+      this.markSelectedOpening();
+      return;
+    }
+    el.openingList.dataset.query = this.openingQuery;
+
+    const hits = chessSearchOpenings(this.openingQuery);
+    if (!hits.length) {
+      el.openingList.innerHTML = '<div class="duel-open-empty">No opening matches that. Try a name, an ECO code, or some moves.</div>';
+      return;
+    }
+
+    const selectedId = this.selectedOpeningId;
+    el.openingList.innerHTML = hits.map(hit => {
+      const entry = hit.entry;
+      const isSelected = chessOpeningId(entry) === selectedId;
+      return '<button class="duel-open' + (isSelected ? ' selected' : '') +
+        '" data-index="' + hit.index + '" role="option" aria-selected="' + (isSelected ? 'true' : 'false') +
+        '" type="button">' +
+        '<span class="duel-open-eco">' + chessEscapeHtml(entry.eco) + '</span>' +
+        '<span class="duel-open-name">' + chessEscapeHtml(entry.name) + '</span>' +
+        '<span class="duel-open-moves">' + chessEscapeHtml(entry.moves.join(' ')) + '</span>' +
+        '</button>';
+    }).join('');
+  },
+
+  // Moves the highlight without touching the rest of the list. Only the row that
+  // was highlighted and the row that now is can have changed, so at most two
+  // elements are written to.
+  markSelectedOpening() {
+    const el = this.el;
+    if (!el || !el.openingList) return;
+
+    if (this._selectedRow) {
+      this._selectedRow.classList.remove('selected');
+      this._selectedRow.setAttribute('aria-selected', 'false');
+      this._selectedRow = null;
+    }
+    const selectedId = this.selectedOpeningId;
+    if (!selectedId) return;
+
+    const rows = el.openingList.children;
+    for (let i = 0; i < rows.length; i++) {
+      const entry = CHESS_OPENINGS[parseInt(rows[i].dataset.index, 10)];
+      if (entry && chessOpeningId(entry) === selectedId) {
+        rows[i].classList.add('selected');
+        rows[i].setAttribute('aria-selected', 'true');
+        this._selectedRow = rows[i];
+        return;
+      }
+    }
+  },
+
+  renderOpeningNote() {
+    const el = this.el;
+    if (!el || !el.openingChip) return;
+
+    const opening = this.selectedOpening();
+    if (!opening) {
+      el.openingChip.textContent = 'Standard game — no opening';
+      if (el.openingNote) {
+        el.openingNote.textContent = 'Pick an opening to have the engines start from a book line.';
+        el.openingNote.className = 'duel-note';
+      }
+      return;
+    }
+
+    const sideWord = this.openingSide === 'both' ? 'Both sides'
+      : (this.openingSide === 'w' ? 'White' : 'Black');
+    el.openingChip.textContent = opening.eco + ' · ' + opening.name + ' · ' + opening.moves.length + ' plies';
+
+    if (!el.openingNote) return;
+    // Read from a freshly computed script rather than from this.script, which
+    // belongs to a match that may already be in progress.
+    const preview = this.computeScript(this.openingSide, opening);
+    const sideText = this.openingSide === 'both' ? '' : this.openingSide;
+    const playsSomething = !sideText || preview.some(entry => entry.side === sideText);
+
+    if (!playsSomething) {
+      el.openingNote.textContent = 'This opening has no ' + sideWord.toLowerCase() +
+        ' moves, so nothing will be played from the book. The match starts from the initial position.';
+      el.openingNote.className = 'duel-note is-error';
+    } else if (this.openingSide === 'both') {
+      el.openingNote.textContent = sideWord + ' play the book line until the position changes.';
+      el.openingNote.className = 'duel-note';
+    } else {
+      el.openingNote.textContent = sideWord + ' plays the book moves; the other side answers freely.';
+      el.openingNote.className = 'duel-note';
+    }
+  },
+
+  renderFenNote() {
+    const el = this.el;
+    if (!el || !el.fenNote) return;
+    const check = this.validateFen();
+    this.fenCheck = check;
+    if (!check.ok) {
+      el.fenNote.textContent = check.message;
+      el.fenNote.className = 'duel-note is-error';
+    } else if (check.warning) {
+      el.fenNote.textContent = check.warning;
+      el.fenNote.className = 'duel-note is-error';
+    } else {
+      el.fenNote.textContent = check.message;
+      el.fenNote.className = 'duel-note is-ok';
+    }
+  },
+
+  // --- Configuration ----------------------------------------------------
+
+  // Clamp a numeric input into its permitted range. Routing every value
+  // through one helper means an empty field, a stray letter or an absurd
+  // number can never produce a NaN clock or a six-hour match.
+  clampValue(value, limits, fallback) {
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(limits.min, Math.min(limits.max, n));
+  },
+
+  readSettings() {
+    const d = this.DEFAULTS;
+    const L = this.LIMITS;
+    this.baseMs = 1000 * this.clampValue(this.el.base && this.el.base.value, L.baseSeconds, d.baseSeconds);
+    this.incrementMs = 1000 * this.clampValue(this.el.increment && this.el.increment.value, L.incrementSeconds, d.incrementSeconds);
+    this.perMoveMs = 1000 * this.clampValue(this.el.perMove && this.el.perMove.value, L.perMoveSeconds, d.perMoveSeconds);
+    // Write the clamped value back, so the field shows what will actually be
+    // used rather than what was typed.
+    if (this.el.base) this.el.base.value = String(this.baseMs / 1000);
+    if (this.el.increment) this.el.increment.value = String(this.incrementMs / 1000);
+    if (this.el.perMove) this.el.perMove.value = String(this.perMoveMs / 1000);
+  },
+
+  restoreSettings() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('chess_duel_time_control') || 'null'); }
+    catch (e) { saved = null; }
+    if (!saved || typeof saved !== 'object') {
+      // No saved setup: still put the default FEN in the box so the field is
+      // never mysteriously empty.
+      if (this.el && this.el.fen) this.el.fen.value = this.customFen;
+      return;
+    }
+    if (this.el.base && Number.isFinite(Number(saved.baseSeconds))) this.el.base.value = String(saved.baseSeconds);
+    if (this.el.increment && Number.isFinite(Number(saved.incrementSeconds))) this.el.increment.value = String(saved.incrementSeconds);
+    if (this.el.perMove && Number.isFinite(Number(saved.perMoveSeconds))) this.el.perMove.value = String(saved.perMoveSeconds);
+    if (saved.source === 'fen' || saved.source === 'opening') this.setupSource = saved.source;
+    if (saved.openingSide === 'w' || saved.openingSide === 'b' || saved.openingSide === 'both') {
+      this.openingSide = saved.openingSide;
+    }
+    if (typeof saved.openingId === 'string' && chessFindOpeningById(saved.openingId)) {
+      this.selectedOpeningId = saved.openingId;
+    }
+    if (typeof saved.openingQuery === 'string') this.openingQuery = saved.openingQuery;
+    if (typeof saved.fen === 'string' && saved.fen.trim()) {
+      this.customFen = saved.fen;
+      if (this.el.fen) this.el.fen.value = saved.fen;
+    }
+  },
+
+  saveSettings() {
+    try {
+      localStorage.setItem('chess_duel_time_control', JSON.stringify({
+        baseSeconds: this.baseMs / 1000,
+        incrementSeconds: this.incrementMs / 1000,
+        perMoveSeconds: this.perMoveMs / 1000,
+        source: this.setupSource,
+        openingId: this.selectedOpeningId,
+        openingSide: this.openingSide,
+        openingQuery: this.openingQuery,
+        fen: this.customFen
+      }));
+    } catch (e) { /* storage disabled: the match still works, it just forgets */ }
+  },
+
+  timeControlTag() {
+    return Math.round(this.baseMs / 1000) + '+' + Math.round(this.incrementMs / 1000);
+  },
+
+  // --- Mode entry / exit ------------------------------------------------
+
+  syncVisibility(isDuel) {
+    this.visible = isDuel;
+    if (this.el && this.el.panel) this.el.panel.classList.toggle('active', isDuel);
+    if (this.el && this.el.clocksRow) this.el.clocksRow.classList.toggle('active', isDuel);
+    if (!isDuel) {
+      // The history panel lives outside the match panel, so it has to be
+      // closed explicitly or it stays on screen in the other two modes.
+      this.toggleHistory(false);
+      this.hideResultOverlay();
+      this.stop();
+    }
+    this.renderAll();
+  },
+
+  onEntered() {
+    this.hideResultOverlay();
+    this.resetMatchState();
+    this.renderSetup();
+    this.renderAll();
+    this.setStatus('Set the time control and starting position, then press Start.');
+    chessGame.updateUI();
+  },
+
+  // The Reset button on the chess page, and every internal board reset.
+  onBoardReset() {
+    this.stop();
+    this.resetMatchState();
+    this.hideResultOverlay();
+    this.renderAll();
+  },
+
+  // Called when the player navigates away from the chess page entirely.
+  // Each worker holds its own wasm module, and three of those is a lot of
+  // memory to keep around for a page nobody is looking at. The match engines
+  // are released by stop() already, but the 1x bot's engine is not, so it has
+  // to be released here or it would outlive the session.
+  suspend() {
+    this.stop();
+    this.releaseMatchEngines();
+    this.hideResultOverlay();
+    chessEngineWhite.dispose();
+    chessEngineBlack.dispose();
+    chessEngine.dispose();
+    this.setStatus('');
+  },
+
+  // --- Match lifecycle --------------------------------------------------
+
+  resetMatchState() {
+    this.result = null;
+    this.outcome = null;
+    this.termination = 'normal';
+    this.paused = false;
+    this.pauseStartedAt = 0;
+    this.pausedTotalMs = 0;
+    this.clocks = { w: this.baseMs, b: this.baseMs };
+    this.positionHistory = [];
+    this.matchStart = 0;
+    this.matchEnd = 0;
+  },
+
+  async start() {
+    if (this.loading || this.running || this.paused) return;
+
+    if (!chessEngineWhite.isSupported()) {
+      this.setStatus('WebAssembly or Web Workers are unavailable, so no engine can start.', true);
+      return;
+    }
+
+    this.readSettings();
+
+    // Refuse a starting position that cannot host a match, before spending a
+    // second starting the engines.
+    if (this.setupSource === 'fen') {
+      this.renderFenNote();
+      const check = this.validateFen();
+      if (!check.ok) {
+        this.setStatus(check.message, true);
+        return;
+      }
+    }
+
+    this.saveSettings();
+    this.hideResultOverlay();
+
+    // Cleared before the engines are awaited, not after. Loading takes about
+    // a second, and leaving `finished` set for that second leaves the turn
+    // pill and the Start button describing the previous game while the new
+    // one is already being set up.
+    this.finished = false;
+    this.result = null;
+    this.outcome = null;
+    this.thinking = false;
+    this.thinkSide = null;
+    this.paused = false;
+    this.clearTimers();
+
+    this.loading = true;
+    this.setStatus('Starting both engines...');
+    this.renderAll();
+    chessGame.updateUI();
+
+    // Identifies this particular start attempt. The engines take about a
+    // second to come up and that wait has to be cancellable, so the token is
+    // checked again below.
+    const token = ++this.startToken;
+
+    try {
+      // Both workers have to be up before the first move, otherwise white
+      // would sit on the board waiting while black's module still compiles.
+      await Promise.all([
+        chessEngineWhite.load().then(() => chessEngineWhite.setFullStrength()),
+        chessEngineBlack.load().then(() => chessEngineBlack.setFullStrength())
+      ]);
+    } catch (err) {
+      if (token !== this.startToken) return;
+      this.loading = false;
+      this.setStatus('Engine failed to load: ' + err.message, true);
+      this.renderAll();
+      return;
+    }
+
+    // Cancelled while the engines were loading. Without this the match would
+    // sail on and start playing after the player already pressed Cancel.
+    if (token !== this.startToken) return;
+
+    // A previous match released its engines when it ended; this match needs
+    // them back, and load() above has just started them.
+    this.claimMatchEngines();
+
+    const startState = this.startState();
+    this.startFen = chessToFen(startState);
+    this.buildScript();
+
+    // chessGame.reset() calls back into onBoardReset(), which clears all of
+    // the match state below, so those assignments come afterwards rather than
+    // before.
+    chessGame.reset(startState);
+
+    this.loading = false;
+    this.running = true;
+    this.finished = false;
+    this.thinking = false;
+    this.termination = 'normal';
+    this.clocks = { w: this.baseMs, b: this.baseMs };
+    this.positionHistory = [chessPositionKey(chessGame.state)];
+    this.matchStart = Date.now();
+
+    const setup = this.matchSetupSummary();
+    this.setStatus(setup);
+    this.renderAll();
+    chessGame.updateUI();
+    this.beginTurn();
+  },
+
+  // One line describing what this match is, shown in the status line while it
+  // runs and stored with the record afterwards.
+  matchSetupSummary() {
+    if (this.setupSource === 'fen') return 'Match running: ' + this.timeControlTag() + ' from a custom position';
+    const opening = this.selectedOpening();
+    if (!opening) return 'Match running: ' + this.timeControlTag();
+    const who = this.openingSide === 'both' ? 'both sides'
+      : (this.openingSide === 'w' ? 'White' : 'Black');
+    return 'Match running: ' + this.timeControlTag() + ' · ' + opening.eco + ' ' + opening.name + ' (' + who + ')';
+  },
+
+  // Freezes the match without ending it. The board, the move list, the
+  // repetition history and both clocks are all left exactly as they are, so
+  // Resume picks up the same game on the same move.
+  pause() {
+    if (!this.running || this.paused) return;
+
+    const side = this.thinking ? this.thinkSide : null;
+
+    // Bank the thinking side's clock before stopping the clock that displays
+    // it. The running clock is derived from thinkStart rather than decremented
+    // each tick, so without this the time already spent would come back.
+    // Nothing is adjudicated here: a side that happened to hit zero at the
+    // instant of the pause is flagged by beginTurn on resume, through the
+    // same check a real overrun goes through.
+    if (side) {
+      this.clocks[side] = Math.max(0, this.thinkBudget - (Date.now() - this.thinkStart));
+    }
+
+    // Orphan any search still in flight. Its result belongs to a turn that is
+    // no longer happening, and the generation bump makes the handler a no-op
+    // when it does arrive.
+    this.generation++;
+    this.paused = true;
+    this.running = false;
+    this.thinking = false;
+    this.thinkSide = null;
+    this.pauseStartedAt = Date.now();
+    this.clearTimers();
+
+    // Stop burning a core on a search nobody is waiting for.
+    if (side) {
+      const engine = this.engineFor(side);
+      if (engine && engine.busy) engine.post('stop');
+    }
+
+    this.setStatus('Paused after ' + Math.ceil(chessGame.moveLog.length / 2) +
+      (chessGame.moveLog.length === 1 ? ' move. ' : ' moves. ') + 'Press Resume to carry on.');
+    this.renderAll();
+    chessGame.updateUI();
+  },
+
+  resume() {
+    if (!this.paused) return;
+
+    if (this.pauseStartedAt) {
+      this.pausedTotalMs += Date.now() - this.pauseStartedAt;
+      this.pauseStartedAt = 0;
+    }
+
+    this.paused = false;
+    this.running = true;
+    this.setStatus(this.matchSetupSummary());
+    this.renderAll();
+    chessGame.updateUI();
+    // beginTurn works out whose move it is from the position itself, so it is
+    // the same entry point whether the pause caught an engine mid-search, a
+    // scripted book move about to play, or the gap between two moves.
+    this.beginTurn();
+  },
+
+  // Ends the match for good: this is what Reset, switching mode and leaving
+  // the page all go through. Unlike pause() it writes a record, because the
+  // game did happen.
+  stop() {
+    this.startToken++;
+    const wasLoading = this.loading;
+    this.loading = false;
+
+    const wasActive = this.running || this.paused || this.thinking;
+    this.paused = false;
+
+    if (!wasActive) {
+      this.clearTimers();
+      // Deliberately no updateUI() on this path unless something changed.
+      // chessGame.updateUI() reaches updateModeUI(), which calls
+      // syncVisibility(), which calls stop() again - so an unconditional
+      // updateUI() here would recurse until the stack gave out.
+      if (wasLoading) {
+        // The start attempt is abandoned, but its "Starting both engines..."
+        // message is still on screen and would otherwise never be replaced.
+        this.setStatus('Start cancelled.');
+        this.renderAll();
+        chessGame.updateUI();
+      }
+      return;
+    }
+
+    const side = this.thinking ? this.thinkSide : null;
+    if (side) {
+      this.clocks[side] = Math.max(0, this.thinkBudget - (Date.now() - this.thinkStart));
+    }
+    if (this.pauseStartedAt) {
+      this.pausedTotalMs += Date.now() - this.pauseStartedAt;
+      this.pauseStartedAt = 0;
+    }
+
+    this.generation++;
+    this.termination = 'abandoned';
+    this.running = false;
+    this.thinking = false;
+    this.thinkSide = null;
+    this.clearTimers();
+
+    if (side) {
+      const engine = this.engineFor(side);
+      if (engine && engine.busy) engine.post('stop');
+    }
+
+    // An abandoned match has no use for its engines.
+    this.releaseMatchEngines();
+
+    this.recordMatch({ headline: 'Match stopped', detail: 'abandoned' });
+    this.setStatus('Match stopped. Press Start for a new game, or Reset to clear the board.');
+    this.renderAll();
+    chessGame.updateUI();
+  },
+
+  clearTimers() {
+    this.clearTickOnly();
+    if (this.delayTimer) { clearTimeout(this.delayTimer); this.delayTimer = null; }
+  },
+
+  clearTickOnly() {
+    if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = null; }
+  },
+
+  engineFor(side) {
+    return side === 'w' ? chessEngineWhite : chessEngineBlack;
+  },
+
+  beginTurn() {
+    if (!this.running || this.finished || this.thinking) return;
+
+    const side = chessGame.state.turn;
+
+    // A book move comes first, and it comes without asking an engine. The
+    // clocks still behave: the move costs almost no time, and the increment is
+    // added exactly as it would be for an engine move, so a scripted opening
+    // does not quietly hand the opponent time.
+    const scripted = this.takeScriptedMove(side);
+    if (scripted) {
+      this.thinkSide = side;
+      this.thinkStart = Date.now();
+      this.thinkBudget = this.clocks[side];
+      this.clocks[side] = this.thinkBudget + this.incrementMs;
+      this.lastMover = side;
+      this.setStatus((side === 'w' ? 'White' : 'Black') + ' plays ' + scripted.entry.label +
+        ' from the book line');
+      this.renderAll();
+      // playMove re-enters through onMovePlayed(), exactly as an engine move
+      // does, so the draw rules and scheduling need no separate path.
+      chessGame.playMove(scripted.move);
+      return;
+    }
+
+    const engine = this.engineFor(side);
+
+    // The book line is finished, so put the normal running message back. It
+    // would otherwise sit there saying somebody is about to play a book move
+    // that no longer exists.
+    if (this.scriptIndex >= this.script.length && this.script.length) {
+      this.setStatus(this.matchSetupSummary());
+    }
+
+    if (!engine || !engine.ready) {
+      this.finish({
+        result: '1/2-1/2',
+        winner: null,
+        headline: 'Match stopped',
+        detail: 'an engine was not available'
+      });
+      return;
+    }
+
+    const usable = this.clocks[side] - this.FLAG_MARGIN_MS;
+    if (usable <= 0) {
+      this.flag(side);
+      return;
+    }
+
+    // The engine gets the smaller of its per-move cap and whatever is
+    // actually left on the clock. Clamped at a floor because "movetime 0"
+    // means "search indefinitely" to UCI, which is the opposite of what a
+    // side with 300ms left needs.
+    const movetime = Math.max(60, Math.min(this.perMoveMs, usable));
+
+    const gen = ++this.generation;
+    this.thinking = true;
+    this.thinkSide = side;
+    this.thinkStart = Date.now();
+    this.thinkBudget = this.clocks[side];
+    this.startTick();
+    this.renderAll();
+    chessGame.updateUI();
+
+    // ucinewgame only on the opening move. Re-sending it every ply throws away
+    // the transposition table, which is most of what makes an engine strong,
+    // and two engines doing that to each other play a visibly weaker game.
+    const isOpening = chessGame.moveLog.length === 0;
+    const fen = chessToFen(chessGame.state);
+
+    engine.findBestMove(fen, 0, { movetime, newGame: isOpening })
+      .then(res => this.onEngineMove(gen, side, res && res.uci))
+      .catch(err => this.onEngineError(gen, side, err));
+  },
+
+  onEngineMove(gen, side, uci) {
+    if (gen !== this.generation) return;
+
+    const remaining = this.thinkBudget - (Date.now() - this.thinkStart);
+
+    this.thinking = false;
+    this.thinkSide = null;
+    this.clearTickOnly();
+
+    // Flags fall on the side that ran out, and are checked before the move is
+    // played: a side that overran its clock has forfeited whatever it was
+    // about to move.
+    if (remaining <= 0) {
+      this.flag(side);
+      return;
+    }
+    if (!this.running) return;
+
+    const move = chessUciToMoveObj(uci, chessGame.state);
+    if (!move) {
+      this.finish({
+        result: '1/2-1/2',
+        winner: null,
+        headline: 'Match stopped',
+        detail: 'the engine returned an unusable move'
+      });
+      return;
+    }
+
+    this.clocks[side] = remaining + this.incrementMs;
+    this.lastMover = side;
+    this.renderAll();
+
+    // playMove re-enters this controller through onMovePlayed().
+    chessGame.playMove(move);
+  },
+
+  onEngineError(gen, side, err) {
+    if (gen !== this.generation) return;
+    this.thinking = false;
+    this.thinkSide = null;
+    this.clearTickOnly();
+    const name = side === 'w' ? 'White' : 'Black';
+    this.finish({
+      result: '1/2-1/2',
+      winner: null,
+      headline: 'Match stopped',
+      detail: name + "'s engine failed: " + (err && err.message ? err.message : 'unknown error')
+    });
+  },
+
+  // Called by chessGame.playMove right after an engine move lands.
+  onMovePlayed() {
+    if (!this.running || this.finished) return;
+
+    this.positionHistory.push(chessPositionKey(chessGame.state));
+
+    const outcome = this.adjudicate();
+    if (outcome) {
+      this.finish(outcome);
+      return;
+    }
+
+    // Charge the between-move animation to the side that just moved.
+    if (this.lastMover) {
+      this.clocks[this.lastMover] = Math.max(0, this.clocks[this.lastMover] - this.MOVE_DELAY_MS);
+      if (this.clocks[this.lastMover] <= 0) {
+        this.flag(this.lastMover);
+        return;
+      }
+    }
+
+    this.renderAll();
+    this.delayTimer = setTimeout(() => {
+      this.delayTimer = null;
+      this.beginTurn();
+    }, this.MOVE_DELAY_MS);
+  },
+
+  // Every way a match can end, in the order they should be tested. Returns
+  // null while the game is still live.
+  adjudicate() {
+    const status = chessGameStatus(chessGame.state);
+
+    if (status === 'checkmate') {
+      const winner = chessGame.state.turn === 'w' ? 'b' : 'w';
+      return {
+        result: winner === 'w' ? '1-0' : '0-1',
+        winner,
+        headline: (winner === 'w' ? 'White' : 'Black') + ' wins',
+        detail: 'by checkmate'
+      };
+    }
+
+    if (status === 'stalemate') {
+      return { result: '1/2-1/2', winner: null, headline: 'Draw', detail: 'by stalemate' };
+    }
+
+    // Tested after mate on purpose: a position can satisfy both, and mate
+    // takes precedence in the rules.
+    if (chessGame.state.halfmoveClock >= 100) {
+      return { result: '1/2-1/2', winner: null, headline: 'Draw', detail: 'by the fifty-move rule' };
+    }
+
+    if (chessGame.moveLog.length >= this.MAX_PLIES) {
+      return {
+        result: '1/2-1/2',
+        winner: null,
+        headline: 'Draw',
+        detail: 'by adjudication at ' + this.MAX_PLIES + ' plies'
+      };
+    }
+
+    if (chessInsufficientMaterial(chessGame.state)) {
+      return { result: '1/2-1/2', winner: null, headline: 'Draw', detail: 'by insufficient material' };
+    }
+
+    const repeats = chessRepetitionCount(this.positionHistory, chessPositionKey(chessGame.state));
+    if (repeats >= 3) {
+      return { result: '1/2-1/2', winner: null, headline: 'Draw', detail: 'by threefold repetition' };
+    }
+
+    return null;
+  },
+
+  flag(side) {
+    this.clocks[side] = 0;
+    const winner = side === 'w' ? 'b' : 'w';
+    this.termination = 'time forfeit';
+    this.renderAll();
+    this.finish({
+      result: winner === 'w' ? '1-0' : '0-1',
+      winner,
+      headline: (winner === 'w' ? 'White' : 'Black') + ' wins',
+      // "on time" rather than naming the loser: the headline already says who
+      // won, and "<winner> wins Black flagged" reads like a stutter.
+      detail: 'on time'
+    });
+  },
+
+  finish(outcome) {
+    this.clearTimers();
+    this.running = false;
+    this.paused = false;
+    this.finished = true;
+    this.thinking = false;
+    this.thinkSide = null;
+    this.result = outcome.result;
+    this.outcome = outcome;
+    this.matchEnd = Date.now();
+
+    this.renderAll();
+    this.setStatus(outcome.headline + ' ' + outcome.detail);
+    chessGame.updateUI();
+    this.recordMatch(outcome);
+    this.showResultOverlay();
+  },
+
+  // --- Match history ------------------------------------------------------
+
+  loadHistory() {
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(CHESS_HISTORY_KEY) || 'null'); }
+    catch (e) { raw = null; }
+    this.history = Array.isArray(raw) ? raw.filter(e => e && typeof e.id === 'string') : [];
+  },
+
+  saveHistory() {
+    try {
+      localStorage.setItem(CHESS_HISTORY_KEY, JSON.stringify(this.history));
+      return true;
+    } catch (e) {
+      // Almost certainly the quota. Drop the oldest half and try once more
+      // rather than losing the record the player just finished.
+      this.history = this.history.slice(0, Math.max(1, Math.floor(this.history.length / 2)));
+      try {
+        localStorage.setItem(CHESS_HISTORY_KEY, JSON.stringify(this.history));
+        return true;
+      } catch (e2) {
+        this.setStatus('Match history is full and could not be written.', true);
+        return false;
+      }
+    }
+  },
+
+  // Called once, when a match ends. finish() passes its outcome; stop() passes
+  // "abandoned", because a match the player called off still happened and
+  // losing it from the record would be a surprise.
+  recordMatch(outcome) {
+    if (!this.matchStart) return;
+    const detail = outcome || this.outcome || { headline: 'Match ended', detail: '' };
+    const endedAt = this.matchEnd || Date.now();
+    const when = new Date(this.matchStart);
+    const pad = n => String(n).padStart(2, '0');
+
+    const entry = {
+      // Timestamp plus a per-session counter. The timestamp alone would almost
+      // always be unique, but a deleted entry could then let a later match
+      // reuse an id and the history list would show the wrong game.
+      id: 'm' + this.matchStart + '-' + (++this.recordSeq),
+      startedAt: this.matchStart,
+      endedAt,
+      durationMs: this.elapsedMatchMs(),
+      date: when.getFullYear() + '-' + pad(when.getMonth() + 1) + '-' + pad(when.getDate()),
+      time: pad(when.getHours()) + ':' + pad(when.getMinutes()),
+      result: this.result || '*',
+      termination: this.termination,
+      headline: detail.headline,
+      detail: detail.detail || '',
+      timeControl: this.timeControlTag(),
+      moves: Math.ceil(chessGame.moveLog.length / 2),
+      opening: this.openingSideLabel() || 'Standard game',
+      finalFen: chessToFen(chessGame.state),
+      san: chessGame.moveLog.slice(),
+      whiteClock: Math.round(this.clocks.w / 1000),
+      blackClock: Math.round(this.clocks.b / 1000),
+      pgn: this.buildPgn()
+    };
+
+    this.history.unshift(entry);
+    if (this.history.length > CHESS_HISTORY_LIMIT) {
+      this.history = this.history.slice(0, CHESS_HISTORY_LIMIT);
+    }
+    this.saveHistory();
+    this.renderHistory();
+  },
+
+  clearHistory() {
+    this.history = [];
+    this.saveHistory();
+    this.renderHistory();
+    this.setStatus('Match history cleared.');
+  },
+
+  toggleHistory(force) {
+    this.historyOpen = force === undefined ? !this.historyOpen : !!force;
+    // The guard matters more than it looks. chessGame.updateUI() calls
+    // syncVisibility() during its own init, which is *before* this
+    // controller's init has built the element map - so every method
+    // updateModeUI() can reach has to survive being called on a controller
+    // whose `el` does not exist yet. Missing that here threw during startup
+    // and took the rest of the app's initialisation down with it: the launch
+    // cards are wired after the games, so all four stopped responding.
+    if (!this.el) return;
+    if (this.el.historyPanel) this.el.historyPanel.classList.toggle('active', this.historyOpen);
+    if (this.historyOpen) this.renderHistory();
+  },
+
+  historyBadgeClass(result) {
+    if (result === '1-0') return 'white';
+    if (result === '0-1') return 'black';
+    if (result === '1/2-1/2') return 'draw';
+    return '';
+  },
+
+  renderHistory() {
+    const el = this.el;
+    if (!el || !el.historyList) return;
+
+    if (el.historyCount) {
+      const n = this.history.length;
+      el.historyCount.textContent = n ? n + (n === 1 ? ' game' : ' games') : '';
+    }
+    if (el.historyClearBtn) el.historyClearBtn.disabled = this.history.length === 0;
+
+    if (!this.history.length) {
+      el.historyList.innerHTML = '<div class="history-empty">No games yet. Every match you play is recorded here.</div>';
+      return;
+    }
+
+    el.historyList.innerHTML = this.history.map(entry => {
+      const when = entry.date + ' ' + entry.time;
+      const meta = [
+        entry.timeControl,
+        entry.moves + (entry.moves === 1 ? ' move' : ' moves'),
+        entry.opening,
+        when
+      ].join(' · ');
+      return '<button class="history-entry" data-id="' + chessEscapeHtml(entry.id) + '" type="button">' +
+        '<span class="history-badge ' + this.historyBadgeClass(entry.result) + '">' +
+        chessEscapeHtml(entry.result || '*') + '</span>' +
+        '<span class="history-main">' +
+        '<span class="history-line1">' + chessEscapeHtml(entry.headline + ' · ' + entry.detail) + '</span>' +
+        '<span class="history-line2">' + chessEscapeHtml(meta) + '</span>' +
+        '</span></button>';
+    }).join('');
+  },
+
+  openHistoryEntry(id) {
+    const entry = this.history.find(e => e.id === id);
+    if (!entry) return;
+
+    const mins = Math.floor(entry.durationMs / 60000);
+    const secs = Math.floor((entry.durationMs % 60000) / 1000);
+    const view = {
+      result: entry.result || '*',
+      headline: entry.headline,
+      detail: entry.detail,
+      stats: [
+        ['Date', entry.date + ' at ' + entry.time],
+        ['Time control', entry.timeControl],
+        ['Moves', String(entry.moves)],
+        ['Duration', mins + 'm ' + String(secs).padStart(2, '0') + 's'],
+        ['Opening', entry.opening],
+        ['Termination', entry.termination],
+        ['White left', this.formatClock(entry.whiteClock * 1000)],
+        ['Black left', this.formatClock(entry.blackClock * 1000)]
+      ],
+      moveLog: entry.san || [],
+      pgn: entry.pgn || ''
+    };
+    this.showResultOverlay(view, { mode: 'history', entry });
+  },
+
+  // --- Clock rendering --------------------------------------------------
+
+  startTick() {
+    this.clearTickOnly();
+    this.tickTimer = setInterval(() => this.renderClocks(), 100);
+  },
+
+  // The clock as it should read right now. The side that is thinking has not
+  // had its time deducted yet - it is deducted once, in a single step, when
+  // the move comes back - so the live value is derived from the think start.
+  clockValue(side) {
+    if (this.thinking && side === this.thinkSide) {
+      return Math.max(0, this.thinkBudget - (Date.now() - this.thinkStart));
+    }
+    return Math.max(0, this.clocks[side]);
+  },
+
+  formatClock(ms) {
+    const clamped = Math.max(0, ms);
+    const minutes = Math.floor(clamped / 60000);
+    const seconds = Math.floor((clamped % 60000) / 1000);
+    const base = minutes + ':' + String(seconds).padStart(2, '0');
+    // Tenths only in the last stretch, where a tenth of a second is the entire
+    // drama. Above that they are noise that makes the digits jitter.
+    if (clamped < 20000) return base + '.' + Math.floor((clamped % 1000) / 100);
+    return base;
+  },
+
+  renderClocks() {
+    if (!this.el || !this.el.clockW || !this.el.clockB) return;
+    this.el.clockW.textContent = this.formatClock(this.clockValue('w'));
+    this.el.clockB.textContent = this.formatClock(this.clockValue('b'));
+
+    const wrapW = this.el.clockW.parentNode;
+    const wrapB = this.el.clockB.parentNode;
+    if (wrapW) {
+      wrapW.classList.toggle('low', this.clockValue('w') < 30000);
+      wrapW.classList.toggle('active', this.thinking && this.thinkSide === 'w');
+    }
+    if (wrapB) {
+      wrapB.classList.toggle('low', this.clockValue('b') < 30000);
+      wrapB.classList.toggle('active', this.thinking && this.thinkSide === 'b');
+    }
+  },
+
+  onEngineLine(side, evt) {
+    if (!evt || evt.type !== 'info' || !this.el) return;
+    // Ignore anything that arrives when no search is in flight for that side.
+    // An engine keeps streaming info for a few milliseconds after its search
+    // is cancelled, and without this a pause would be stamped over by
+    // "depth 13" the instant it is pressed.
+    if (!this.thinking || this.thinkSide !== side) return;
+
+    const el = side === 'w' ? this.el.infoW : this.el.infoB;
+    if (!el) return;
+    const name = side === 'w' ? 'White' : 'Black';
+    if (evt.depth === null || evt.depth === undefined) {
+      el.textContent = name + ': ready';
+      return;
+    }
+    const score = evt.score === null || evt.score === undefined ? '' : formatDuelScore(evt.score);
+    el.textContent = name + ': depth ' + evt.depth + (score ? ' · ' + score : '');
+  },
+
+  renderAll() {
+    if (!this.el) return;
+    this.renderClocks();
+
+    if (this.el.startBtn) {
+      const label = this.loading
+        ? '<span class="btn-icon">✕</span> <span class="btn-label">Cancel</span>'
+        : (this.paused
+          ? '<span class="btn-icon">▶</span> <span class="btn-label">Resume</span>'
+          : (this.running
+            ? '<span class="btn-icon">⏸</span> <span class="btn-label">Pause</span>'
+            : '<span class="btn-icon">▶</span> <span class="btn-label">Start</span>'));
+      // renderAll() runs on every render, and renderAll() is reached from
+      // updateUI() several times a second during a match. Assigning innerHTML
+      // re-parses the markup and drops the button's children each time, so it
+      // only happens when the label has genuinely changed.
+      if (this._startBtnHtml !== label) {
+        this._startBtnHtml = label;
+        this.el.startBtn.innerHTML = label;
+      }
+      this.el.startBtn.classList.toggle('active', this.running || this.loading);
+      this.el.startBtn.classList.toggle('paused', this.paused);
+      // Never disabled: during the load second this button is the only way to
+      // call the match off, so disabling it would strand the player for as
+      // long as the workers take to come up.
+      this.el.startBtn.disabled = false;
+    }
+    if (this.el.saveBtn) {
+      this.el.saveBtn.disabled = chessGame.moveLog.length === 0;
+    }
+
+    // Only touched when no search is in flight. onEngineLine() refuses to write
+    // at any other time, so the live depth reading and this state label cannot
+    // fight over the same element.
+    if (!this.thinking) {
+      const label = this.paused ? 'paused'
+        : (this.finished ? 'finished' : (this.running ? 'ready' : 'idle'));
+      if (this.el.infoW) this.el.infoW.textContent = 'White: ' + label;
+      if (this.el.infoB) this.el.infoB.textContent = 'Black: ' + label;
+    }
+
+    // A finished match does not need two wasm modules sitting in memory. The
+    // engines are reloaded on the next Start, and the Cancel button covers the
+    // second or so it takes.
+    //
+    // Deliberately keyed on `finished` rather than on "not running". start()
+    // loads the engines, then resets the board - which renders - and only then
+    // sets `running`. A negated condition fires in that gap, hands the engines
+    // straight back, and the match dies on its first move with "an engine was
+    // not available".
+    if (this.finished) {
+      this.releaseMatchEngines();
+    }
+  },
+
+  // Frees the two match engines. Idempotent, because it is called from every
+  // render once a match is over and from several teardown paths.
+  releaseMatchEngines() {
+    if (this.enginesReleased) return;
+    this.enginesReleased = true;
+    chessEngineWhite.dispose();
+    chessEngineBlack.dispose();
+  },
+
+  // start() has to be able to load them again after a release.
+  claimMatchEngines() {
+    this.enginesReleased = false;
+  },
+
+  // Match messages go to the same status line as every other chess message.
+  // A second status element next to the time control panel would only ever
+  // repeat the same sentence in two places.
+  setStatus(text, isError) {
+    if (chessGame) chessGame.setStatus(text || '');
+    if (chessGame && chessGame.statusEl) {
+      chessGame.statusEl.classList.toggle('is-error', !!isError);
+    }
+  },
+
+  // Text for the turn pill. Called from chessGame.updateUI on every render.
+  turnText(status) {
+    if (this.finished && this.outcome) return this.outcome.headline + ' ' + this.outcome.detail;
+    if (this.loading) return 'Loading engines...';
+    if (this.paused) return 'Match paused';
+    if (this.thinking) return (this.thinkSide === 'w' ? 'White engine' : 'Black engine') + ' thinking';
+    if (this.running) return this.thinkSide === 'w' ? "White's move" : "Black's move";
+    return 'Press Start to run the match';
+  },
+
+  // --- PGN --------------------------------------------------------------
+
+  pgnFileName() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return 'stockfish19-duel-' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) +
+      '-' + pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds()) + '.pgn';
+  },
+
+  buildPgn() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const dateTag = now.getFullYear() + '.' + pad(now.getMonth() + 1) + '.' + pad(now.getDate());
+
+    // '*' is the PGN token for "no result yet", which is what a match saved
+    // mid-play has to carry.
+    const result = this.result || '*';
+
+    const tags = [
+      ['Event', 'Cute Chess engine match'],
+      ['Site', '4GamesbyAlex'],
+      ['Date', dateTag],
+      ['Round', '1'],
+      ['White', (chessEngineWhite.engineName || 'Stockfish 19') + ' (White)'],
+      ['Black', (chessEngineBlack.engineName || 'Stockfish 19') + ' (Black)'],
+      ['Result', result],
+      ['Termination', this.termination],
+      ['TimeControl', this.timeControlTag()],
+      ['Annotator', '4GamesbyAlex'],
+      ['Mode', '2x Stockfish 19']
+    ];
+
+    // Which book line the match was set up with, and which side played it. Not
+    // part of the seven tag roster, but it is the one thing that distinguishes
+    // one engine game from another and it is what a later reader actually
+    // wants to know.
+    //
+    // The custom position is tested first, and deliberately so: an opening can
+    // stay selected in the panel while the source is switched to FEN, and a
+    // header claiming a Catalan for a game that began from a pasted position
+    // is worse than no opening tag at all.
+    if (this.setupSource === 'fen') {
+      tags.push(['Opening', 'Custom position']);
+    } else {
+      const opening = this.selectedOpening();
+      if (opening) {
+        tags.push(['Opening', opening.name]);
+        tags.push(['ECO', opening.eco]);
+        tags.push(['OpeningSide',
+          this.openingSide === 'both' ? 'both' : (this.openingSide === 'w' ? 'white' : 'black')]);
+      }
+    }
+
+    // SetUp and FEN only belong in the header when the game does not start
+    // from the standard position. A match set up from an opening does, because
+    // the book line is played out as part of the game; only a custom starting
+    // position needs them.
+    if (this.startFen && this.startFen !== CHESS_STANDARD_START_FEN) {
+      tags.push(['SetUp', '1'], ['FEN', this.startFen]);
+    }
+
+    const header = tags
+      .map(pair => '[' + pair[0] + ' "' + String(pair[1]).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]')
+      .join('\n');
+
+    return header + '\n\n' + buildPgnMovetext(chessGame.moveLog, result) + '\n';
+  },
+
+  // The panel button, which always saves the match in progress.
+  savePgn() {
+    if (chessGame.moveLog.length === 0) {
+      this.setStatus('No moves yet, so there is nothing to save.', true);
+      return;
+    }
+    this.writePgnFile(this.buildPgn(), this.pgnFileName());
+  },
+
+  // Writes a PGN through the native bridge, falling back to a blob download
+  // outside the Android shell. The outcome is reported in both places it can
+  // be seen: the status line, and the overlay note if one is open.
+  writePgnFile(pgn, fileName) {
+    if (!pgn) {
+      this.setStatus('There is nothing to save.', true);
+      return;
+    }
+
+    const bridge = window.AndroidBridge;
+    if (bridge && typeof bridge.savePgn === 'function') {
+      let location = '';
+      try { location = bridge.savePgn(fileName, pgn); }
+      catch (e) { location = ''; }
+      if (location) {
+        this.setStatus('Saved ' + fileName + ' to ' + location);
+        this.setOverlayNote('Saved ' + fileName + ' to ' + location);
+      } else {
+        this.setStatus('Android could not write ' + fileName + '. Try Copy PGN instead.', true);
+        this.setOverlayNote('The file could not be written. Use Copy PGN instead.');
+      }
+      return;
+    }
+
+    try {
+      const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.setStatus('Saved ' + fileName);
+      this.setOverlayNote('Saved ' + fileName);
+    } catch (e) {
+      this.setStatus('Could not save the file. Use Copy PGN instead.', true);
+      this.setOverlayNote('Could not save the file. Use Copy PGN instead.');
+    }
+  },
+
+  copyPgn() {
+    if (chessGame.moveLog.length === 0) {
+      this.setStatus('No moves yet, so there is nothing to copy.', true);
+      return;
+    }
+    this.copyPgnText(this.buildPgn());
+  },
+
+  copyPgnText(pgn) {
+    if (!pgn) {
+      this.setStatus('There is nothing to copy.', true);
+      return;
+    }
+    const unavailable = 'Clipboard unavailable. Select the text below instead.';
+
+    const bridge = window.AndroidBridge;
+    if (bridge && typeof bridge.copyToClipboard === 'function') {
+      let ok = false;
+      try { ok = !!bridge.copyToClipboard(pgn); } catch (e) { ok = false; }
+      this.setStatus(ok ? 'PGN copied to the clipboard' : unavailable, !ok);
+      this.setOverlayNote(ok ? 'PGN copied to the clipboard' : unavailable);
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(pgn)
+        .then(() => {
+          this.setStatus('PGN copied to the clipboard');
+          this.setOverlayNote('PGN copied to the clipboard');
+        })
+        .catch(() => {
+          this.setStatus(unavailable, true);
+          this.setOverlayNote(unavailable);
+        });
+      return;
+    }
+
+    this.setStatus(unavailable, true);
+    this.setOverlayNote(unavailable);
+  },
+
+  // --- Result overlay -------------------------------------------------------
+  //
+  // One overlay serves both a match that has just finished and a record opened
+  // from the history. The two differ only in the data and in which actions
+  // make sense - Rematch for a live match, Delete for a stored one - so the
+  // view is built separately from the display, and overlayTarget records which
+  // of the two is on screen.
+  matchResultView() {
+    return {
+      result: this.result || '*',
+      headline: this.outcome ? this.outcome.headline : 'Match finished',
+      detail: this.outcome ? this.outcome.detail : '',
+      stats: [
+        ['Time control', this.timeControlTag()],
+        ['Starting position', this.openingSideLabel() || 'Standard game'],
+        ['Moves', String(Math.ceil(chessGame.moveLog.length / 2))],
+        ['Duration', this.matchDuration()],
+        ['White left', this.formatClock(this.clocks.w)],
+        ['Black left', this.formatClock(this.clocks.b)],
+        ['Termination', this.termination]
+      ],
+      moveLog: chessGame.moveLog,
+      pgn: this.buildPgn()
+    };
+  },
+
+  showResultOverlay(view, target) {
+    const el = this.el;
+    if (!el || !el.overlay) return;
+    const data = view || this.matchResultView();
+    const mode = (target && target.mode) || 'match';
+    this.overlayTarget = target || { mode: 'match' };
+
+    if (el.badge) el.badge.textContent = data.result || '*';
+    if (el.title) el.title.textContent = data.headline;
+    if (el.sub) el.sub.textContent = data.detail;
+
+    if (el.stats) {
+      el.stats.innerHTML = data.stats
+        .map(row => '<div class="chess-stat"><span class="chess-stat-k">' + chessEscapeHtml(row[0]) +
+                    '</span><span class="chess-stat-v">' + chessEscapeHtml(row[1]) + '</span></div>')
+        .join('');
+    }
+
+    if (el.moves) {
+      el.moves.innerHTML = data.moveLog && data.moveLog.length
+        ? buildMoveRows(data.moveLog)
+        : '<div class="movelog-empty">No moves were played</div>';
+    }
+
+    // The PGN is on screen as well as in the buttons, so it can still be read
+    // or selected by hand when saving and copying both fail.
+    if (el.pgn) el.pgn.textContent = data.pgn || '';
+    if (el.note) el.note.textContent = '';
+
+    // The action row is mode-dependent. The `hidden` attribute needs an
+    // explicit rule here, because .result-btn sets display:inline-flex, which
+    // overrides the browser's default [hidden] styling.
+    if (el.btnRematch) el.btnRematch.hidden = mode !== 'match';
+    if (el.btnDelete) el.btnDelete.hidden = mode !== 'history';
+
+    el.overlay.classList.add('active');
+  },
+
+  hideResultOverlay() {
+    if (this.el && this.el.overlay) this.el.overlay.classList.remove('active');
+    this.overlayTarget = null;
+    if (this.el && this.el.note) this.el.note.textContent = '';
+  },
+
+  // --- Overlay actions ------------------------------------------------------
+
+  // The overlay may be showing a live result or a stored record, so these
+  // resolve their PGN from whichever is on screen.
+  overlayPgn() {
+    if (this.overlayTarget && this.overlayTarget.mode === 'history') {
+      return this.overlayTarget.entry.pgn || '';
+    }
+    return this.buildPgn();
+  },
+
+  overlayFileName() {
+    if (this.overlayTarget && this.overlayTarget.mode === 'history') {
+      const entry = this.overlayTarget.entry;
+      return 'chess-game-' + entry.date + '-' + entry.time.replace(':', '') + '.pgn';
+    }
+    return this.pgnFileName();
+  },
+
+  saveFromOverlay() {
+    this.writePgnFile(this.overlayPgn(), this.overlayFileName());
+  },
+
+  copyFromOverlay() {
+    this.copyPgnText(this.overlayPgn());
+  },
+
+  deleteFromOverlay() {
+    const target = this.overlayTarget;
+    if (!target || target.mode !== 'history') return;
+    this.history = this.history.filter(e => e.id !== target.entry.id);
+    this.saveHistory();
+    this.renderHistory();
+    this.hideResultOverlay();
+    this.setStatus('Removed ' + target.entry.date + ' ' + target.entry.time + ' from the history.');
+  },
+
+  setOverlayNote(text) {
+    if (this.el && this.el.note) this.el.note.textContent = text || '';
+  },
+
+  // Elapsed *playing* time. Time spent paused is subtracted, because a game
+  // left alone over lunch did not take lunch to play.
+  elapsedMatchMs() {
+    if (!this.matchStart) return 0;
+    const end = this.matchEnd || Date.now();
+    const paused = this.pausedTotalMs + (this.pauseStartedAt ? Date.now() - this.pauseStartedAt : 0);
+    return Math.max(0, (end - this.matchStart) - paused);
+  },
+
+  matchDuration() {
+    if (!this.matchStart) return '-';
+    const totalSeconds = Math.round(this.elapsedMatchMs() / 1000);
+    return Math.floor(totalSeconds / 60) + 'm ' + String(totalSeconds % 60).padStart(2, '0') + 's';
+  }
+};
+
+// Renders the "n. white black" move rows shared by the on-board move log and
+// the result overlay, so the two can never drift apart.
+function buildMoveRows(moveLog) {
+  const rows = [];
+  for (let i = 0; i < moveLog.length; i += 2) {
+    rows.push('<div class="movelog-row"><span class="movelog-num">' + (Math.floor(i / 2) + 1) +
+              '.</span><span class="movelog-san">' + (moveLog[i] || '') + '</span>' +
+              '<span class="movelog-san">' + (moveLog[i + 1] || '') + '</span></div>');
+  }
+  return rows.join('');
+}
+
+// PGN movetext: move numbers paired up, wrapped at the 80-column limit the
+// standard asks for, with the result on the end of the final line.
+function buildPgnMovetext(moveLog, result) {
+  const tokens = [];
+  for (let i = 0; i < moveLog.length; i += 2) {
+    tokens.push((Math.floor(i / 2) + 1) + '.');
+    tokens.push(moveLog[i]);
+    if (moveLog[i + 1]) tokens.push(moveLog[i + 1]);
+  }
+
+  const lines = [];
+  let line = '';
+  for (const token of tokens) {
+    if (line && line.length + 1 + token.length > 80) {
+      lines.push(line);
+      line = token;
+    } else {
+      line += (line ? ' ' : '') + token;
+    }
+  }
+
+  if (result && result !== '*') {
+    if (line && line.length + 1 + result.length <= 80) line += ' ' + result;
+    else { lines.push(line); line = result; }
+  }
+  if (line) lines.push(line);
+
+  return lines.join('\n');
+}
+
+// A score from the engine's point of view. Mate scores are a distance in
+// plies rather than centipawns, so they get their own rendering instead of
+// showing up as a five digit pawn count.
+function formatDuelScore(score) {
+  if (Math.abs(score) > 10000) {
+    const moves = Math.ceil((10000 - Math.abs(score)) / 2);
+    return (score > 0 ? 'M' : '-M') + moves;
+  }
+  return (score > 0 ? '+' : '') + (score / 100).toFixed(2);
+}
 // --- Interactive Drawing / Doodling Logic (Solar, Fire) ---
 
 function setupCanvas(canvasId) {
@@ -1732,10 +3764,28 @@ function setupVirtualPet() {
 // --- App Initialization & Event Wiring ---
 
 document.addEventListener('DOMContentLoaded', () => {
+  /* Initialise each game in isolation.
+   *
+   * These used to be three bare calls in a row, and a throw in any one of them
+   * aborted the rest of this handler. That is a terrible failure mode for a
+   * launcher: the game that broke was unreachable, and so was every other
+   * game, because the launch cards are wired a few lines further down. One
+   * game could take the whole app down with it.
+   *
+   * The card wiring is now first and cannot be skipped, and each game's init
+   * is contained, so a broken game is a broken game and nothing else. */
+  const initSafely = (name, fn) => {
+    try {
+      fn();
+    } catch (error) {
+      console.error('Failed to initialise ' + name, error);
+    }
+  };
+
   // 1. Initialize Games
-  flappyGame.init();
-  chessGame.init();
-  setupVirtualPet();
+  initSafely('Flappy Bird', () => flappyGame.init());
+  initSafely('Chess', () => chessGame.init());
+  initSafely('Virtual Pet', () => setupVirtualPet());
 
   // 2. Wire App Launch Cards (2x2 Grid)
   const launchCards = document.querySelectorAll('.app-launch-card');

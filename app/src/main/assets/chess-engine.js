@@ -17,39 +17,72 @@
 // script URL, so both files must sit side by side in the assets folder. It
 // also posts messages back to the page, so we watch window 'message' as well
 // as the worker channel.
+//
+// MULTIPLE ENGINES
+//
+// This used to be a single object literal, which made one worker, one search
+// slot and one "bestmove" listener for the whole app. The 2x Stockfish mode
+// needs two genuinely independent engines playing each other, so the client
+// is now a class and `chessEngine` is simply the first instance. Every
+// previously public field (worker, ready, busy, pending, queue, engineName,
+// searchDepth, lastScore, ...) is an instance field now, so the existing
+// single-engine call sites in app.js are unchanged.
+//
+// Cross-talk is the one thing that genuinely had to be solved. UCI on the
+// wire is anonymous: a "bestmove e2e4" line carries no idea which engine
+// produced it. Through `worker.onmessage` there is no ambiguity, because each
+// worker delivers only to its own listener. The `window` 'message' fallback
+// is the one path where two engines could both see the same line and one
+// would resolve the other's pending search. Verified in the shipped loader,
+// `listener` calls the global `postMessage` from *inside* the worker, so it
+// reaches `worker.onmessage` and never the window at all. The window fallback
+// is therefore only attached by the first engine; secondary instances run
+// worker-channel only.
 
-const chessEngine = {
-  worker: null,
-  ready: false,
-  busy: false,
-  loadFailed: false,
-  listeners: [],
-  pending: null,
-  loadPromise: null,
-  // Serialises searches so overlapping calls queue instead of colliding.
-  queue: Promise.resolve(),
-  // Handle for the active search timeout, cleared when a move arrives.
-  searchTimer: null,
-  engineName: 'Stockfish 19',
-  searchDepth: null,
-  lastScore: null,
+class ChessEngineClient {
+  constructor(label, options) {
+    const opts = options || {};
 
-  // Paths relative to index.html, which is where the WebView loads from.
-  SCRIPT_PATH: 'engine/stockfish-19-lite-single.js',
+    // Human-readable name, used in log/status messages only.
+    this.label = label || 'engine';
+
+    // Only the first engine attaches the window 'message' fallback. See the
+    // cross-talk note above.
+    this.useWindowFallback = opts.useWindowFallback !== false;
+
+    this.worker = null;
+    this.ready = false;
+    this.busy = false;
+    this.loadFailed = false;
+    this.listeners = [];
+    this.pending = null;
+    this.loadPromise = null;
+    this.cleanup = null;
+    // Serialises searches so overlapping calls queue instead of colliding.
+    this.queue = Promise.resolve();
+    // Handle for the active search timeout, cleared when a move arrives.
+    this.searchTimer = null;
+    this.engineName = 'Stockfish 19';
+    this.searchDepth = null;
+    this.lastScore = null;
+
+    // Paths relative to index.html, which is where the WebView loads from.
+    this.SCRIPT_PATH = 'engine/stockfish-19-lite-single.js';
+  }
 
   isSupported() {
     return typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined';
-  },
+  }
 
   onLine(fn) {
     this.listeners.push(fn);
-  },
+  }
 
   emit(event) {
     this.listeners.forEach(fn => {
       try { fn(event); } catch (e) { console.warn('stockfish listener failed', e); }
     });
-  },
+  }
 
   // Loads the engine once and resolves when it reports uciok. Safe to call
   // repeatedly: later calls await the first load.
@@ -94,8 +127,11 @@ const chessEngine = {
 
       // The emscripten build posts some output straight to the page instead
       // of through the worker, so mirror the same handler onto window.
-      this._windowHandler = (e) => this.handleMessage(e.data, finish);
-      window.addEventListener('message', this._windowHandler);
+      // Deliberately skipped on secondary engines: see the cross-talk note.
+      if (this.useWindowFallback) {
+        this._windowHandler = (e) => this.handleMessage(e.data, finish);
+        window.addEventListener('message', this._windowHandler);
+      }
 
       this.cleanup = () => {
         if (this._windowHandler) {
@@ -108,11 +144,11 @@ const chessEngine = {
     });
 
     return this.loadPromise;
-  },
+  }
 
   post(cmd) {
     if (this.worker) this.worker.postMessage(cmd);
-  },
+  }
 
   handleMessage(data, onUciOk) {
     if (typeof data !== 'string') return;
@@ -172,34 +208,56 @@ const chessEngine = {
         });
       }
     }
-  },
+  }
 
-  // Asks the engine for a move. `depth` of 0 means "use the engine default",
-  // which searches until it decides to stop.
+  // Asks the engine for a move.
+  //
+  //   depth    - integer; > 0 means "search this many plies". Kept as the
+  //              positional argument because the 1x bot calls it that way.
+  //   options  - { movetime, newGame }
+  //                movetime - milliseconds of wall clock to search for. This
+  //                           is what an engine-vs-engine clock needs: the
+  //                           side to move gets a real time budget, not a
+  //                           depth target that can run arbitrarily long.
+  //                newGame  - pass false to keep the engine's transposition
+  //                           table across moves of the same game. Defaults
+  //                           to true so the existing 1x bot behaves exactly
+  //                           as it did (it re-sends ucinewgame every move).
   //
   // Searches are serialised through a queue rather than rejected when one is
   // already running. The UI already guards against overlapping calls, but an
   // explicit queue means a stray double call waits its turn instead of
   // throwing "Engine already searching" and leaving the bot stuck thinking
   // forever.
-  async findBestMove(fen, depth) {
+  async findBestMove(fen, depth, options) {
     await this.load();
+
+    const opts = options || {};
+    const movetime = Number(opts.movetime);
 
     const run = async () => {
       this.busy = true;
       this.searchDepth = null;
       this.lastScore = null;
 
-      const limit = Number(depth) > 0 ? String(depth) : '';
+      const depthLimit = Number(depth) > 0 ? ' depth ' + Math.round(depth) : '';
+      const timeLimit = movetime > 0 ? ' movetime ' + Math.round(movetime) : '';
+
       this.post('stop');
-      this.post('ucinewgame');
-      this.post('isready');
+      if (opts.newGame !== false) {
+        this.post('ucinewgame');
+        this.post('isready');
+      }
       this.post('position fen ' + fen);
-      this.post('go' + (limit ? ' depth ' + limit : ''));
+      this.post('go' + depthLimit + timeLimit);
 
       const result = await new Promise((resolve, reject) => {
         this.pending = { resolve, reject };
-        // A hung engine must not leave the game locked on the bot's turn.
+        // A hung engine must not leave the game locked on the bot's turn. The
+        // floor is the original 20s; a movetime search is allowed to overrun
+        // by a fixed margin before it counts as hung, because "movetime 5000"
+        // legitimately lands a little after 5s.
+        const budget = movetime > 0 ? movetime + 15000 : 20000;
         this.searchTimer = setTimeout(() => {
           if (this.pending) {
             this.pending = null;
@@ -207,7 +265,7 @@ const chessEngine = {
             this.post('stop');
             reject(new Error('Engine search timed out'));
           }
-        }, 20000);
+        }, budget);
       });
 
       this.emit({ type: 'bestmove', ...result });
@@ -220,7 +278,7 @@ const chessEngine = {
     const chained = this.queue.then(run, run);
     this.queue = chained.then(() => {}, () => {});
     return chained;
-  },
+  }
 
   setSkillLevel(level) {
     // Stockfish accepts 0-20. Below max it plays weaker, which keeps the bot
@@ -228,7 +286,14 @@ const chessEngine = {
     const v = Math.max(0, Math.min(20, parseInt(level, 10) || 0));
     this.post('setoption name Skill Level value ' + v);
     this.post('isready');
-  },
+  }
+
+  // Full-strength play, used by the 2x match where neither side should be
+  // handicapped.
+  setFullStrength() {
+    this.post('setoption name Skill Level value 20');
+    this.post('isready');
+  }
 
   // Frees the worker. Called when leaving the chess page so the engine is not
   // holding memory in the background.
@@ -242,4 +307,12 @@ const chessEngine = {
     this.busy = false;
     this.loadPromise = null;
   }
-};
+}
+
+// The 1x bot's engine. Keeps the window 'message' fallback.
+const chessEngine = new ChessEngineClient('main');
+
+// A second, independent engine for the 2x Stockfish mode. It gets no window
+// fallback so its UCI stream cannot be confused with the first one's.
+const chessEngineWhite = new ChessEngineClient('white', { useWindowFallback: false });
+const chessEngineBlack = new ChessEngineClient('black', { useWindowFallback: false });

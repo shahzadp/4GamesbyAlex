@@ -744,6 +744,15 @@ body.android-fullscreen .page.active {
   border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: 0 14px 35px rgba(0, 0, 0, 0.7);
+  /* Promoted to its own compositor layer.
+   *
+   * The board is 64 squares each holding an inline SVG, sitting on a large
+   * blurred shadow. Without its own layer the whole thing is repainted on
+   * every scroll frame, which on a phone WebView is the single most expensive
+   * thing on the page and reads as the page being slow to scroll. Promoting it
+   * means scrolling only has to move the layer. */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .mobile-stage-container.fullscreen-active .board-frame {
@@ -2313,6 +2322,881 @@ body.theme-economy #page-economy.active {
   color: rgba(255, 255, 255, 0.4);
   font-family: var(--font-main);
   font-size: 0.78rem;
+}
+
+/* --- 2x Stockfish 19: clocks, match setup, result overlay ---------------
+ *
+ * The third chess mode. Everything here is hidden by default and switched on
+ * by the .active class, which only the duel controller sets, so the two
+ * existing modes lay out exactly as they did before.
+ */
+
+/* Three tabs share the same fixed switch, so the labels need less padding and
+   a slightly smaller type than the two-tab version they replaced. */
+.chess-mode-switch.three-up .chess-mode-opt {
+  padding: 0.55rem 0.35rem;
+  font-size: 0.76rem;
+  gap: 0.3rem;
+}
+
+/* Below this the three labels cannot share the row without ellipsing to
+   nothing, so the icons go and the text gets the whole width. The titles and
+   the mode label beside the switch still identify each tab. */
+@media (max-width: 480px) {
+  .chess-mode-switch.three-up .mode-ico {
+    display: none;
+  }
+  .chess-mode-switch.three-up .chess-mode-opt {
+    padding: 0.55rem 0.3rem;
+    font-size: 0.74rem;
+  }
+}
+
+/* --- Clocks ------------------------------------------------------------ */
+
+.chess-clocks {
+  display: none;
+  width: 100%;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.chess-clocks.active {
+  display: flex;
+}
+
+.chess-clock {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.35);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* The side that is on move. */
+.chess-clock.active {
+  border-color: rgba(6, 214, 160, 0.75);
+  box-shadow: 0 0 0 2px rgba(6, 214, 160, 0.22);
+}
+
+/* Under thirty seconds. Wins over .active because it is the more urgent
+   state, and it is also the state that must survive a clock ticking at 10Hz. */
+.chess-clock.low {
+  border-color: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.22);
+}
+
+.chess-clock.low .chess-clock-time {
+  color: #ff9d9d;
+}
+
+.chess-clock-side {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.chess-clock-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #eaf6ff;
+}
+
+.chess-clock-white .chess-clock-side { color: #ffffff; }
+.chess-clock-black .chess-clock-side { color: #94a3b8; }
+
+/* --- Match setup panel -------------------------------------------------- */
+
+.chess-duel-panel {
+  display: none;
+  width: 100%;
+  margin: 0.5rem 0 0.25rem;
+  padding: 0.7rem 0.75rem 0.6rem;
+  border-radius: 14px;
+  border: 1px solid rgba(6, 214, 160, 0.28);
+  background: rgba(6, 214, 160, 0.06);
+}
+
+.chess-duel-panel.active {
+  display: block;
+}
+
+.duel-tc-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7ef0d0;
+  margin-bottom: 0.45rem;
+}
+
+.duel-tc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+}
+
+.duel-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.duel-field-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.duel-field-input {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.duel-field-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  appearance: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  padding: 0;
+}
+
+.duel-field-input input::-webkit-outer-spin-button,
+.duel-field-input input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.duel-field-input:focus-within {
+  border-color: rgba(6, 214, 160, 0.7);
+}
+
+.duel-unit {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.duel-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+/* Start gets its own row because it is the one control that has to be
+   findable without hunting, and because three labelled buttons on one line
+   do not fit a narrow phone. */
+.duel-btn-wide {
+  flex: 1 1 100%;
+}
+
+.duel-btn {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.duel-btn .btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.duel-btn .btn-icon {
+  flex: 0 0 auto;
+}
+
+.duel-btn:active:not(:disabled) {
+  transform: var(--touch-scale);
+}
+
+.duel-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.duel-btn-primary {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  border-color: #7ef0d0;
+  color: #042f2e;
+  box-shadow: 0 4px 14px rgba(6, 214, 160, 0.3);
+}
+
+/* Match running: the same button turns into Pause, so it needs the solid
+   "this is live" treatment rather than the primary gradient again. */
+.duel-btn-primary.active {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  border-color: #fca5a5;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+/* Paused: amber rather than red. The game is intact and one tap away from
+   carrying on, so it must not read like a destructive action. */
+.duel-btn-primary.paused {
+  background: linear-gradient(135deg, #ffd166, #f59e0b);
+  border-color: #ffe4a3;
+  color: #3a2a00;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+
+.duel-engine-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.duel-engine-tag {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.25rem 0.45rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Error colouring for the shared chess status line, which the match uses for
+   load failures and save failures as well as for progress. */
+.chess-status-line.is-error {
+  color: #ff9d9d;
+}
+
+/* --- Starting position: opening explorer / custom FEN ------------------ */
+
+.duel-source {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.duel-source-opt {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.4rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--font-main);
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.duel-source-opt.active {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  color: #042f2e;
+  box-shadow: 0 2px 10px rgba(6, 214, 160, 0.35);
+}
+
+.duel-subpanel {
+  display: none;
+  margin-top: 0.5rem;
+}
+
+.duel-subpanel.active {
+  display: block;
+}
+
+.duel-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.45);
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.duel-input:focus {
+  border-color: rgba(6, 214, 160, 0.7);
+}
+
+.duel-search {
+  /* 16px or larger, or a phone browser zooms the viewport on focus and the
+     whole page jumps. */
+  font-size: 1rem;
+}
+
+.duel-fen-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+/* The results list. A fixed height with a scroll keeps the board from being
+   pushed off the screen by a long book, and keeps the panel the same size
+   whatever the query returns. */
+.duel-openlist {
+  margin-top: 0.4rem;
+  max-height: 168px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.duel-open {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.42rem 0.55rem;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  font-size: 0.76rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.duel-open:last-child {
+  border-bottom: 0;
+}
+
+.duel-open:active {
+  background: rgba(6, 214, 160, 0.16);
+}
+
+.duel-open.selected {
+  background: rgba(6, 214, 160, 0.2);
+  box-shadow: inset 2px 0 0 #06d6a0;
+}
+
+.duel-open-eco {
+  flex: 0 0 auto;
+  min-width: 2.3rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #ffd166;
+}
+
+.duel-open-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-open-moves {
+  flex: 0 0 auto;
+  max-width: 40%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.64rem;
+  color: rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-open-empty {
+  padding: 0.6rem;
+  text-align: center;
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.duel-chip {
+  margin-top: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(6, 214, 160, 0.14);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #7ef0d0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-side-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.duel-side-switch {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.duel-side-opt {
+  appearance: none;
+  padding: 0.3rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--font-main);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.duel-side-opt.active {
+  background: rgba(255, 209, 102, 0.9);
+  color: #3a2a00;
+}
+
+.duel-note {
+  margin: 0.4rem 0 0;
+  min-height: 0.9rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.duel-note.is-error {
+  color: #ff9d9d;
+}
+
+.duel-note.is-ok {
+  color: #7ef0d0;
+}
+
+/* --- Match history -------------------------------------------------------- */
+
+.chess-history-panel {
+  display: none;
+  width: 100%;
+  margin: 0.5rem 0 0.25rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 209, 102, 0.28);
+  background: rgba(255, 209, 102, 0.05);
+}
+
+.chess-history-panel.active {
+  display: block;
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.history-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffd166;
+}
+
+.history-count {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.history-btn {
+  appearance: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-btn-icon {
+  padding: 0.25rem 0.45rem;
+}
+
+.history-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.history-list {
+  max-height: 240px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.history-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-entry:last-child {
+  border-bottom: 0;
+}
+
+.history-entry:active {
+  background: rgba(255, 209, 102, 0.14);
+}
+
+.history-badge {
+  flex: 0 0 auto;
+  min-width: 3.1rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.history-badge.white {
+  background: rgba(255, 255, 255, 0.85);
+  color: #10131c;
+}
+
+.history-badge.black {
+  background: rgba(20, 24, 36, 0.95);
+  color: #cbd5f5;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.history-badge.draw {
+  background: rgba(255, 209, 102, 0.85);
+  color: #3a2a00;
+}
+
+.history-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.history-line1 {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-line2 {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-empty {
+  padding: 0.9rem 0.6rem;
+  text-align: center;
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.result-btn-danger {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ffb4b4;
+}
+
+/* --- Result overlay ----------------------------------------------------- */
+
+.chess-result-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(4, 6, 12, 0.82);
+  backdrop-filter: blur(6px);
+  box-sizing: border-box;
+}
+
+.chess-result-overlay.active {
+  display: flex;
+}
+
+.chess-result-card {
+  width: 100%;
+  max-width: 460px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 1rem 1rem 0.85rem;
+  border-radius: 20px;
+  border: 1px solid rgba(6, 214, 160, 0.3);
+  background: linear-gradient(160deg, #141a28, #0b0f18);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  box-sizing: border-box;
+}
+
+.chess-result-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.7rem;
+}
+
+.chess-result-badge {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  color: #042f2e;
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 14px rgba(6, 214, 160, 0.35);
+}
+
+.chess-result-headings {
+  min-width: 0;
+}
+
+.chess-result-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.chess-result-sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #7ef0d0;
+}
+
+.chess-result-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.6rem;
+  margin-bottom: 0.7rem;
+  padding: 0.6rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.chess-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: 0.74rem;
+}
+
+.chess-stat-k {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+}
+
+.chess-stat-v {
+  color: #eaf6ff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.chess-result-moves {
+  max-height: 148px;
+  overflow-y: auto;
+  padding: 0.5rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.3);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.chess-result-pgn-wrap {
+  margin-top: 0.55rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.chess-result-pgn-wrap summary {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+
+/* Selectable so the PGN can still be copied by hand when both the native save
+   and the clipboard bridge are unavailable. */
+.chess-pgn {
+  margin: 0;
+  padding: 0 0.6rem 0.6rem;
+  max-height: 160px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: #cfe6f5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.chess-result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+.result-btn {
+  appearance: none;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.result-btn .btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-btn .btn-icon {
+  flex: 0 0 auto;
+}
+
+.result-btn:active {
+  transform: var(--touch-scale);
+}
+
+/* .result-btn sets display:inline-flex, which beats the browser's default
+   [hidden] rule, so the mode-dependent buttons need this to actually hide. */
+.result-btn[hidden] {
+  display: none;
+}
+
+.result-btn-primary {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  border-color: #7ef0d0;
+  color: #042f2e;
+  box-shadow: 0 4px 14px rgba(6, 214, 160, 0.3);
+}
+
+.chess-result-note {
+  margin: 0.6rem 0 0;
+  min-height: 1rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #7ef0d0;
+}
+
+/* The overlay is absolutely positioned inside the page, which needs to be the
+   containing block for that to cover the full chess screen. */
+#page-chess {
+  position: relative;
 }
 
 /* ================= PROTO 2 (GAME 4) LAYOUT =================

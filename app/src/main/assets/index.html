@@ -204,6 +204,19 @@
           </div>
         </div>
 
+        <!-- Clocks: only shown for the 2x Stockfish match, which is the one
+             mode with real time control. -->
+        <div id="chess-clocks" class="chess-clocks">
+          <div class="chess-clock chess-clock-white">
+            <span class="chess-clock-side">&#9819;</span>
+            <span class="chess-clock-time" id="chess-clock-white">3:00</span>
+          </div>
+          <div class="chess-clock chess-clock-black">
+            <span class="chess-clock-side">&#9820;</span>
+            <span class="chess-clock-time" id="chess-clock-black">3:00</span>
+          </div>
+        </div>
+
         <!-- Captured Black pieces -->
         <div class="captured-tray" id="captured-black"></div>
 
@@ -215,19 +228,126 @@
         <!-- Captured White pieces -->
         <div class="captured-tray" id="captured-white"></div>
 
-        <!-- Mode selector: 2-player or Stockfish -->
+        <!-- Mode selector: 2-player, Stockfish 19, or 2x Stockfish 19 -->
         <div class="chess-mode-row">
-          <div class="chess-mode-switch" role="tablist" aria-label="Game mode">
+          <div class="chess-mode-switch three-up" role="tablist" aria-label="Game mode">
             <button id="chess-mode-local" class="chess-mode-opt active" role="tab"
                     aria-selected="true" title="Play both sides on this device">
               <span class="mode-ico">👥</span><span class="mode-txt">2-Player</span>
             </button>
             <button id="chess-mode-stockfish" class="chess-mode-opt" role="tab"
                     aria-selected="false" title="Play white against Stockfish 19">
-              <span class="mode-ico">🤖</span><span class="mode-txt">Stockfish 19</span>
+              <span class="mode-ico">🤖</span><span class="mode-txt">Stockfish</span>
+            </button>
+            <button id="chess-mode-duel" class="chess-mode-opt" role="tab"
+                    aria-selected="false" title="Two Stockfish 19 engines play each other under a time control">
+              <span class="mode-ico">⚔️</span><span class="mode-txt">2x Stockfish</span>
             </button>
           </div>
           <span id="chess-mode-label" class="chess-mode-label">2-player</span>
+        </div>
+
+        <!-- Engine match setup. Shown only for the 2x Stockfish 19 mode. -->
+        <div id="chess-duel-panel" class="chess-duel-panel">
+          <div class="duel-tc-title">Time control</div>
+          <div class="duel-tc-grid">
+            <label class="duel-field">
+              <span class="duel-field-label">Base</span>
+              <span class="duel-field-input">
+                <input id="duel-base" type="number" min="30" max="3600" step="30"
+                       value="180" inputmode="numeric" aria-label="Base time in seconds">
+                <span class="duel-unit">sec</span>
+              </span>
+            </label>
+            <label class="duel-field">
+              <span class="duel-field-label">Increment</span>
+              <span class="duel-field-input">
+                <input id="duel-increment" type="number" min="0" max="60" step="1"
+                       value="2" inputmode="numeric" aria-label="Fischer increment in seconds">
+                <span class="duel-unit">sec</span>
+              </span>
+            </label>
+            <label class="duel-field">
+              <span class="duel-field-label">Per move</span>
+              <span class="duel-field-input">
+                <input id="duel-permove" type="number" min="1" max="60" step="1"
+                       value="2" inputmode="numeric" aria-label="Maximum think time per move in seconds">
+                <span class="duel-unit">sec</span>
+              </span>
+            </label>
+          </div>
+
+          <div class="duel-tc-title">Starting position</div>
+          <div class="duel-source" role="tablist" aria-label="Starting position source">
+            <button id="duel-src-opening" class="duel-source-opt active" role="tab"
+                    aria-selected="true" type="button">📖 Opening</button>
+            <button id="duel-src-fen" class="duel-source-opt" role="tab"
+                    aria-selected="false" type="button">🧩 Custom FEN</button>
+          </div>
+
+          <!-- Opening explorer -->
+          <div id="duel-opening-box" class="duel-subpanel">
+            <input id="duel-opening-search" class="duel-input duel-search" type="search"
+                   placeholder="Search: dragon, B76, e4 c5…" autocomplete="off"
+                   spellcheck="false" aria-label="Search openings">
+            <div id="duel-opening-list" class="duel-openlist" role="listbox"
+                 aria-label="Opening search results"></div>
+            <div id="duel-opening-chip" class="duel-chip">Standard game — no opening</div>
+            <div class="duel-side-row">
+              <span class="duel-field-label">Plays the opening for</span>
+              <div id="duel-side-switch" class="duel-side-switch" role="radiogroup"
+                   aria-label="Which side plays the opening">
+                <button class="duel-side-opt" data-side="w" role="radio"
+                        aria-checked="false" type="button">White</button>
+                <button class="duel-side-opt" data-side="b" role="radio"
+                        aria-checked="false" type="button">Black</button>
+                <button class="duel-side-opt active" data-side="both" role="radio"
+                        aria-checked="true" type="button">Both</button>
+              </div>
+            </div>
+            <p id="duel-opening-note" class="duel-note"></p>
+          </div>
+
+          <!-- Custom starting position -->
+          <div id="duel-fen-box" class="duel-subpanel">
+            <input id="duel-fen" class="duel-input duel-fen-input" type="text"
+                   placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+                   spellcheck="false" autocapitalize="off" autocomplete="off"
+                   aria-label="Starting position FEN">
+            <p id="duel-fen-note" class="duel-note"></p>
+          </div>
+
+          <div class="duel-actions">
+            <button id="btn-duel-start" class="duel-btn duel-btn-primary duel-btn-wide" type="button">
+              <span class="btn-icon">▶</span> <span class="btn-label">Start</span>
+            </button>
+          </div>
+
+          <div class="duel-actions">
+            <button id="btn-duel-save" class="duel-btn" type="button" disabled>
+              <span class="btn-icon">💾</span> <span class="btn-label">Save PGN</span>
+            </button>
+            <button id="btn-duel-history" class="duel-btn" type="button">
+              <span class="btn-icon">📜</span> <span class="btn-label">History</span>
+            </button>
+          </div>
+
+          <div class="duel-engine-info">
+            <span id="duel-info-white" class="duel-engine-tag">White: idle</span>
+            <span id="duel-info-black" class="duel-engine-tag">Black: idle</span>
+          </div>
+        </div>
+
+        <!-- Match history. A record of every game, kept between sessions. -->
+        <div id="chess-history-panel" class="chess-history-panel">
+          <div class="history-head">
+            <span class="history-title">Match history</span>
+            <span id="history-count" class="history-count"></span>
+            <button id="btn-history-clear" class="history-btn" type="button">Clear</button>
+            <button id="btn-history-close" class="history-btn history-btn-icon" type="button"
+                    aria-label="Close history">✖</button>
+          </div>
+          <div id="history-list" class="history-list"></div>
         </div>
 
         <!-- Promotion picker: appears only when a pawn reaches the last rank -->
@@ -255,6 +375,51 @@
         <!-- Quick Hint Bar -->
         <div class="mobile-hint-box">
           <span>👑 Castling enabled &bull; Tap King then 2 squares over</span>
+        </div>
+      </div>
+
+      <!-- Result overlay for the 2x Stockfish match. Sits outside the stage so
+           it covers the whole chess page rather than being laid out with the
+           board. -->
+      <div id="chess-result-overlay" class="chess-result-overlay" role="dialog"
+           aria-modal="true" aria-labelledby="chess-result-title">
+        <div class="chess-result-card">
+          <div class="chess-result-head">
+            <span class="chess-result-badge" id="chess-result-badge">1-0</span>
+            <div class="chess-result-headings">
+              <h3 class="chess-result-title" id="chess-result-title">Match finished</h3>
+              <p class="chess-result-sub" id="chess-result-sub"></p>
+            </div>
+          </div>
+
+          <div class="chess-result-stats" id="chess-result-stats"></div>
+
+          <div class="chess-result-moves" id="chess-result-moves"></div>
+
+          <details class="chess-result-pgn-wrap">
+            <summary>PGN</summary>
+            <pre class="chess-pgn" id="chess-result-pgn"></pre>
+          </details>
+
+          <div class="chess-result-actions">
+            <button id="btn-result-save" class="result-btn result-btn-primary" type="button">
+              <span class="btn-icon">💾</span> <span class="btn-label">Save PGN</span>
+            </button>
+            <button id="btn-result-copy" class="result-btn" type="button">
+              <span class="btn-icon">📋</span> <span class="btn-label">Copy PGN</span>
+            </button>
+            <button id="btn-result-rematch" class="result-btn" type="button">
+              <span class="btn-icon">♻️</span> <span class="btn-label">Rematch</span>
+            </button>
+            <button id="btn-result-delete" class="result-btn result-btn-danger" type="button">
+              <span class="btn-icon">🗑️</span> <span class="btn-label">Delete</span>
+            </button>
+            <button id="btn-result-close" class="result-btn" type="button">
+              <span class="btn-icon">✖</span> <span class="btn-label">Close</span>
+            </button>
+          </div>
+
+          <p class="chess-result-note" id="chess-result-note"></p>
         </div>
       </div>
     </section>
@@ -528,6 +693,7 @@
   </div>
 
   <script src="chess-core.js"></script>
+  <script src="chess-openings.js"></script>
   <script src="chess-engine.js"></script>
   <script src="app.js"></script>
 </body>

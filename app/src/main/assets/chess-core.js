@@ -450,6 +450,106 @@ function chessGameStatus(state) {
   return chessHasLegalMoves(state) ? 'ongoing' : 'stalemate';
 }
 
+// --- Draws that need game history -----------------------------------------
+//
+// These are deliberately kept out of chessGameStatus. That function is a pure
+// function of the current position and is called on every click, so folding a
+// repetition counter into it would mean either a stale result or threading
+// history through every call site. The 2x Stockfish mode keeps its own history
+// and asks these two questions; the two-player and 1x modes behave exactly as
+// they did before.
+
+// True when neither side has enough material left to force mate:
+//   * K v K
+//   * K + single minor v K
+//   * K + bishop v K + bishop on the same square colour
+// Anything involving a pawn, rook or queen is never called insufficient,
+// even when the board is very lopsided, because a lone queen or a passed pawn
+// can still win and the mode should not adjudicate a game the players are
+// still playing.
+function chessInsufficientMaterial(state) {
+  const minors = { w: [], b: [] };
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const p = state.board[r][c];
+      if (!p) continue;
+      if (p.t === 'p' || p.t === 'r' || p.t === 'q') return false;
+      if (p.t === 'n' || p.t === 'b') minors[p.c].push({ t: p.t, r, c });
+      // Kings are ignored: every legal position has exactly one each.
+    }
+  }
+
+  if (minors.w.length === 0 && minors.b.length === 0) return true;
+  if (minors.w.length === 0 && minors.b.length === 1) return true;
+  if (minors.b.length === 0 && minors.w.length === 1) return true;
+
+  // K+B against K+B is a dead draw only when both bishops are on the same
+  // colour complex. Opposite-coloured bishops can mate with help, so those
+  // positions are left to play out.
+  if (minors.w.length === 1 && minors.b.length === 1 &&
+      minors.w[0].t === 'b' && minors.b[0].t === 'b') {
+    const light = (r, c) => ((8 - r) + c) % 2 === 0;
+    return light(minors.w[0].r, minors.w[0].c) === light(minors.b[0].r, minors.b[0].c);
+  }
+
+  return false;
+}
+
+// A repetition key: the four FEN fields that define "the same position" -
+// piece placement, side to move, castling rights and en passant target.
+//
+// The halfmove clock and fullmove number are excluded on purpose. They change
+// on every move and including them would make every key unique, so no
+// repetition would ever be found.
+//
+// The en passant target is kept unconditionally rather than only when a
+// capture is actually available, which is what the standard asks for. The
+// cost is that two positions that differ only by an unusable ep square are
+// treated as different, so a repetition could in principle go unnoticed and
+// the game would run a little longer. That is the safe direction to be wrong
+// in: the opposite mistake would adjudicate a drawn position as still live
+// and stop a game early.
+function chessPositionKey(state) {
+  const { board, turn, castling, epTarget } = state;
+
+  let placement = '';
+  for (let r = 0; r < 8; r++) {
+    let run = 0;
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c];
+      if (!p) { run++; continue; }
+      if (run) { placement += run; run = 0; }
+      const upper = p.t.toUpperCase();
+      placement += p.c === 'w' ? upper : upper.toLowerCase();
+    }
+    if (run) placement += run;
+    if (r < 7) placement += '/';
+  }
+
+  let rights = '';
+  if (castling.K) rights += 'K';
+  if (castling.Q) rights += 'Q';
+  if (castling.k) rights += 'k';
+  if (castling.q) rights += 'q';
+  if (!rights) rights = '-';
+
+  const ep = epTarget ? chessSquareName(epTarget.r, epTarget.c) : '-';
+
+  return placement + ' ' + turn + ' ' + rights + ' ' + ep;
+}
+
+// Counts how many times `key` has appeared in `history`, which the caller has
+// been appending to after every move (including the opening position). A
+// count of 3 or more is a threefold repetition.
+function chessRepetitionCount(history, key) {
+  let n = 0;
+  for (let i = 0; i < history.length; i++) {
+    if (history[i] === key) n++;
+  }
+  return n;
+}
+
 // --- FEN ------------------------------------------------------------------
 
 // Produces a FEN string an engine will accept. This is the only channel the
@@ -641,4 +741,113 @@ function chessMoveToSan(move, stateBefore) {
     san += chessHasLegalMoves(after) ? '+' : '#';
   }
   return san;
+}
+
+// --- SAN reading ----------------------------------------------------------
+
+// Turns one SAN token back into a legal move object, which is the inverse of
+// chessMoveToSan. Needed to replay a named opening line and to read a game
+// back out of the match history.
+//
+// This is deliberately strict. It returns null rather than guessing when a
+// token names no legal move, or when it is ambiguous - two knights both able
+// to reach d2 with no disambiguation to choose between them. A wrong move
+// would put the board out of step with the engine and with the recorded PGN,
+// which is far worse than refusing the token and letting the caller say so.
+// It does accept the annotation noise real games carry: '!', '?', '$1',
+// 'e.p.', the older ':' capture mark, and '0-0' spellings of castling.
+function chessSanToMove(state, san) {
+  if (!san || typeof san !== 'string') return null;
+
+  let s = san.trim()
+    .replace(/\$\d+/g, '')          // numeric annotation
+    .replace(/[!?]+/g, '')          // ! ? !! ??
+    .replace(/[+#]+$/, '')           // check and mate marks
+    .replace(/e\.?\s?p\.?$/i, '')   // en passant marker
+    .trim();
+  if (!s) return null;
+
+  const legal = chessGenerateLegalMoves(state);
+  let pool = legal;
+
+  // --- Castling ---------------------------------------------------------
+  // Tested first because "O-O" shares no structure with the piece/square
+  // grammar below, and "0-0" is genuinely ambiguous with a knight move.
+  // Lowercase "o" is accepted because several published opening books write
+  // castling that way, and it cannot collide with anything else.
+  //
+  // The side to move is part of the filter and not an optional refinement.
+  // Both kings castle to the same files, so without it a line that is one
+  // token out of step - a white castling token landing on a black move -
+  // parses happily as the *other* side's castle instead of failing. That is
+  // exactly the kind of mistake an opening book is prone to, and it fails
+  // silently.
+  if (/^(O-O-O|0-0-0|o-o-o)/.test(s)) {
+    pool = pool.filter(m => m.isCastle && m.to.c === 2 && m.piece.c === state.turn);
+  } else if (/^(O-O|0-0|o-o)/.test(s)) {
+    pool = pool.filter(m => m.isCastle && m.to.c === 6 && m.piece.c === state.turn);
+  } else {
+    // --- Promotion suffix -------------------------------------------------
+    // The check and mate marks were already stripped above, so this pattern
+    // can anchor on the end of the string. Doing it the other way round is
+    // what makes "b8=Q+" fail: the trailing '+' means "=Q" is no longer at
+    // the end, the promotion suffix is missed, and a promoting pawn move is
+    // then reported as an ordinary non-capturing pawn move.
+    let promoPiece = null;
+    const promoMatch = s.match(/=([NBRQK])$/i);
+    if (promoMatch) {
+      promoPiece = promoMatch[1].toLowerCase();
+      s = s.slice(0, promoMatch.index);
+    }
+
+    // --- Capture marker --------------------------------------------------
+    // ':' is the older long algebraic capture mark and still appears in
+    // imported databases. A missing 'x' is tolerated rather than rejected,
+    // because plenty of hand-written notation leaves it off.
+    const isCapture = /[xX:]/.test(s);
+    s = s.replace(/[xX:]/g, '');
+
+    // --- Piece letter ----------------------------------------------------
+    // An absent letter always means a pawn.
+    let pieceType = 'p';
+    let body = s;
+    const head = s.match(/^([KQRBN])/);
+    if (head) {
+      pieceType = head[1].toLowerCase();
+      body = s.slice(1);
+    }
+
+    // --- Destination and disambiguation -----------------------------------
+    const destMatch = body.match(/([a-h][1-8])$/);
+    if (!destMatch) return null;
+    const dest = chessParseSquare(destMatch[1]);
+    if (!dest) return null;
+    // Whatever precedes the destination is the disambiguation hint: empty, a
+    // file, a rank, or a full origin square.
+    const hint = body.slice(0, destMatch.index);
+
+    pool = pool.filter(m =>
+      m.to.r === dest.r && m.to.c === dest.c &&
+      m.piece.t === pieceType && m.piece.c === state.turn);
+
+    if (promoPiece) pool = pool.filter(m => m.isPromotion && m.promotionPiece === promoPiece);
+    // A token written with an x must actually capture. En passant counts.
+    if (isCapture) pool = pool.filter(m => !!m.captured || !!m.isEnPassant);
+
+    if (hint) {
+      const hintFile = /[a-h]/.test(hint) ? hint : null;
+      const hintRank = /[1-8]/.test(hint) ? hint : null;
+      const narrowed = pool.filter(m =>
+        (!hintFile || CHESS_FILES[m.from.c] === hintFile) &&
+        (!hintRank || String(8 - m.from.r) === hintRank));
+      // Only take the narrowing when it actually narrows something. "e4" as
+      // a pawn push leaves the hint empty, but "Nbd2" where only one knight
+      // can reach d2 legitimately selects one, whereas treating a hint that
+      // selects nothing as a hard filter would throw away a legal move.
+      if (narrowed.length) pool = narrowed;
+    }
+  }
+
+  if (pool.length !== 1) return null;
+  return pool[0];
 }
