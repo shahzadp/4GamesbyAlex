@@ -64,3 +64,8 @@ release/
 node_modules/
 __pycache__/
 
+# Generated Virtual Pet 3D preview renders. Rebuild them with
+# tools/pet3d/blender/preview_ortho.py; they are review artefacts, not app
+# assets.
+/tools/pet3d/previews/
+

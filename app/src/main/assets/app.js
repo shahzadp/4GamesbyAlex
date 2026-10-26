@@ -213,6 +213,16 @@ function switchPage(targetPageId) {
     flappyGame.pause();
   }
 
+  /* The pet's 3D stage is built the first time the pet page opens, then
+     stopped whenever it is left. Both calls are no-ops until setupVirtualPet
+     has run, and it has by the time any navigation can happen. */
+  if (targetPageId === 'pet') {
+    if (typeof window.ensurePet3D === 'function') window.ensurePet3D();
+    if (typeof window.setPet3DActive === 'function') window.setPet3DActive(true);
+  } else if (typeof window.setPet3DActive === 'function') {
+    window.setPet3DActive(false);
+  }
+
   /* The 2x Stockfish match keeps two wasm-backed workers alive between
      moves. Leaving the chess page stops the match and frees both, which
      matters on a phone; they reload in about a second when the match restarts. */
@@ -751,26 +761,39 @@ getPieceSvg.cache = new Map();
 
 function buildPieceSvg(type, color) {
   const isWhite = color === 'w';
-  // Solid, rich fills: Solid white #ffffff for white, deep charcoal black #1e293b for black
-  const fill = isWhite ? '#ffffff' : '#1e293b';
-  const stroke = isWhite ? '#1e293b' : '#f8fafc';
-  const accent = isWhite ? '#cbd5e1' : '#475569';
+  // Professional gradients for 3D look
+  const fillMain = isWhite ? 'url(#grad-w)' : 'url(#grad-b)';
+  const fillHighlight = isWhite ? '#fff8ee' : '#2d3748';
+  const stroke = isWhite ? '#334155' : '#f1f5f9';
+
+  // Gradient definitions for each color
+  const gradDefs = `<defs>
+    <linearGradient id="grad-w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="grad-b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="40%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>`;
 
   if (type === 'p') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">
-      <path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}
+      <path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
   }
   if (type === 'n') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">
-      <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="${fill}" stroke="${stroke}" stroke-width="1.6"/>
-      <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" fill="${fill}" stroke="${stroke}" stroke-width="1.6"/>
+    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}
+      <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="${fillMain}" stroke="${stroke}" stroke-width="1.8"/>
+      <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" fill="${fillMain}" stroke="${stroke}" stroke-width="1.8"/>
       <circle cx="15.5" cy="14" r="1.5" fill="${stroke}"/>
     </svg>`;
   }
   if (type === 'b') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">
-      <g fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}\n      <g fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.354.49-2.323.47-3-.5 1.354-1.94 3-2 3-2z"/>
         <path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/>
         <circle cx="22.5" cy="8" r="2.5"/>
@@ -779,15 +802,13 @@ function buildPieceSvg(type, color) {
     </svg>`;
   }
   if (type === 'r') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">
-      <g fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}\n      <g fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 39h27v-3H9v3zm3-3v-4h21v4H12zm2.5-4l1.5-16h18l1.5 16H14.5zM11 16h23v-5h-4v2h-4v-2h-6v2h-4v-2h-5v5z"/>
       </g>
     </svg>`;
   }
   if (type === 'q') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">
-      <g fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}\n      <g fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="6" cy="12" r="2"/>
         <circle cx="14" cy="9" r="2"/>
         <circle cx="22.5" cy="8" r="2"/>
@@ -798,8 +819,7 @@ function buildPieceSvg(type, color) {
     </svg>`;
   }
   if (type === 'k') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">
-      <g fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}\n      <g fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22.5 11.63V6M20 8h5"/>
         <path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/>
         <path d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-1-1 8-6 4-3-2.5-6 1-10 1s-7-3.5-10-1c-5 4-2-5-6-4-3 6 6 10.5 6 10.5v7z"/>
@@ -835,9 +855,11 @@ const chessGame = {
   //   'local'    - both sides played by the human on this device
   //   'stockfish'- human plays white, engine plays black
   //   'duel'     - two engines play each other (see chessDuel below)
+  //   'quiz'     - two-player board plus the move-counting quiz (chessQuiz)
   mode: 'local',
   botEnabled: false,
   duelActive: false,
+  quizActive: false,
   botSide: 'b',
   botThinking: false,
   botDepth: 12,
@@ -856,6 +878,7 @@ const chessGame = {
     this.modeLocalBtn = document.getElementById('chess-mode-local');
     this.modeBotBtn = document.getElementById('chess-mode-stockfish');
     this.modeDuelBtn = document.getElementById('chess-mode-duel');
+    this.modeQuizBtn = document.getElementById('chess-mode-quiz');
     this.modeLabel = document.getElementById('chess-mode-label');
 
     const resetBtn = document.getElementById('btn-reset-chess');
@@ -871,6 +894,9 @@ const chessGame = {
     }
     if (this.modeDuelBtn) {
       this.modeDuelBtn.addEventListener('click', () => this.setMode('duel'));
+    }
+    if (this.modeQuizBtn) {
+      this.modeQuizBtn.addEventListener('click', () => this.setMode('quiz'));
     }
 
     if (this.botBtn) {
@@ -902,6 +928,10 @@ const chessGame = {
     // means the ordering stops being load-bearing.
     chessDuel.init();
 
+    // The quiz controller is built here for the same reason: it is reached
+    // from updateModeUI() and from reset(), both of which run below.
+    chessQuiz.init();
+
     this.reset();
   },
 
@@ -928,6 +958,12 @@ const chessGame = {
     this.updateUI();
     this.render();
     if (this.botEnabled && !this.duelActive) this.maybeBotMove();
+
+    // The quiz keeps a score and a list of the positions it has seen, and
+    // both belong to the game that is ending, not to the next one. It is
+    // told last, so that the position the new game starts from is already on
+    // the board when it takes note of it.
+    if (this.quizActive) chessQuiz.onBoardReset();
   },
 
   // --- Rendering --------------------------------------------------------
@@ -971,6 +1007,34 @@ const chessGame = {
       if (!this.squares) return;
     }
 
+    // The quiz marks the moves that counted for the side it is showing, so
+    // the player can put their finger on the board and count the same moves
+    // the quiz counted. The moves that were left out as blunders are marked
+    // as well, because a player who counted one of them is exactly the
+    // player who needs to be shown it. The two sets are worked out once per
+    // render rather than once per square.
+    let quizFrom = null;
+    let quizTo = null;
+    let quizBadFrom = null;
+    let quizBadTo = null;
+    const revealed = chessQuiz.highlight;
+    if (revealed && revealed.moves) {
+      quizFrom = new Set();
+      quizTo = new Set();
+      for (const m of revealed.moves) {
+        quizFrom.add(m.from.r * 8 + m.from.c);
+        quizTo.add(m.to.r * 8 + m.to.c);
+      }
+      if (revealed.blunders && revealed.blunders.length) {
+        quizBadFrom = new Set();
+        quizBadTo = new Set();
+        for (const m of revealed.blunders) {
+          quizBadFrom.add(m.from.r * 8 + m.from.c);
+          quizBadTo.add(m.to.r * 8 + m.to.c);
+        }
+      }
+    }
+
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
         const sq = this.squares[r * 8 + c];
@@ -988,6 +1052,17 @@ const chessGame = {
 
         if (this.pendingPromotion && this.pendingPromotion.r === r && this.pendingPromotion.c === c) {
           cls += ' valid-capture';
+        }
+
+        if (quizFrom) {
+          const idx = r * 8 + c;
+          if (quizFrom.has(idx)) cls += ' quiz-from';
+          if (quizTo.has(idx)) cls += ' quiz-to';
+        }
+        if (quizBadFrom) {
+          const idx = r * 8 + c;
+          if (quizBadFrom.has(idx)) cls += ' quiz-bad-from';
+          if (quizBadTo.has(idx)) cls += ' quiz-bad-to';
         }
 
         const piece = this.state.board[r][c];
@@ -1106,6 +1181,12 @@ const chessGame = {
 
   onSquareClick(r, c) {
     if (this.botThinking) return;
+    // The quiz asks a question after every move, and the board is off limits
+    // until that question has been answered. The question is about the
+    // position that is on the board at the time, so a move played before the
+    // answer would leave the player looking at a position the quiz never
+    // asked about.
+    if (this.quizActive && chessQuiz.blocksInput) return;
     // An engine-vs-engine match has no human player, so the board becomes a
     // spectator view. This is checked up front rather than left to the turn
     // comparison below, because that comparison would still let a tap that
@@ -1232,24 +1313,29 @@ const chessGame = {
 
     // Exactly one controller owns "what plays next". A human move and the
     // 1x bot both go through maybeBotMove; an engine-vs-engine move goes to
-    // the duel controller, which has its own clocks and draw rules.
+    // the duel controller, which has its own clocks and draw rules; a move
+    // in the quiz goes to the quiz controller, which asks its question.
     if (this.duelActive) chessDuel.onMovePlayed();
+    else if (this.quizActive) chessQuiz.onMovePlayed();
     else this.maybeBotMove();
   },
 
   // --- Stockfish bot ----------------------------------------------------
 
-  // Three explicit modes rather than a single on/off toggle. The old button
+  // Four explicit modes rather than a single on/off toggle. The old button
   // could only express "bot on" or "bot off", which made 2-player play look
   // like an absence of a feature rather than a real choice.
   //   'local'    - both sides played by the human on this device
   //   'stockfish'- human plays white, engine plays black
   //   'duel'     - two engines play each other, see chessDuel
+  //   'quiz'     - two-player board plus the move-counting quiz, see chessQuiz
   setMode(mode) {
     const wantBot = mode === 'stockfish';
     const wantDuel = mode === 'duel';
+    const wantQuiz = mode === 'quiz';
 
-    if (this.mode === mode && this.botEnabled === wantBot && this.duelActive === wantDuel) {
+    if (this.mode === mode && this.botEnabled === wantBot &&
+        this.duelActive === wantDuel && this.quizActive === wantQuiz) {
       this.updateModeUI();
       return;
     }
@@ -1262,11 +1348,14 @@ const chessGame = {
     this.hidePromotion();
 
     const leavingDuel = this.duelActive && !wantDuel;
+    const leavingQuiz = this.quizActive && !wantQuiz;
     if (leavingDuel) chessDuel.stop();
+    if (leavingQuiz) chessQuiz.leave();
 
     this.mode = mode;
     this.botEnabled = wantBot;
     this.duelActive = wantDuel;
+    this.quizActive = wantQuiz;
 
     if (!wantBot) {
       this.botThinking = false;
@@ -1276,8 +1365,9 @@ const chessGame = {
       this.render();
       // Switching modes always starts from a clean board, otherwise the two
       // sides of an abandoned match stay on the board with no explanation.
-      if (wantDuel || leavingDuel) this.reset();
+      if (wantDuel || leavingDuel || wantQuiz || leavingQuiz) this.reset();
       if (wantDuel) chessDuel.onEntered();
+      if (wantQuiz) chessQuiz.enter();
       return;
     }
 
@@ -1311,11 +1401,12 @@ const chessGame = {
   updateModeUI() {
     const isBot = this.mode === 'stockfish';
     const isDuel = this.mode === 'duel';
+    const isQuiz = this.mode === 'quiz';
 
     // Segmented control.
     if (this.modeLocalBtn) {
-      this.modeLocalBtn.classList.toggle('active', !isBot && !isDuel);
-      this.modeLocalBtn.setAttribute('aria-selected', (!isBot && !isDuel) ? 'true' : 'false');
+      this.modeLocalBtn.classList.toggle('active', !isBot && !isDuel && !isQuiz);
+      this.modeLocalBtn.setAttribute('aria-selected', (!isBot && !isDuel && !isQuiz) ? 'true' : 'false');
     }
     if (this.modeBotBtn) {
       this.modeBotBtn.classList.toggle('active', isBot);
@@ -1325,12 +1416,21 @@ const chessGame = {
       this.modeDuelBtn.classList.toggle('active', isDuel);
       this.modeDuelBtn.setAttribute('aria-selected', isDuel ? 'true' : 'false');
     }
+    if (this.modeQuizBtn) {
+      this.modeQuizBtn.classList.toggle('active', isQuiz);
+      this.modeQuizBtn.setAttribute('aria-selected', isQuiz ? 'true' : 'false');
+    }
     if (this.modeLabel) {
-      this.modeLabel.textContent = isDuel ? '2x Stockfish 19' : (isBot ? 'Playing Stockfish 19' : '2-player');
+      this.modeLabel.textContent = isDuel ? '2x Stockfish 19'
+        : (isBot ? 'Playing Stockfish 19'
+        : (isQuiz ? 'Move count quiz' : '2-player'));
     }
 
     // The match setup panel and the clocks only exist for the 2x mode.
     chessDuel.syncVisibility(isDuel);
+
+    // The quiz panel only exists for the quiz mode.
+    chessQuiz.syncVisibility(isQuiz);
 
     // Keep the legacy toggle button working and in sync, in case it is shown.
     if (this.botBtn) {
@@ -1397,6 +1497,414 @@ const chessGame = {
         this.updateUI();
         this.render();
       });
+  }
+};
+
+// =======================================================
+// CHESS QUIZ - COUNT THE MOVES, SCORE THE GAME
+// =======================================================
+//
+// A fourth chess mode. After every move the quiz asks how many legal moves
+// each side has, and a move that is a blunder does not count: the player is
+// counting the moves that are actually playable. Every right answer is worth
+// a point, every wrong one costs a point, and the running total is on screen
+// the whole way through.
+//
+// A wrong answer always comes with the right one, and the moves that were
+// counted are marked on the board, so the player can go over the position
+// and find the move they missed instead of being told only that they were
+// wrong.
+//
+// The board itself is a two-player board: both sides are played by the human
+// on the device.
+//
+// The board is locked while a question is open. The question is about the
+// position that is on the board at that moment, and letting the next move be
+// played before the answer was given would make it a question about a
+// position nobody saw.
+
+const chessQuiz = {
+  active: false,
+  awaitingAnswer: false,
+  finished: false,
+  question: null,
+  lastFeedback: null,
+  outcome: null,
+  score: 0,
+  right: 0,
+  wrong: 0,
+  moves: 0,
+  // The side whose counted moves are currently marked on the board.
+  revealed: null,
+  highlight: null,
+  positionHistory: [],
+
+  // True while the board must not be touched: a question is open.
+  get blocksInput() {
+    return this.awaitingAnswer;
+  },
+
+  init() {
+    this.el = {
+      panel: document.getElementById('chess-quiz-panel'),
+      score: document.getElementById('quiz-score'),
+      tally: document.getElementById('quiz-tally'),
+      note: document.getElementById('quiz-note'),
+      white: document.getElementById('quiz-white-answer'),
+      black: document.getElementById('quiz-black-answer'),
+      submit: document.getElementById('btn-quiz-submit'),
+      feedback: document.getElementById('quiz-feedback'),
+      legend: document.getElementById('quiz-legend'),
+      summary: document.getElementById('quiz-summary'),
+      summaryText: document.getElementById('quiz-summary-text'),
+      again: document.getElementById('btn-quiz-again')
+    };
+
+    if (this.el.submit) {
+      this.el.submit.addEventListener('click', () => this.submit());
+    }
+
+    // Enter answers the question, because on a phone the keyboard has a
+    // return key and making the player reach for the button is a chore.
+    [this.el.white, this.el.black].forEach(input => {
+      if (!input) return;
+      input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        this.submit();
+      });
+    });
+
+    // The feedback rows carry a button that marks the counted moves on the
+    // board, so the handler is delegated: the rows are rebuilt on every
+    // answer and a listener per row would have to be re-attached each time.
+    if (this.el.feedback) {
+      this.el.feedback.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-side]');
+        if (!btn) return;
+        this.toggleHighlight(btn.dataset.side);
+      });
+    }
+
+    if (this.el.again) {
+      this.el.again.addEventListener('click', () => {
+        chessGame.reset();
+        this.renderPanel();
+      });
+    }
+
+    this.renderPanel();
+  },
+
+  // --- Mode entry / exit --------------------------------------------------
+
+  syncVisibility(isQuiz) {
+    if (this.el && this.el.panel) this.el.panel.classList.toggle('active', isQuiz);
+  },
+
+  enter() {
+    this.active = true;
+    this.renderPanel();
+    this.setStatus('Make a move to start the quiz.');
+  },
+
+  leave() {
+    this.active = false;
+    this.awaitingAnswer = false;
+    this.question = null;
+    this.lastFeedback = null;
+    this.positionHistory = [];
+    this.clearHighlight();
+    this.syncVisibility(false);
+    this.renderPanel();
+  },
+
+  // Called when the board is reset, from chessGame.reset(). The board is
+  // already on its new position by then, so the starting position can go
+  // into the history straight away: a position that repeats three times
+  // includes the one the game started from.
+  onBoardReset() {
+    this.awaitingAnswer = false;
+    this.question = null;
+    this.lastFeedback = null;
+    this.finished = false;
+    this.outcome = null;
+    this.score = 0;
+    this.right = 0;
+    this.wrong = 0;
+    this.moves = 0;
+    this.positionHistory = [chessPositionKey(chessGame.state)];
+    this.clearHighlight();
+    this.renderPanel();
+  },
+
+  // --- The question -------------------------------------------------------
+
+  // Called by chessGame.playMove after a move has been made.
+  onMovePlayed() {
+    if (!this.active) return;
+
+    this.moves++;
+    this.positionHistory.push(chessPositionKey(chessGame.state));
+    this.question = null;
+    this.lastFeedback = null;
+    this.awaitingAnswer = false;
+    this.finished = false;
+    this.outcome = null;
+    this.clearHighlight();
+    this.buildQuestion();
+  },
+
+  // Works out the answer to the question and puts it on screen.
+  //
+  // This is all arithmetic and move generation, with no engine and no
+  // waiting: a position is judged in a few milliseconds, so the question is
+  // on screen as soon as the move has been made.
+  buildQuestion() {
+    const state = chessGame.state;
+    this.question = {
+      w: chessQuizTally(state, chessQuizLegalMoves(state, 'w'), 'w'),
+      b: chessQuizTally(state, chessQuizLegalMoves(state, 'b'), 'b')
+    };
+    this.awaitingAnswer = true;
+    this.clearAnswers();
+    this.renderPanel();
+    this.setStatus('Count the legal moves for each side, then check your answers.');
+  },
+
+  // The boxes are emptied for every new question. Leaving the last answer in
+  // place would let a player submit a number they gave for a position that
+  // is no longer on the board.
+  clearAnswers() {
+    [this.el.white, this.el.black].forEach(input => {
+      if (input) input.value = '';
+    });
+  },
+
+  // --- Grading ------------------------------------------------------------
+
+  submit() {
+    if (!this.awaitingAnswer || !this.question) return;
+
+    const answers = {
+      w: this.readAnswer('w'),
+      b: this.readAnswer('b')
+    };
+
+    let delta = 0;
+    const feedback = [];
+
+    ['w', 'b'].forEach(side => {
+      const tally = this.question[side];
+      const given = answers[side];
+
+      if (given === null) {
+        // No answer is no score. It is not worth a point and it is not worth
+        // a penalty either.
+        feedback.push({ side, given, correct: tally.count, state: 'skipped' });
+        return;
+      }
+
+      if (given === tally.count) {
+        delta += 1;
+        this.right++;
+        feedback.push({ side, given, correct: tally.count, state: 'right' });
+      } else {
+        delta -= 1;
+        this.wrong++;
+        feedback.push({ side, given, correct: tally.count, state: 'wrong' });
+      }
+    });
+
+    this.score += delta;
+    this.awaitingAnswer = false;
+    this.lastFeedback = feedback;
+
+    // A wrong answer is only useful if the player can see what they missed,
+    // so the counted moves go on the board straight away.
+    const wrongSide = feedback.find(f => f.state === 'wrong');
+    if (wrongSide) this.setHighlight(wrongSide.side);
+
+    const outcome = this.adjudicate();
+    if (outcome) {
+      this.finished = true;
+      this.outcome = outcome;
+    }
+
+    this.renderPanel();
+
+    const gained = feedback.filter(f => f.state === 'right').length;
+    const lost = feedback.filter(f => f.state === 'wrong').length;
+
+    if (this.finished) {
+      this.setStatus('Game over. Final score: ' + this.scoreText() + '.');
+    } else if (gained && !lost) {
+      this.setStatus((gained === 2 ? 'Both right' : 'Right') + '. Score ' + this.scoreText() + '.');
+    } else if (lost && !gained) {
+      this.setStatus((lost === 2 ? 'Both wrong' : 'Wrong') + '. Score ' + this.scoreText() +
+                     '. The counted moves are on the board.');
+    } else if (gained && lost) {
+      this.setStatus('One right, one wrong. Score ' + this.scoreText() + '.');
+    } else {
+      this.setStatus('Score ' + this.scoreText() + '.');
+    }
+  },
+
+  readAnswer(side) {
+    const input = side === 'w' ? this.el.white : this.el.black;
+    if (!input) return null;
+    const raw = String(input.value || '').trim();
+    if (raw === '') return null;
+    const value = parseInt(raw, 10);
+    if (!isFinite(value) || value < 0) return null;
+    return value;
+  },
+
+  // Every way the game can end, in the order they should be tested. Returns
+  // null while the game is still live.
+  adjudicate() {
+    const status = chessGameStatus(chessGame.state);
+
+    if (status === 'checkmate') {
+      const winner = chessGame.state.turn === 'w' ? 'Black' : 'White';
+      return { headline: winner + ' wins by checkmate' };
+    }
+    if (status === 'stalemate') return { headline: 'Draw by stalemate' };
+    if (chessGame.state.halfmoveClock >= 100) return { headline: 'Draw by the fifty-move rule' };
+    if (chessInsufficientMaterial(chessGame.state)) return { headline: 'Draw by insufficient material' };
+
+    const repeats = chessRepetitionCount(this.positionHistory, chessPositionKey(chessGame.state));
+    if (repeats >= 3) return { headline: 'Draw by threefold repetition' };
+
+    return null;
+  },
+
+  // --- Board highlights ---------------------------------------------------
+
+  setHighlight(side) {
+    if (!this.question || !this.question[side]) {
+      this.clearHighlight();
+      return;
+    }
+    const tally = this.question[side];
+    this.highlight = { side, moves: tally.counted, blunders: tally.blunders };
+    this.revealed = side;
+    chessGame.render();
+  },
+
+  toggleHighlight(side) {
+    if (this.revealed === side) {
+      this.clearHighlight();
+    } else {
+      this.setHighlight(side);
+    }
+    this.renderPanel();
+  },
+
+  clearHighlight() {
+    if (!this.highlight) return;
+    this.highlight = null;
+    this.revealed = null;
+    chessGame.render();
+  },
+
+  // --- Rendering ----------------------------------------------------------
+
+  // The quiz has no status line of its own: it uses the one under the
+  // board, which is where every other chess message goes.
+  setStatus(text) {
+    if (chessGame && chessGame.setStatus) chessGame.setStatus(text || '');
+  },
+
+  scoreText() {
+    return (this.score > 0 ? '+' : '') + String(this.score);
+  },
+
+  renderPanel() {
+    if (!this.el || !this.el.panel) return;
+
+    if (this.el.score) this.el.score.textContent = this.scoreText();
+    if (this.el.tally) {
+      this.el.tally.textContent = this.right + ' right · ' + this.wrong + ' wrong';
+    }
+
+    const ready = this.awaitingAnswer && !!this.question;
+
+    if (this.el.submit) {
+      this.el.submit.disabled = !ready;
+    }
+    [this.el.white, this.el.black].forEach(input => {
+      if (!input) return;
+      input.disabled = !ready;
+    });
+
+    if (this.el.note) this.el.note.textContent = this.noteText();
+    this.renderFeedback();
+
+    // The legend only makes sense while the board is showing the counted
+    // moves, so it appears and disappears with them.
+    if (this.el.legend) {
+      this.el.legend.classList.toggle('active', !!this.highlight);
+    }
+
+    if (this.el.summary) {
+      this.el.summary.classList.toggle('active', !!this.finished);
+      if (this.finished && this.el.summaryText) {
+        this.el.summaryText.textContent =
+          (this.outcome ? this.outcome.headline + '. ' : '') +
+          'Final score ' + this.scoreText() + ' · ' +
+          this.right + ' right, ' + this.wrong + ' wrong.';
+      }
+    }
+  },
+
+  noteText() {
+    if (this.finished) return 'The game is over. The final score is below.';
+    if (this.awaitingAnswer) {
+      return 'How many legal moves does each side have? A move that leaves a ' +
+             'piece hanging does not count. +1 each right, −1 each wrong.';
+    }
+    if (this.moves === 0) {
+      return 'Make a move to start the quiz. After every move you will be asked ' +
+             'how many legal moves each side has.';
+    }
+    return 'Count the legal moves for each side. A move that leaves a piece hanging does not count.';
+  },
+
+  renderFeedback() {
+    const host = this.el.feedback;
+    if (!host) return;
+
+    const feedback = this.lastFeedback;
+    if (!feedback || !feedback.length) {
+      host.innerHTML = '';
+      return;
+    }
+
+    host.innerHTML = feedback.map(f => {
+      const name = f.side === 'w' ? 'White' : 'Black';
+      const tally = this.question ? this.question[f.side] : null;
+
+      let text;
+      if (f.state === 'right') text = 'correct — +1';
+      else if (f.state === 'skipped') text = 'not answered — no points';
+      else text = 'you said ' + f.given + ' — the answer is ' + f.correct + ' (−1)';
+
+      if (tally) {
+        const blunders = tally.blunders.length;
+        text += ' · ' + tally.total + ' legal, ' + blunders +
+                (blunders === 1 ? ' blunder' : ' blunders');
+      }
+
+      const shown = this.revealed === f.side;
+
+      return '<div class="quiz-fb quiz-fb-' + f.state + '">' +
+               '<span class="quiz-fb-side">' + name + '</span>' +
+               '<span class="quiz-fb-text">' + text + '</span>' +
+               (tally ? '<button class="quiz-fb-btn" type="button" data-side="' + f.side + '">' +
+                        (shown ? 'Hide moves' : 'Show moves') + '</button>' : '') +
+             '</div>';
+    }).join('');
   }
 };
 
@@ -3410,7 +3918,13 @@ function setupVirtualPet() {
   }
 
   /* Touch-dog: five reactions, each bound to its own region in the SVG.
-     `bark` = head/face, `giggle` = torso, `boop` = nose, `flap` = ears, `wag` = tail. */
+     `bark` = head/face, `giggle` = torso, `boop` = nose, `flap` = ears, `wag` = tail.
+
+     The same five reactions now run on the 3D model. The Blender build
+     names its rig nodes after the SVG's groups (gz:hz, gz:torso, gz:nose,
+     gz:earL/earR, gz:tail) and places every pivot on the SVG's own
+     transform-origin, so one table drives both renderers and each
+     reaction lands on the same part of the pet it always did. */
   const DOG_REACTIONS = {
     bark:   { text: 'WOOF!',   ms: 1000 },
     giggle: { text: 'hehehe!', ms: 1100 },
@@ -3426,20 +3940,118 @@ function setupVirtualPet() {
   const dogBubbleText = dogSvg ? dogSvg.querySelector('#bubbleText') : null;
   let dogReactionTimer = 0;
 
-  function showPetReaction(text) {
+  /* ---- 3D stage -------------------------------------------------- */
+  const petWorld = document.querySelector('.pet-world');
+  const petCanvas = document.getElementById('pet-canvas');
+  const petBubble = document.getElementById('pet-bubble');
+  const petBubbleText = document.getElementById('pet-bubble-text');
+  let petStage = null;
+  let petBubbleTimer = 0;
+  let petHintTimer = 0;
+
+  function showPetHint() {
+    if (!petWorld) return;
+    let hint = petWorld.querySelector('.pet-hint');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.className = 'pet-hint';
+      hint.setAttribute('aria-hidden', 'true');
+      hint.textContent = '← drag to turn the pet →';
+      const wrap = petWorld.querySelector('.pet-image-wrap');
+      if (wrap) wrap.appendChild(hint);
+    }
+    window.requestAnimationFrame(() => hint.classList.add('is-shown'));
+    window.clearTimeout(petHintTimer);
+    petHintTimer = window.setTimeout(() => hint.classList.remove('is-shown'), 4200);
+  }
+
+  function showPetReaction(text, ms = 1600) {
     if (dogBubbleText) dogBubbleText.textContent = text;
+    if (!petBubble) return;
+    if (petBubbleText) petBubbleText.textContent = text;
+    petBubble.hidden = false;
+    petBubble.classList.remove('is-shown');
+    // restart the pop animation
+    void petBubble.offsetWidth;
+    petBubble.classList.add('is-shown');
+    window.clearTimeout(petBubbleTimer);
+    petBubbleTimer = window.setTimeout(() => {
+      petBubble.classList.remove('is-shown');
+    }, Math.max(400, ms));
   }
 
   function reactToDog(name) {
     const reaction = DOG_REACTIONS[name];
-    if (!dogSvg || !reaction) return;
-    showPetReaction(reaction.text);
-    dogSvg.setAttribute('class', '');
-    void dogSvg.getBoundingClientRect();
-    dogSvg.setAttribute('class', 'r ' + name);
+    if (!reaction) return;
+    showPetReaction(reaction.text, reaction.ms);
+    if (dogSvg) {
+      dogSvg.setAttribute('class', '');
+      void dogSvg.getBoundingClientRect();
+      dogSvg.setAttribute('class', 'r ' + name);
+    }
+    if (petStage && petStage.ready) petStage.react(name);
     window.clearTimeout(dogReactionTimer);
-    dogReactionTimer = window.setTimeout(() => dogSvg.setAttribute('class', ''), reaction.ms);
+    dogReactionTimer = window.setTimeout(() => {
+      if (dogSvg) dogSvg.setAttribute('class', '');
+    }, reaction.ms);
   }
+
+  let pet3dUnavailable = false;
+  let pet3dHintShown = false;
+
+  function initPet3D() {
+    if (pet3dUnavailable || petStage) return;
+    if (!window.PetStage || !petCanvas || !petWorld) {
+      pet3dUnavailable = true;
+      return;
+    }
+    try {
+      const stage = new window.PetStage(petCanvas, {
+        onReady: () => {
+          petWorld.classList.add('pet-3d-active');
+          petWorld.classList.remove('pet-3d-loading');
+          petCanvas.classList.add('is-live');
+          showPetHintOnce();
+        },
+        onFailure: () => {
+          pet3dUnavailable = true;
+          petStage = null;
+          petWorld.classList.remove('pet-3d-loading', 'pet-3d-active');
+          petCanvas.classList.remove('is-live');
+        },
+        onTap: (zone, relativeX) => handlePetTap(zone, relativeX)
+      });
+      if (stage.failed) {
+        stage.destroy();
+        pet3dUnavailable = true;
+        return;
+      }
+      petStage = stage;
+      petWorld.classList.add('pet-3d-loading');
+      stage.load('models/virtual_pet.glb');
+    } catch (error) {
+      petStage = null;
+      pet3dUnavailable = true;
+      petWorld.classList.remove('pet-3d-loading', 'pet-3d-active');
+      petCanvas.classList.remove('is-live');
+    }
+  }
+
+  function showPetHintOnce() {
+    if (pet3dHintShown) return;
+    pet3dHintShown = true;
+    showPetHint();
+  }
+
+  /* switchPage() lives outside this setup function, so expose the two hooks
+     it needs. The 3D runtime is only built when the pet page is actually
+     opened, and rendering pauses again when it is left. */
+  window.ensurePet3D = initPet3D;
+  window.setPet3DActive = (active) => {
+    if (!petStage) return;
+    petStage.setActive(active);
+    if (active && petStage.ready) showPetHintOnce();
+  };
 
   DOG_ZONES.forEach(([id, reaction]) => {
     const zone = dogSvg ? dogSvg.querySelector('#' + id) : null;
@@ -3486,7 +4098,7 @@ function setupVirtualPet() {
     } else if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ur-PK';
+      utterance.lang = 'en-US';
       window.speechSynthesis.speak(utterance);
     }
   }
@@ -3513,14 +4125,14 @@ function setupVirtualPet() {
     return y < 306 ? 'bark' : 'giggle';
   }
 
-  avatar.addEventListener('click', (event) => {
+  /* One tap pipeline, shared by the flat artwork and the 3D model.
+     `zone` is the part of the pet that was touched; `relativeX` is where
+     across the pet it happened, which picks the pitch of the reply. */
+  function handlePetTap(zone, relativeX) {
     const now = Date.now();
     tapChain = now - lastPetTap < 950 ? tapChain + 1 : 1;
     lastPetTap = now;
 
-    const bounds = avatar.getBoundingClientRect();
-    const relativeX = (event.clientX - bounds.left) / bounds.width;
-    const zone = resolveTouchZone(event.target, event.clientX, event.clientY);
     let reply;
 
     if (tapChain >= 3) {
@@ -3531,20 +4143,21 @@ function setupVirtualPet() {
       petCare.bond += 2;
       reply = 'واہ! زومیز کا وقت! آپ کے ساتھ کھیلنا مزے کا ہے!';
       animatePet('play');
-      showPetReaction('زومیز!');
+      showPetReaction('ZOOMIES TIME! PLAY!');
     } else {
       petCare.joy = clampNeed(petCare.joy + 8);
       petCare.energy = clampNeed(petCare.energy - 1);
       petCare.bond++;
       const touchReplies = {
-        bark: 'سر پر پیار! مجھے بہت اچھا لگتا ہے۔',
-        giggle: 'گدگدی ہو رہی ہے! ہاہاہا!',
-        boop: 'نک پر چھو! مجھے چٹکی لگی!',
-        flap: 'کان ہلاتے ہیں! بھڑ بھڑ!',
-        wag: 'پیٹھ ہل رہی ہے! خوشی سے!'
+        bark: 'WOOF! WOOF!',
+        giggle: 'hehehe! Haaa!',
+        boop: 'ACHOO! SNIFF!',
+        flap: 'FLAP FLAP!',
+        wag: 'WAG WAG! TAIL!',
       };
       reply = touchReplies[zone] || touchReplies.bark;
       animatePet('pet');
+      reactToDog(zone);
     }
 
     renderPetCare();
@@ -3556,6 +4169,18 @@ function setupVirtualPet() {
       speak(reply);
       lastTouchSpeech = now;
     }
+  }
+
+  avatar.addEventListener('click', (event) => {
+    // The 3D canvas owns its own taps: it raycasts the model to work out
+    // which part was touched, and it swallows drags so a spin of the pet
+    // does not also count as a pet.
+    if (petCanvas && event.target === petCanvas) return;
+
+    const bounds = avatar.getBoundingClientRect();
+    const relativeX = (event.clientX - bounds.left) / bounds.width;
+    const zone = resolveTouchZone(event.target, event.clientX, event.clientY);
+    handlePetTap(zone, relativeX);
   });
 
   document.querySelectorAll('[data-pet-action]').forEach(button => {
@@ -3565,42 +4190,42 @@ function setupVirtualPet() {
 
       if (action === 'feed') {
         if (petCare.fullness >= 94) {
-          reply = 'شکریہ! میرا پیٹ ابھی بھرا ہوا ہے۔';
-          showPetReaction('پیٹ بھر گیا!');
+          reply = 'YUM! Tummy full! No more!';
+          showPetReaction('FULL!');
           animatePet('pet');
         } else {
           petCare.fullness = clampNeed(petCare.fullness + 26);
           petCare.joy = clampNeed(petCare.joy + 5);
           petCare.bond++;
-          reply = 'واہ، مزے دار ناشتہ! آپ کا شکریہ۔';
-          showPetReaction('نَم نَم!');
+          reply = 'WOOF! Yummy snack! Thank you!';
+          showPetReaction('NOM NOM!');
           animatePet('feeding');
         }
       } else if (action === 'play') {
         if (petCare.energy < 20) {
-          reply = 'میں کھیلنا چاہتا ہوں، مگر پہلے تھوڑا آرام کروں؟';
-          showPetReaction('تھوڑا آرام؟');
+          reply = 'I want to play, but rest first?';
+          showPetReaction('REST?');
           animatePet('pet');
         } else {
           petCare.energy = clampNeed(petCare.energy - 15);
           petCare.fullness = clampNeed(petCare.fullness - 5);
           petCare.joy = clampNeed(petCare.joy + 23);
           petCare.bond += 2;
-          reply = 'پکڑو! گیند واپس پھینکیں، پھر سے کھیلتے ہیں!';
-          showPetReaction('گیند پکڑو!');
+          reply = 'FETCH! Throw ball, play again!';
+          showPetReaction('BALL!');
           animatePet('play');
         }
       } else {
         if (petCare.energy >= 96) {
-          reply = 'میں بالکل چاق و چوبند ہوں! آپ کے ساتھ کھیلنے کو تیار ہوں۔';
-          showPetReaction('توانائی پوری!');
+          reply = 'I am ready! Ready to play!';
+          showPetReaction('ENERGY!');
           animatePet('pet');
         } else {
           petCare.energy = clampNeed(petCare.energy + 32);
           petCare.joy = clampNeed(petCare.joy + 3);
           petCare.bond++;
-          reply = 'آنکھیں بند کر کے تھوڑی سی پیاری نیند لیتا ہوں۔';
-          showPetReaction('میٹھی نیند…');
+          reply = 'Sweet nap coming... zzz';
+          showPetReaction('NAP!');
           animatePet('napping');
         }
       }
@@ -3752,7 +4377,7 @@ function setupVirtualPet() {
       return;
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = 'ur-PK';
+    recognition.lang = 'en-US';
     recognition.onresult = event => window.onPetSpeechResult(event.results[0][0].transcript);
     recognition.onerror = () => {
       status.textContent = 'Voice input failed. Try again or type your question.';
@@ -4042,3 +4667,4 @@ function publishSafeArea() {
   root.setProperty('--safe-t', top + 'px');
   root.setProperty('--safe-b', bottom + 'px');
 }
+

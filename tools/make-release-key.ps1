@@ -10,7 +10,7 @@
 # listing again, and Play will reject a different key for the same package.
 
 $ErrorActionPreference = 'Stop'
-$root = 'D:\GitHub Projects\4GamesbyAlex'
+$root = 'D:\GitHub-Projects\4GamesbyAlex'
 $keyDir = Join-Path $root 'release-keys'
 $keyPath = Join-Path $keyDir 'release.jks'
 $propsPath = Join-Path $root 'keystore.properties'

@@ -303,6 +303,21 @@ class ChessEngineClient {
       try { this.worker.postMessage('quit'); this.worker.terminate(); } catch (e) { /* already gone */ }
       this.worker = null;
     }
+    // A search that was in flight when the engine was torn down will never
+    // produce a bestmove now, so its promise has to be settled here. Without
+    // this the caller waits for an answer that can never arrive, and the bot
+    // then sits on the board thinking forever.
+    if (this.pending) {
+      const pending = this.pending;
+      this.pending = null;
+      if (typeof pending.reject === 'function') {
+        pending.reject(new Error('Engine was disposed'));
+      }
+    }
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
     this.ready = false;
     this.busy = false;
     this.loadPromise = null;

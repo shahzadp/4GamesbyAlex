@@ -53,7 +53,7 @@ body {
 body.theme-main { background: radial-gradient(circle at 50% 10%, #151a2d 0%, #05070c 85%); }
 body.theme-flappy { background: radial-gradient(circle at 50% 10%, #1c2738 0%, #05070c 85%); }
 body.theme-chess { background: radial-gradient(circle at 50% 10%, #10261f 0%, #05070c 85%); }
-body.theme-pet { background: radial-gradient(circle at 50% 10%, #1a3024 0%, #05070c 85%); }
+body.theme-pet { background: radial-gradient(circle at 50% 10%, #272a2f 0%, #05070c 85%); }
 body.theme-economy { background: radial-gradient(circle at 50% 10%, #142b24 0%, #05070c 85%); }
 
 * {
@@ -139,7 +139,7 @@ body.theme-economy { background: radial-gradient(circle at 50% 10%, #142b24 0%, 
 }
 
 body.theme-chess .bar-subtitle { color: var(--accent-green); }
-body.theme-pet .bar-subtitle { color: #b8dc70; }
+body.theme-pet .bar-subtitle { color: #c3c8ce; }
 body.theme-economy .bar-subtitle { color: #69c8a4; }
 
 .bar-title {
@@ -217,7 +217,7 @@ body.theme-economy .bar-subtitle { color: #69c8a4; }
 
 .flappy-card { border-bottom: 3px solid var(--accent-gold); }
 .chess-card { border-bottom: 3px solid var(--accent-green); }
-.pet-card { border-bottom: 3px solid #b8dc70; }
+.pet-card { border-bottom: 3px solid #a9afb6; }
 .economy-card { border-bottom: 3px solid #4bb58e; }
 
 .economy-thumb {
@@ -280,13 +280,13 @@ body.theme-economy .bar-subtitle { color: #69c8a4; }
 }
 
 .pet-card .card-thumb {
-  background: radial-gradient(circle at 50% 40%, #fff4e4, #c8e9d9 78%);
+  background: radial-gradient(circle at 50% 40%, #f7f4ef, #d2d5d9 78%);
 }
 
 .pet-card-emoji {
   font-size: 4.25rem;
   line-height: 1;
-  filter: drop-shadow(0 7px 5px rgba(24, 43, 31, 0.25));
+  filter: drop-shadow(0 7px 5px rgba(24, 28, 33, 0.25));
   animation: petTileBob 2.4s ease-in-out infinite;
 }
 
@@ -795,43 +795,118 @@ body.android-fullscreen .page.active {
   background-color: rgba(245, 246, 130, 0.6) !important;
 }
 
-/* Valid move target dots */
+/* Valid move target dots - larger and more visible */
 .chess-square.valid-move::after {
   content: '';
   position: absolute;
-  width: 28%;
-  height: 28%;
-  background: rgba(0, 0, 0, 0.25);
+  width: 42%;
+  height: 42%;
+  background: rgba(16, 185, 129, 0.55);
   border-radius: 50%;
   pointer-events: none;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
 }
 
-/* Valid capture target ring */
+/* Valid capture target ring - larger with bright border */
 .chess-square.valid-capture::after {
   content: '';
   position: absolute;
-  inset: 3px;
-  border: 3px solid rgba(0, 0, 0, 0.32);
+  inset: 4px;
+  border: 4px solid rgba(16, 185, 129, 0.85);
   border-radius: 50%;
   pointer-events: none;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
-/* Solid Filled Vector Chess Piece */
+/* --- Quiz markers --------------------------------------------------------
+ *
+ * When the quiz reveals a side's answer it marks the moves that counted, so
+ * the player can count the same moves on the board that the quiz counted.
+ * The origin of a move gets a corner dot and its destination gets a ring,
+ * which is the same language the move hints already use.
+ */
+
+.chess-square.quiz-from::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(6, 214, 160, 0.98);
+  box-shadow: 0 0 8px rgba(6, 214, 160, 0.9), 0 0 0 3px rgba(4, 47, 46, 0.6);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.chess-square.quiz-to::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 4px solid rgba(6, 214, 160, 0.98);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(6, 214, 160, 0.7), 0 0 0 3px rgba(4, 47, 46, 0.5);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* The moves that were left out because they are blunders. They are drawn in
+   red, because the whole point of showing them is that a player who counted
+   one of them is looking at the wrong answer. */
+.chess-square.quiz-bad-from::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.98);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.9), 0 0 0 3px rgba(60, 10, 10, 0.6);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.chess-square.quiz-bad-to::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 4px solid rgba(239, 68, 68, 0.98);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7), 0 0 0 3px rgba(60, 10, 10, 0.5);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Solid Filled Vector Chess Piece - enhanced with depth and glow */
 .chess-piece {
-  width: 90%;
-  height: 90%;
+  width: 92%;
+  height: 92%;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.5)) drop-shadow(0 1px 1px rgba(255, 255, 255, 0.1));
   transition: transform 0.1s ease;
+  position: relative;
 }
 
 .chess-piece svg {
   width: 100%;
   height: 100%;
   display: block;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.3));
+}
+
+/* White pieces get a subtle inner highlight */
+.chess-piece.piece-w {
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.15));
+}
+
+/* Black pieces get deeper shadow for contrast */
+.chess-piece.piece-b {
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.4));
 }
 
 .chess-square:active .chess-piece {
@@ -883,9 +958,9 @@ body.android-fullscreen .page.active {
   align-items: center;
   padding: 0.75rem 0.85rem 0.6rem;
   overflow: hidden;
-  border: 1px solid rgba(184, 220, 112, 0.19);
+  border: 1px solid rgba(196, 201, 207, 0.18);
   border-radius: 14px;
-  background: linear-gradient(155deg, #1a2a20, #141c17 78%);
+  background: linear-gradient(155deg, #262a2e, #1a1d20 78%);
   perspective: 900px;
   transform-style: preserve-3d;
 }
@@ -896,7 +971,7 @@ body.android-fullscreen .page.active {
   bottom: -2%;
   left: -8%;
   height: 30%;
-  background: linear-gradient(180deg, rgba(104, 139, 84, 0.08), rgba(74, 105, 61, 0.4));
+  background: linear-gradient(180deg, rgba(160, 166, 172, 0.06), rgba(92, 98, 104, 0.38));
   clip-path: polygon(0 28%, 100% 0, 100% 100%, 0 100%);
   content: '';
   pointer-events: none;
@@ -909,8 +984,8 @@ body.android-fullscreen .page.active {
   width: 100%;
   min-height: 34px;
   padding-bottom: 0.4rem;
-  border-bottom: 1px solid rgba(226, 238, 221, 0.08);
-  color: #d3ddd0;
+  border-bottom: 1px solid rgba(226, 231, 236, 0.09);
+  color: #d2d6da;
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -920,8 +995,8 @@ body.android-fullscreen .page.active {
   height: 9px;
   flex: 0 0 9px;
   border-radius: 50%;
-  background: #b8dc70;
-  box-shadow: 0 0 10px rgba(184, 220, 112, 0.55);
+  background: #c3c8ce;
+  box-shadow: 0 0 10px rgba(195, 200, 206, 0.5);
 }
 
 .pet-bond {
@@ -949,7 +1024,7 @@ body.android-fullscreen .page.active {
   display: grid;
   gap: 0.25rem;
   min-width: 0;
-  color: #c8d4c3;
+  color: #c6cace;
   font-size: 0.7rem;
 }
 
@@ -961,7 +1036,7 @@ body.android-fullscreen .page.active {
   border: 0;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.4);
-  accent-color: #b8dc70;
+  accent-color: #c3c8ce;
 }
 
 .pet-need progress::-webkit-progress-bar, .pet-bond-progress progress::-webkit-progress-bar {
@@ -971,7 +1046,7 @@ body.android-fullscreen .page.active {
 
 .pet-need progress::-webkit-progress-value, .pet-bond-progress progress::-webkit-progress-value {
   border-radius: 999px;
-  background: linear-gradient(90deg, #84c985, #c4e77b);
+  background: linear-gradient(90deg, #8f969d, #d3d7db);
   transition: width 350ms ease;
 }
 
@@ -1073,6 +1148,107 @@ body.android-fullscreen .page.active {
   background: transparent;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+/* ---------- 3D stage -------------------------------------------------
+   The canvas takes over from the flat artwork once the Blender-built
+   model has loaded. `touch-action: pan-y` is what makes the sideways
+   scroll work: the browser keeps handling vertical page scroll, while
+   horizontal drags are handed to the 3D stage so the pet can be spun
+   around. Without it a horizontal swipe would try to scroll the page
+   instead of turning the model. */
+.pet-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  touch-action: pan-y;
+  cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.pet-canvas.is-live {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pet-canvas.is-dragging {
+  cursor: grabbing;
+}
+
+/* While the 3D pet is up, the flat artwork steps aside. It stays in the
+   DOM so a device without WebGL still gets the original SVG dog. */
+.pet-world.pet-3d-active .pet-avatar #touch-dog-svg {
+  display: none;
+}
+
+.pet-world.pet-3d-loading .pet-avatar #touch-dog-svg {
+  opacity: 0.35;
+}
+
+/* Speech bubble for the 3D pet. The SVG carried its own bubble, so in 3D
+   mode this overlay takes over the same role. */
+.pet-bubble {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  z-index: 4;
+  max-width: 62%;
+  padding: 0.42rem 0.7rem;
+  border: 2px solid #4a2a14;
+  border-radius: 12px;
+  background: #fff;
+  color: #d2452b;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.7);
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(.2, .9, .3, 1.3);
+}
+
+.pet-bubble[hidden] {
+  display: none;
+}
+
+.pet-bubble.is-shown {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* A short nudge on first load so people know the pet can be turned. */
+.pet-hint {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  z-index: 4;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(20, 22, 25, 0.6);
+  color: #cfd3d7;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  transition: opacity 400ms ease, transform 400ms ease;
+}
+
+.pet-hint.is-shown {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 /* Touch-dog renders inline and carries its own shading, so there is no shadow here —
@@ -1259,10 +1435,10 @@ body.android-fullscreen .page.active {
   min-width: 0;
   min-height: 40px;
   padding: 0.35rem 0.45rem;
-  border: 1px solid rgba(226, 238, 221, 0.12);
+  border: 1px solid rgba(226, 231, 236, 0.12);
   border-radius: 8px;
-  background: #2b3d30;
-  color: #f5f4e9;
+  background: #3a3d42;
+  color: #f2f4f6;
   font-family: var(--font-main);
   font-size: 0.78rem;
   font-weight: 700;
@@ -1271,8 +1447,8 @@ body.android-fullscreen .page.active {
   transition: transform var(--transition-fast), filter var(--transition-fast);
 }
 
-.pet-care-action:nth-child(2) { background: #294047; }
-.pet-care-action:nth-child(3) { background: #343541; }
+.pet-care-action:nth-child(2) { background: #34383d; }
+.pet-care-action:nth-child(3) { background: #3f4147; }
 .pet-care-action:active { transform: scale(0.95); filter: brightness(1.2); }
 
 .pet-conversation {
@@ -1290,9 +1466,9 @@ body.android-fullscreen .page.active {
   height: clamp(82px, 14vh, 120px);
   padding: 0.55rem 0.65rem;
   overflow-y: auto;
-  border: 1px solid rgba(218, 231, 214, 0.1);
+  border: 1px solid rgba(218, 224, 230, 0.1);
   border-radius: 10px;
-  background: #101713;
+  background: #17191c;
   overscroll-behavior: contain;
 }
 
@@ -1301,7 +1477,7 @@ body.android-fullscreen .page.active {
   margin: 0;
   padding: 0.45rem 0.65rem;
   border-radius: 10px;
-  color: #e8eee5;
+  color: #e9ebee;
   font-size: 0.82rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -1309,18 +1485,18 @@ body.android-fullscreen .page.active {
 
 .pet-message-bot, .pet-message-thinking {
   align-self: flex-start;
-  border: 1px solid rgba(184, 220, 112, 0.1);
-  background: #202d24;
+  border: 1px solid rgba(195, 200, 206, 0.12);
+  background: #25282c;
 }
 
 .pet-message-user {
   align-self: flex-end;
-  background: #294047;
+  background: #343a41;
 }
 
 .pet-message[lang="ur"] { direction: rtl; text-align: right; }
 
-.pet-message-thinking { color: #b7c6b4; }
+.pet-message-thinking { color: #b7bcc1; }
 
 .pet-chat-form {
   display: flex;
@@ -1334,18 +1510,18 @@ body.android-fullscreen .page.active {
   height: 44px;
   flex: 1;
   padding: 0 0.8rem;
-  border: 1px solid rgba(218, 231, 214, 0.16);
+  border: 1px solid rgba(218, 224, 230, 0.16);
   border-radius: 12px;
   outline: none;
-  background: #121915;
+  background: #1b1e21;
   color: var(--text-main);
   font: inherit;
   font-size: 0.88rem;
 }
 
 .pet-chat-form input:focus {
-  border-color: rgba(184, 220, 112, 0.65);
-  box-shadow: 0 0 0 2px rgba(184, 220, 112, 0.08);
+  border-color: rgba(195, 200, 206, 0.65);
+  box-shadow: 0 0 0 2px rgba(195, 200, 206, 0.08);
 }
 
 .pet-voice-btn, .pet-send-btn {
@@ -1356,13 +1532,13 @@ body.android-fullscreen .page.active {
   height: 44px;
   border: 1px solid var(--border-light);
   border-radius: 10px;
-  background: #24352a;
-  color: #eff7e9;
+  background: #34373c;
+  color: #eef0f2;
   font-size: 1.1rem;
   cursor: pointer;
 }
 
-.pet-send-btn { border-color: #b8dc70; background: #b8dc70; color: #152015; }
+.pet-send-btn { border-color: #c9ced4; background: #c9ced4; color: #191b1e; }
 .pet-send-btn:disabled { opacity: 0.5; cursor: wait; }
 
 .pet-settings {
@@ -1382,10 +1558,10 @@ body.android-fullscreen .page.active {
   padding: 0.65rem;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  background: #131a16;
+  background: #1c1f22;
 }
 
-.pet-settings-fields label { color: #cbd5cb; }
+.pet-settings-fields label { color: #cdd1d5; }
 
 .pet-settings-fields input {
   min-width: 0;
@@ -1394,7 +1570,7 @@ body.android-fullscreen .page.active {
   padding: 0 0.65rem;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xs);
-  background: #090d0b;
+  background: #131518;
   color: var(--text-main);
   font: inherit;
   font-size: 0.84rem;
@@ -1406,13 +1582,13 @@ body.android-fullscreen .page.active {
   min-height: 40px;
   padding: 0.45rem 0.7rem;
   border-radius: var(--radius-xs);
-  background: #b8dc70;
-  color: #152015;
+  background: #c9ced4;
+  color: #191b1e;
 }
 
 .pet-connection-status {
   margin: 0;
-  color: #9fb49d;
+  color: #a9aeb3;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -2324,6 +2500,285 @@ body.theme-economy #page-economy.active {
   font-size: 0.78rem;
 }
 
+/* --- Move count quiz ------------------------------------------------------
+ *
+ * The fourth chess mode. Hidden by default and switched on by the .active
+ * class, which only the quiz controller sets, so the other three modes lay
+ * out exactly as they did before.
+ */
+
+.chess-quiz-panel {
+  display: none;
+  width: 100%;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.7rem 0.75rem 0.65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  background: rgba(255, 209, 102, 0.07);
+}
+
+.chess-quiz-panel.active {
+  display: block;
+}
+
+.quiz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.quiz-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #ffd166;
+}
+
+.quiz-score-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.quiz-score-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.quiz-score {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #ffd166;
+}
+
+.quiz-note {
+  margin: 0 0 0.55rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.quiz-tally {
+  margin: 0 0 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.quiz-answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.quiz-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.quiz-answer-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.quiz-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+.quiz-dot.white { background: #ffffff; }
+.quiz-dot.black { background: #2b2b2b; }
+
+.quiz-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  appearance: none;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  padding: 0.4rem 0.3rem;
+}
+
+.quiz-input:focus {
+  outline: none;
+  border-color: rgba(255, 209, 102, 0.8);
+}
+
+.quiz-input:disabled {
+  opacity: 0.45;
+}
+
+.quiz-input::-webkit-outer-spin-button,
+.quiz-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.quiz-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+.quiz-btn {
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.quiz-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.quiz-btn-primary {
+  background: linear-gradient(135deg, #ffd166, #ff9f45);
+  border-color: #ffe6a8;
+  color: #3a2400;
+}
+
+.quiz-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.quiz-fb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-light);
+}
+
+.quiz-fb-right {
+  border-color: rgba(6, 214, 160, 0.55);
+}
+
+.quiz-fb-wrong {
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.quiz-fb-side {
+  font-weight: 800;
+  color: #ffd166;
+}
+
+.quiz-fb-text {
+  flex: 1 1 140px;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.quiz-fb-btn {
+  appearance: none;
+  flex: 0 0 auto;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(6, 214, 160, 0.5);
+  background: rgba(6, 214, 160, 0.12);
+  color: #7ef0d0;
+  font-family: var(--font-main);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* The key to the board markers. Shown only while the moves are on the
+   board. */
+.quiz-legend {
+  display: none;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.45rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.quiz-legend.active {
+  display: flex;
+}
+
+.quiz-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.quiz-legend-ring {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.quiz-legend-ring.good { border-color: #06d6a0; }
+.quiz-legend-ring.bad { border-color: #ef4444; }
+
+.quiz-summary {
+  display: none;
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.quiz-summary.active {
+  display: block;
+}
+
+.quiz-summary-text {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffd166;
+}
+
 /* --- 2x Stockfish 19: clocks, match setup, result overlay ---------------
  *
  * The third chess mode. Everything here is hidden by default and switched on
@@ -2331,24 +2786,39 @@ body.theme-economy #page-economy.active {
  * existing modes lay out exactly as they did before.
  */
 
-/* Three tabs share the same fixed switch, so the labels need less padding and
+/* Four tabs share the same fixed switch, so the labels need less padding and
    a slightly smaller type than the two-tab version they replaced. */
-.chess-mode-switch.three-up .chess-mode-opt {
+.chess-mode-switch.four-up .chess-mode-opt {
   padding: 0.55rem 0.35rem;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   gap: 0.3rem;
 }
 
-/* Below this the three labels cannot share the row without ellipsing to
-   nothing, so the icons go and the text gets the whole width. The titles and
-   the mode label beside the switch still identify each tab. */
-@media (max-width: 480px) {
-  .chess-mode-switch.three-up .mode-ico {
+/* Four labels and four icons cannot share the row on a phone: the icons go
+   first, so the text gets the whole width of each tab and nothing has to be
+   ellipsised away. The titles and the mode label beside the switch still
+   identify each tab. */
+@media (max-width: 700px) {
+  .chess-mode-switch.four-up .mode-ico {
     display: none;
   }
-  .chess-mode-switch.three-up .chess-mode-opt {
-    padding: 0.55rem 0.3rem;
+  .chess-mode-switch.four-up .chess-mode-opt {
+    padding: 0.55rem 0.25rem;
     font-size: 0.74rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .chess-mode-switch.four-up .chess-mode-opt {
+    padding: 0.5rem 0.2rem;
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .chess-mode-switch.four-up .chess-mode-opt {
+    padding: 0.5rem 0.12rem;
+    font-size: 0.66rem;
   }
 }
 

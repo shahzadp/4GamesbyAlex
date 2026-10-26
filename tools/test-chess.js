@@ -11,9 +11,13 @@ const vm = require('vm');
 const corePath = path.join(__dirname, '..', 'app', 'src', 'main', 'assets', 'chess-core.js');
 const src = fs.readFileSync(corePath, 'utf8');
 
+const quizPath = path.join(__dirname, '..', 'app', 'src', 'main', 'assets', 'chess-quiz.js');
+const quizSrc = fs.readFileSync(quizPath, 'utf8');
+
 const sandbox = { console };
 vm.createContext(sandbox);
 vm.runInContext(src, sandbox, { filename: 'chess-core.js' });
+vm.runInContext(quizSrc, sandbox, { filename: 'chess-quiz.js' });
 
 const {
   chessInitialState, chessFromFen, chessToFen, chessGenerateLegalMoves,
@@ -21,6 +25,15 @@ const {
   chessUciToMoveObj, chessMoveToUci, chessCloneState, chessMoveToSan,
   chessParseSquare
 } = sandbox;
+
+const {
+  chessQuizPositionFor, chessQuizLegalMoves, chessQuizTally,
+  chessQuizIsBlunder, chessQuizHangingSquares
+} = sandbox;
+
+// A top-level const lives in the script's lexical scope rather than on the
+// global object, so it has to be read out of the context directly.
+const CHESS_QUIZ = vm.runInContext('CHESS_QUIZ', sandbox);
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -53,6 +66,13 @@ function dump(state) {
 
 function uciSet(state) {
   return new Set(chessGenerateLegalMoves(state).map(chessMoveToUci));
+}
+
+// The index of a square on the board, so a hanging square can be looked up
+// without counting rows by hand.
+function h5Index() {
+  const sq = chessParseSquare('h5');
+  return sq.r * 8 + sq.c;
 }
 
 function hasMove(state, uci) {
@@ -564,6 +584,152 @@ console.log('=== 14. Starting position sanity ===');
   ok('pawn can double-move', set.has('e2e4') && set.has('d2d4'));
   ok('pawn cannot move backwards', !set.has('e2e1'));
   ok('no castling at the start of a game', !set.has('e1g1') && !set.has('e1c1'));
+}
+
+console.log('=== 15. Quiz: counting the legal moves ===');
+{
+  // The starting position: twenty legal moves each side, and none of them
+  // is a blunder, so both sides count twenty.
+  const start = chessInitialState();
+  const white = chessQuizLegalMoves(start, 'w');
+  const black = chessQuizLegalMoves(start, 'b');
+  ok('the starting position gives white 20 legal moves', white.length === 20, 'got ' + white.length);
+  ok('the starting position gives black 20 legal moves', black.length === 20, 'got ' + black.length);
+
+  // A side that is not to move still has legal moves, and they are the ones
+  // that side would have from this board with the turn switched over.
+  const whiteTurn = chessQuizPositionFor(start, 'w');
+  ok('the position for white has white to move', whiteTurn.turn === 'w');
+  const blackTurn = chessQuizPositionFor(start, 'b');
+  ok('the position for black has black to move', blackTurn.turn === 'b');
+  ok('the position for black is still the starting board',
+     chessToFen(blackTurn).indexOf('rnbqkbnr') === 0);
+  ok('the position for black reads "b" as the side to move',
+     chessToFen(blackTurn).split(' ')[1] === 'b');
+  ok('the position for white reads "w" as the side to move',
+     chessToFen(whiteTurn).split(' ')[1] === 'w');
+
+  // The board is shared, not copied, so a position for one side cannot
+  // quietly desync from the board it was made from.
+  ok('the position keeps the same board', whiteTurn.board === start.board);
+}
+
+console.log('=== 16. Quiz: blunders are excluded from the count ===');
+{
+  const start = chessInitialState();
+  const moves = chessGenerateLegalMoves(start, 'w');
+
+  // Nothing hangs in the opening, so every move counts.
+  const opening = chessQuizTally(start, moves);
+  ok('no move in the opening is a blunder', opening.blunders.length === 0,
+     opening.blunders.map(chessMoveToUci).join(','));
+  ok('every opening move counts', opening.count === 20, 'got ' + opening.count);
+  ok('the total is every legal move', opening.total === 20);
+
+  // A move that walks the queen onto a square the enemy pawn covers is a
+  // blunder, and the move that does not is not.
+  //
+  // The black pawn on g6 attacks f5 and h5, so the queen on h5 is taken.
+  const hang = fen('4k3/8/6p1/8/8/8/8/R2QK2R w KQ - 0 1');
+  const hangMoves = chessGenerateLegalMoves(hang);
+  const qh5 = hangMoves.find(m => chessMoveToUci(m) === 'd1h5');
+  const qd2 = hangMoves.find(m => chessMoveToUci(m) === 'd1d2');
+  ok('the queen can go to h5', !!qh5);
+  ok('the queen can go to d2', !!qd2);
+  ok('Qh5 hangs the queen and is a blunder', qh5 && chessQuizIsBlunder(hang, qh5));
+  ok('Qd2 is not a blunder', qd2 && !chessQuizIsBlunder(hang, qd2));
+
+  // A capture that wins nothing is not a threat. The black knight on d6
+  // covers the white pawn on e4, but a knight is worth more than a pawn, so
+  // taking it would lose material for the attacker and the pawn is not
+  // hanging.
+  const costly = fen('4k3/8/3n4/4P3/8/8/8/4K3 w - - 0 1');
+  const costlyMoves = chessGenerateLegalMoves(costly);
+  const costlyBlunders = costlyMoves.filter(m => chessQuizIsBlunder(costly, m));
+  ok('a piece an expensive piece attacks is not hanging', costlyBlunders.length === 0,
+     costlyBlunders.map(chessMoveToUci).join(','));
+
+  // A capture that is impossible because of a pin is not a threat either, so
+  // the piece it would take is not hanging. The black pawn on g6 is pinned by
+  // the white rook on g1 against the black king on g8, so it cannot take the
+  // white queen on h5.
+  const pinned = fen('6k1/8/6p1/7Q/8/8/8/6RK w - - 0 1');
+  const pinnedHanging = chessQuizHangingSquares(pinned, 'w');
+  ok('a pinned attacker does not make a piece hang', pinnedHanging.size === 0,
+     [...pinnedHanging.keys()].join(','));
+
+  // The same position without the pin, so the test above is not passing for
+  // the wrong reason: here the pawn really can take the queen.
+  const unpinned = fen('5k2/8/6p1/7Q/8/8/8/6RK w - - 0 1');
+  const unpinnedHanging = chessQuizHangingSquares(unpinned, 'w');
+  ok('the same piece does hang when the attacker is not pinned',
+     unpinnedHanging.get(h5Index()) === 900,
+     String(unpinnedHanging.get(h5Index())));
+
+  // The king is never a hanging piece: it cannot be taken.
+  const kingHanging = chessQuizHangingSquares(fen('4k3/8/8/8/8/8/8/4K3 b - - 0 1'), 'w');
+  ok('a king never hangs', kingHanging.size === 0);
+
+  // The square of a hanging piece is reported, so the board can mark it.
+  // Here the queen is already on h5 and the black pawn on g6 can take it.
+  const marked = chessQuizHangingSquares(fen('4k3/8/6p1/7Q/8/8/8/R3K3 w - - 0 1'), 'w');
+  ok('a piece the enemy can take for material is reported',
+     marked.get(h5Index()) === 900,
+     String(marked.get(h5Index())));
+
+  // What a capture is worth depends on whether the piece can be taken back.
+  //
+  // The white pawn on e4 is covered by the black pawn on d5. With the white
+  // pawn on d3 it can be taken back, so the capture is an even trade and
+  // the pawn is not hanging. Without it the pawn is simply lost, and that
+  // is a blunder.
+  const traded = fen('4k3/8/8/3p4/4P3/3P4/8/4K3 b - - 0 1');
+  const tradedHanging = chessQuizHangingSquares(traded, 'w');
+  const e4 = chessParseSquare('e4');
+  ok('a pawn that can be taken back is not hanging', !tradedHanging.has(e4.r * 8 + e4.c),
+     [...tradedHanging.keys()].join(','));
+
+  const lost = fen('4k3/8/8/3p4/4P3/8/8/4K3 b - - 0 1');
+  const lostHanging = chessQuizHangingSquares(lost, 'w');
+  ok('a pawn that cannot be taken back is hanging', lostHanging.has(e4.r * 8 + e4.c),
+     [...lostHanging.keys()].join(','));
+  ok('the pawn is worth its whole value when it cannot be taken back',
+     lostHanging.get(e4.r * 8 + e4.c) === 100,
+     String(lostHanging.get(e4.r * 8 + e4.c)));
+}
+
+console.log('=== 17. Quiz: counting the side that is not on move ===');
+{
+  // The quiz counts the moves of the side that is waiting as well, so the
+  // moves of that side are judged from a position where the other side is
+  // on move. Getting the side wrong here used to judge the moves against
+  // the wrong colour, which quietly found no blunders at all.
+  //
+  // The position: the white queen on h5 is covered by the black pawn on g6,
+  // and it is black that is on move.
+  const state = fen('k7/8/6p1/7Q/8/8/8/6RK b - - 0 1');
+  const whiteMoves = chessQuizLegalMoves(state, 'w');
+  const whiteTally = chessQuizTally(state, whiteMoves, 'w');
+
+  ok('the waiting side has moves to count', whiteMoves.length > 0);
+  ok('the waiting side is judged against its own pieces',
+     whiteTally.blunders.length > 0,
+     'no blunders found');
+  ok('a move that saves the queen is not a blunder',
+     whiteTally.counted.some(m => chessMoveToUci(m) === 'h5g6') &&
+     !whiteTally.blunders.some(m => chessMoveToUci(m) === 'h5g6'),
+     whiteTally.blunders.map(chessMoveToUci).join(','));
+  ok('a move that walks into the pawn is a blunder',
+     whiteTally.blunders.some(m => chessMoveToUci(m) === 'h5f5') ||
+     whiteTally.blunders.some(m => chessMoveToUci(m) === 'h5h4'),
+     whiteTally.blunders.map(chessMoveToUci).join(','));
+
+  // The side that is on move is judged in the same way, and the two counts
+  // are worked out from the same position.
+  const blackTally = chessQuizTally(state, chessQuizLegalMoves(state, 'b'), 'b');
+  ok('the side on move is counted as well', blackTally.total > 0);
+  ok('the two sides are counted separately',
+     blackTally.total !== whiteTally.total || blackTally.blunders.length !== whiteTally.blunders.length);
 }
 
 console.log('');

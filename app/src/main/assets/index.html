@@ -228,9 +228,9 @@
         <!-- Captured White pieces -->
         <div class="captured-tray" id="captured-white"></div>
 
-        <!-- Mode selector: 2-player, Stockfish 19, or 2x Stockfish 19 -->
+        <!-- Mode selector: 2-player, Stockfish 19, 2x Stockfish 19, or the quiz -->
         <div class="chess-mode-row">
-          <div class="chess-mode-switch three-up" role="tablist" aria-label="Game mode">
+          <div class="chess-mode-switch four-up" role="tablist" aria-label="Game mode">
             <button id="chess-mode-local" class="chess-mode-opt active" role="tab"
                     aria-selected="true" title="Play both sides on this device">
               <span class="mode-ico">👥</span><span class="mode-txt">2-Player</span>
@@ -241,10 +241,64 @@
             </button>
             <button id="chess-mode-duel" class="chess-mode-opt" role="tab"
                     aria-selected="false" title="Two Stockfish 19 engines play each other under a time control">
-              <span class="mode-ico">⚔️</span><span class="mode-txt">2x Stockfish</span>
+              <span class="mode-ico">⚔️</span><span class="mode-txt">Duel</span>
+            </button>
+            <button id="chess-mode-quiz" class="chess-mode-opt" role="tab"
+                    aria-selected="false" title="After every move, count the legal moves each side has. +1 for a right answer, -1 for a wrong one.">
+              <span class="mode-ico">🧠</span><span class="mode-txt">Quiz</span>
             </button>
           </div>
           <span id="chess-mode-label" class="chess-mode-label">2-player</span>
+        </div>
+
+        <!-- Move-count quiz. Shown only for the quiz mode. -->
+        <div id="chess-quiz-panel" class="chess-quiz-panel">
+          <div class="quiz-head">
+            <span class="quiz-title">🧠 Count the moves</span>
+            <span class="quiz-score-wrap">
+              <span class="quiz-score-label">Score</span>
+              <span class="quiz-score" id="quiz-score">0</span>
+            </span>
+          </div>
+
+          <p class="quiz-tally" id="quiz-tally">0 right · 0 wrong</p>
+
+          <p class="quiz-note" id="quiz-note">Make a move to start the quiz.</p>
+
+          <div class="quiz-answers">
+            <label class="quiz-answer">
+              <span class="quiz-answer-side"><span class="quiz-dot white"></span>White</span>
+              <input id="quiz-white-answer" class="quiz-input" type="number" min="0" max="99" step="1"
+                     inputmode="numeric" placeholder="0" autocomplete="off"
+                     aria-label="Number of legal moves White has">
+            </label>
+            <label class="quiz-answer">
+              <span class="quiz-answer-side"><span class="quiz-dot black"></span>Black</span>
+              <input id="quiz-black-answer" class="quiz-input" type="number" min="0" max="99" step="1"
+                     inputmode="numeric" placeholder="0" autocomplete="off"
+                     aria-label="Number of legal moves Black has">
+            </label>
+          </div>
+
+          <div class="quiz-actions">
+            <button id="btn-quiz-submit" class="quiz-btn quiz-btn-primary" type="button" disabled>
+              <span class="btn-icon">✓</span> <span class="btn-label">Check answers</span>
+            </button>
+          </div>
+
+          <div class="quiz-feedback" id="quiz-feedback"></div>
+
+          <div class="quiz-legend" id="quiz-legend">
+            <span class="quiz-legend-item"><span class="quiz-legend-ring good"></span>counts</span>
+            <span class="quiz-legend-item"><span class="quiz-legend-ring bad"></span>blunder, does not count</span>
+          </div>
+
+          <div class="quiz-summary" id="quiz-summary">
+            <p class="quiz-summary-text" id="quiz-summary-text"></p>
+            <button id="btn-quiz-again" class="quiz-btn" type="button">
+              <span class="btn-icon">♻️</span> <span class="btn-label">New game</span>
+            </button>
+          </div>
         </div>
 
         <!-- Engine match setup. Shown only for the 2x Stockfish 19 mode. -->
@@ -460,6 +514,13 @@
             <div class="pet-spark pet-spark-one" aria-hidden="true">✦</div>
             <div class="pet-spark pet-spark-two" aria-hidden="true">✦</div>
             <span id="pet-toy" class="pet-toy" aria-hidden="true">🎾</span>
+            <!-- 3D stage. The canvas sits in front of the flat artwork and
+                 takes over once the model has loaded; the SVG below stays in
+                 the DOM as the fallback for devices with no WebGL. -->
+            <canvas id="pet-canvas" class="pet-canvas" aria-hidden="true"></canvas>
+            <div id="pet-bubble" class="pet-bubble" role="status" hidden>
+              <span id="pet-bubble-text">WOOF!</span>
+            </div>
             <button id="pet-avatar" class="pet-avatar" type="button" aria-label="Pet your companion">
 <svg id="touch-dog-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
 <defs>
@@ -695,6 +756,8 @@
   <script src="chess-core.js"></script>
   <script src="chess-openings.js"></script>
   <script src="chess-engine.js"></script>
+  <script src="chess-quiz.js"></script>
+  <script src="pet3d/pet3d.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
