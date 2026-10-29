@@ -9,6 +9,59 @@ const state = {
   soundEnabled: true,
 };
 
+// --- Lazy game boot -------------------------------------------------
+//
+// The three games used to be fully initialised inside DOMContentLoaded,
+// before the home screen could paint. Between them they build a 64-square
+// chess board, wire every Flappy input, read pet save data, parse settings
+// and render a first frame - all on the same thread that still has to lay
+// out the launcher. On a phone that showed up as a home screen that was
+// visible but briefly unresponsive.
+//
+// Each game is now initialised on first use, and all three are warmed up
+// during idle time after the first paint. Opening a game before the warm-up
+// reaches it simply initialises it on the spot, so there is no window in
+// which a card does nothing.
+const gameBoot = {
+  flappy: { ready: false, init: () => flappyGame.init() },
+  chess: { ready: false, init: () => chessGame.init() },
+  pet: { ready: false, init: () => setupVirtualPet() }
+};
+
+function initGameNow(name) {
+  const boot = gameBoot[name];
+  if (!boot || boot.ready) return;
+  // Marked first: a game that throws must not be retried on every visit.
+  boot.ready = true;
+  try {
+    boot.init();
+  } catch (error) {
+    console.error('Failed to initialise ' + name, error);
+  }
+}
+
+function ensureGameReady(name) {
+  if (gameBoot[name]) initGameNow(name);
+}
+
+/* The saved companion name is shown on the home card, so it is applied at boot
+ * even though the rest of the pet page is initialised later. Without this the
+ * card would read "Virtual Pet" and then swap to the player's chosen name when
+ * the idle warm-up reached setupVirtualPet(). */
+function applySavedPetName() {
+  let name = '';
+  try {
+    name = (localStorage.getItem('pet_companion_name') || '').trim();
+  } catch (error) {
+    return;
+  }
+  if (!name) return;
+  const landingName = document.getElementById('landing-pet-name');
+  const barName = document.getElementById('bar-pet-name');
+  if (landingName) landingName.textContent = name;
+  if (barName) barName.textContent = name;
+}
+
 // --- Web Audio Synthesizer for Retro & Board Sound FX ---
 let audioCtx = null;
 
@@ -165,7 +218,7 @@ function playChime(theme) {
     flappy: [523.25, 659.25, 783.99],
     chess: [349.23, 440.00, 523.25],
     pet: [392.00, 493.88, 587.33],
-    economy: [196.00, 246.94, 293.66]
+    alexcraft: [196.00, 246.94, 293.66]
   };
   const freqs = notes[theme] || notes.main;
   freqs.forEach((freq, idx) => {
@@ -180,6 +233,17 @@ function playChime(theme) {
 function switchPage(targetPageId) {
   if (state.currentPage === targetPageId) return;
 
+  /* Alexcraft is a full-screen landscape game with its own WebView and input
+     handling. On Android it gets its own activity rather than an iframe: the
+     launcher's portrait shell would squeeze it, and a nested WebView cannot
+     go fullscreen or hide the system bars the way the game needs. The iframe
+     below stays for the browser build. */
+  if (targetPageId === 'alexcraft' && window.AndroidBridge
+      && typeof window.AndroidBridge.openAlexcraft === 'function') {
+    window.AndroidBridge.openAlexcraft();
+    return;
+  }
+
   // Captured before state.currentPage is reassigned below. Testing it after
   // that assignment is a silent no-op: it has already become the target page,
   // so "are we leaving chess?" never evaluates true and the cleanup never
@@ -189,6 +253,11 @@ function switchPage(targetPageId) {
   const currentEl = document.getElementById(`page-${state.currentPage}`);
   const targetEl = document.getElementById(`page-${targetPageId}`);
   if (!targetEl) return;
+
+  /* A game may not have been initialised yet: the warm-up runs during idle
+     time after the first paint, and a card can be tapped before it gets
+     there. Initialise on demand so the page is never entered half-built. */
+  ensureGameReady(targetPageId);
 
   document.body.className = `theme-${targetPageId}`;
 
@@ -202,9 +271,9 @@ function switchPage(targetPageId) {
 
   playChime(targetPageId);
 
-  /* Game 4 is Proto 2 in an iframe: mount it on first entry and re-measure
-     when the page comes back. See the comment on mountProtoFrame below. */
-  mountProtoFrame(targetPageId);
+  /* Game 4 is Alexcraft in an iframe (browser build only): mount it on first
+     entry and re-measure when the page comes back. See mountAlexcraftFrame. */
+  mountAlexcraftFrame(targetPageId);
 
   if (targetPageId === 'flappy') {
     flappyGame.resume();
@@ -223,15 +292,27 @@ function switchPage(targetPageId) {
     window.setPet3DActive(false);
   }
 
+  if (targetPageId === 'chess') {
+    // The engine is released when the page is left, so a game that was on
+    // Stockfish's turn at that moment comes back with nobody to move. Pick it
+    // up again; maybeBotMove() reloads the engine first.
+    chessGame.resumeBotIfNeeded();
+  }
+
   /* The 2x Stockfish match keeps two wasm-backed workers alive between
      moves. Leaving the chess page stops the match and frees both, which
      matters on a phone; they reload in about a second when the match restarts. */
   if (leavingPage === 'chess') {
     chessDuel.suspend();
     // The 1x bot's engine lives here rather than on the duel controller, so
-    // it is released alongside it.
-    chessGame.releaseBotEngine();
+    // it is released alongside it. Forced, because the engine may be in the
+    // middle of a search when the player navigates away.
+    chessGame.releaseBotEngine(true);
   }
+
+  /* Alexcraft keeps rendering and playing music while it is hidden, and its
+     own pause path is the only thing that stops both. */
+  if (leavingPage === 'alexcraft') pauseAlexcraftFrame();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -761,72 +842,94 @@ getPieceSvg.cache = new Map();
 
 function buildPieceSvg(type, color) {
   const isWhite = color === 'w';
-  // Professional gradients for 3D look
-  const fillMain = isWhite ? 'url(#grad-w)' : 'url(#grad-b)';
-  const fillHighlight = isWhite ? '#fff8ee' : '#2d3748';
-  const stroke = isWhite ? '#334155' : '#f1f5f9';
+  // Solid, Staunton-style pieces in the spirit of the classic cburnett set:
+  // clean silhouettes, dark outlines on both colours, and a soft vertical
+  // shade instead of the glossy gradient that made the old set read like
+  // stickers. White pieces are warm off-white; black pieces are charcoal.
+  const fillMain = isWhite ? 'url(#pc-fill-w)' : 'url(#pc-fill-b)';
+  const line = isWhite ? '#2a2a26' : '#0d0d0b';
+  // Engraved detail lines need to be lighter than the body on black pieces,
+  // otherwise the cross, bands and tier lines disappear into the silhouette.
+  const detail = isWhite ? '#2a2a26' : '#a5a198';
 
-  // Gradient definitions for each color
   const gradDefs = `<defs>
-    <linearGradient id="grad-w" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="pc-fill-w" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="40%" stop-color="#f1f5f9"/>
-      <stop offset="100%" stop-color="#cbd5e1"/>
+      <stop offset="55%" stop-color="#f7f5ee"/>
+      <stop offset="100%" stop-color="#d9d5c7"/>
     </linearGradient>
-    <linearGradient id="grad-b" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#334155"/>
-      <stop offset="40%" stop-color="#1e293b"/>
-      <stop offset="100%" stop-color="#0f172a"/>
+    <linearGradient id="pc-fill-b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#565450"/>
+      <stop offset="50%" stop-color="#383632"/>
+      <stop offset="100%" stop-color="#1a1917"/>
     </linearGradient>
   </defs>`;
 
+  // The source artwork lives in a 45x45 box with generous margins. Cropping the
+  // viewBox to the actual ink bounds lets the pieces fill their squares the way
+  // they do on chess.com, without changing any of the path coordinates.
+  const open = `<svg viewBox="3.5 4.5 38 36" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${gradDefs}
+    <g fill="${fillMain}" stroke="${line}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">`;
+
   if (type === 'p') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}
-      <path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z" fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
+    return `${open}
+      <path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"/>
+    </g>
+  </svg>`;
   }
+
   if (type === 'n') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}
-      <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="${fillMain}" stroke="${stroke}" stroke-width="1.8"/>
-      <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" fill="${fillMain}" stroke="${stroke}" stroke-width="1.8"/>
-      <circle cx="15.5" cy="14" r="1.5" fill="${stroke}"/>
-    </svg>`;
+    return `${open}
+      <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/>
+      <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.04-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.99-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.99 2.5-3c1 0 1 3 1 3"/>
+      <circle cx="15.5" cy="14" r="1.5" fill="${detail}" stroke="none"/>
+      <circle cx="10" cy="24.5" r="1" fill="${detail}" stroke="none"/>
+    </g>
+  </svg>`;
   }
+
   if (type === 'b') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}\n      <g fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.354.49-2.323.47-3-.5 1.354-1.94 3-2 3-2z"/>
-        <path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/>
-        <circle cx="22.5" cy="8" r="2.5"/>
-        <path d="M17.5 26h10M22.5 21v10" stroke="${stroke}"/>
-      </g>
-    </svg>`;
+    return `${open}
+      <path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.94 3-2 3-2z" stroke-linecap="butt"/>
+      <path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z" stroke-linecap="butt"/>
+      <circle cx="22.5" cy="8" r="2.5"/>
+      <path d="M17.5 26h10M15 30h15M22.5 15.5v5M20 18h5" fill="none" stroke="${detail}" stroke-width="1.2" stroke-linejoin="miter"/>
+    </g>
+  </svg>`;
   }
+
   if (type === 'r') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}\n      <g fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 39h27v-3H9v3zm3-3v-4h21v4H12zm2.5-4l1.5-16h18l1.5 16H14.5zM11 16h23v-5h-4v2h-4v-2h-6v2h-4v-2h-5v5z"/>
-      </g>
-    </svg>`;
+    return `${open}
+      <path d="M9 39h27v-3H9v3zM12 36v-4h21v4H12zM11 14V9h4v2h5V9h5v2h5V9h4v5" stroke-linecap="butt"/>
+      <path d="M34 14l-3 3H14l-3-3"/>
+      <path d="M31 17v12.5H14V17" stroke-linecap="butt" stroke-linejoin="miter"/>
+      <path d="M31 29.5l1.5 2.5h-20l1.5-2.5"/>
+      <path d="M11 14h23" fill="none" stroke-linejoin="miter"/>
+      <path d="M12 32h21M12 36h21M14 17h17" fill="none" stroke="${detail}" stroke-width="1.1" stroke-linecap="butt"/>
+    </g>
+  </svg>`;
   }
+
   if (type === 'q') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}\n      <g fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="6" cy="12" r="2"/>
-        <circle cx="14" cy="9" r="2"/>
-        <circle cx="22.5" cy="8" r="2"/>
-        <circle cx="31" cy="9" r="2"/>
-        <circle cx="39" cy="12" r="2"/>
-        <path d="M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11-7.5-15-7.5 15-7-11 2 12zm0 3c9-1 18-1 27 0v3H9v-3zm0 5h27v4H9v-4z"/>
-      </g>
-    </svg>`;
+    return `${open}
+      <path d="M8 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM24.5 7.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM41 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM16 8.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM33 9a2 2 0 1 1-4 0 2 2 0 1 1 4 0z"/>
+      <path d="M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14l2 12z" stroke-linecap="butt"/>
+      <path d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z" stroke-linecap="butt"/>
+      <path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0" fill="none" stroke="${detail}" stroke-width="1.2"/>
+    </g>
+  </svg>`;
   }
+
   if (type === 'k') {
-    return `<svg viewBox="0 0 45 45" width="100%" height="100%">${gradDefs}\n      <g fill="${fillMain}" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22.5 11.63V6M20 8h5"/>
-        <path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/>
-        <path d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-1-1 8-6 4-3-2.5-6 1-10 1s-7-3.5-10-1c-5 4-2-5-6-4-3 6 6 10.5 6 10.5v7z"/>
-        <path d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0"/>
-      </g>
-    </svg>`;
+    return `${open}
+      <path d="M22.5 11.63V6M20 8h5" fill="none" stroke-linejoin="miter"/>
+      <path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5" stroke-linecap="butt" stroke-linejoin="miter"/>
+      <path d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-1-1 8-6 4-3-2.5-6 1-10 1s-7-3.5-10-1c-5 4-2-5-6-4-3 6 6 10.5 6 10.5v7z"/>
+      <path d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0" fill="none" stroke="${detail}" stroke-width="1.2"/>
+    </g>
+  </svg>`;
   }
+
   return '';
 }
 
@@ -862,6 +965,10 @@ const chessGame = {
   quizActive: false,
   botSide: 'b',
   botThinking: false,
+  // Bumped whenever the bot engine is disposed. A search or load that was in
+  // flight across the disposal must not touch the board or the status line
+  // after the player has moved to another mode.
+  botEngineEpoch: 0,
   botDepth: 12,
 
   init() {
@@ -1349,8 +1456,14 @@ const chessGame = {
 
     const leavingDuel = this.duelActive && !wantDuel;
     const leavingQuiz = this.quizActive && !wantQuiz;
+    const leavingBot = this.botEnabled && !wantBot;
     if (leavingDuel) chessDuel.stop();
     if (leavingQuiz) chessQuiz.leave();
+    // Hand the bot's wasm module and worker back as soon as its mode is left.
+    // Previously it stayed resident for the rest of the visit, so after one
+    // game against Stockfish every later mode switch carried that memory and
+    // the page felt heavier and heavier.
+    if (leavingBot) this.releaseBotEngine(true);
 
     this.mode = mode;
     this.botEnabled = wantBot;
@@ -1391,10 +1504,15 @@ const chessGame = {
   },
 
   // Hands back the memory and the worker thread the bot engine was holding.
-  // Called when a game against it is over, and when the chess page is left.
-  releaseBotEngine() {
-    if (!chessEngine.worker && !chessEngine.ready) return;
-    if (this.botThinking) return;
+  // Called when a game against it is over, when its mode is left, and when the
+  // chess page is left. `force` disposes even if a search is in flight; the
+  // token bump makes the late result a no-op.
+  releaseBotEngine(force) {
+    const hasEngine = chessEngine.worker || chessEngine.ready || chessEngine.loadPromise;
+    if (!hasEngine) return;
+    if (this.botThinking && !force) return;
+    this.botEngineEpoch = (this.botEngineEpoch || 0) + 1;
+    this.botThinking = false;
     chessEngine.dispose();
   },
 
@@ -1441,12 +1559,23 @@ const chessGame = {
     }
   },
 
+  // Picks a bot game back up after the page was left mid-think. The engine was
+  // disposed on the way out, so this is also what reloads it.
+  resumeBotIfNeeded() {
+    if (!this.botEnabled || this.duelActive || this.botThinking) return;
+    if (this.state.turn === this.botSide) this.maybeBotMove();
+  },
+
   maybeBotMove() {
     if (!this.botEnabled || this.botThinking) return;
     if (this.state.turn !== this.botSide) return;
 
     const status = chessGameStatus(this.state);
     if (status === 'checkmate' || status === 'stalemate') return;
+
+    // A load or search started before the engine was disposed belongs to a
+    // mode the player has already left. Every callback checks this epoch.
+    const engineEpoch = this.botEngineEpoch || 0;
 
     // This is the first point at which the engine is actually wanted: the
     // player has moved and somebody has to answer. Loading it here rather than
@@ -1457,11 +1586,11 @@ const chessGame = {
       if (!chessEngine.loadPromise) {
         this.setStatus('Loading Stockfish 19...');
         chessEngine.load().then(() => {
-          if (this.mode !== 'stockfish') return;
+          if (engineEpoch !== this.botEngineEpoch || !this.botEnabled) return;
           this.setStatus('Stockfish 19 ready');
           this.maybeBotMove();
         }).catch(err => {
-          if (this.mode !== 'stockfish') return;
+          if (engineEpoch !== this.botEngineEpoch || !this.botEnabled) return;
           this.setStatus('Engine failed to load: ' + err.message + '. Playing two-player.');
           this.mode = 'local';
           this.botEnabled = false;
@@ -1480,6 +1609,7 @@ const chessGame = {
 
     chessEngine.findBestMove(fen, this.botDepth)
       .then(({ uci }) => {
+        if (engineEpoch !== this.botEngineEpoch || !this.botEnabled) return;
         const move = chessUciToMoveObj(uci, this.state);
         this.botThinking = false;
         if (!move) {
@@ -1492,6 +1622,7 @@ const chessGame = {
         this.playMove(move);
       })
       .catch(err => {
+        if (engineEpoch !== this.botEngineEpoch || !this.botEnabled) return;
         this.botThinking = false;
         this.setStatus('Engine error: ' + err.message);
         this.updateUI();
@@ -2685,6 +2816,11 @@ const chessDuel = {
     this.clearTimers();
 
     this.loading = true;
+    // Claim the engines before the load starts, not after it. A cancel during
+    // loading goes through stop() -> releaseMatchEngines(), and if the flag
+    // were still set from the previous match that release would be a no-op
+    // and the newly created workers would be left running.
+    this.claimMatchEngines();
     this.setStatus('Starting both engines...');
     this.renderAll();
     chessGame.updateUI();
@@ -2704,6 +2840,9 @@ const chessDuel = {
     } catch (err) {
       if (token !== this.startToken) return;
       this.loading = false;
+      // A half-loaded engine still holds a worker and a wasm module. Release
+      // them so a later Start can retry from scratch.
+      this.releaseMatchEngines();
       this.setStatus('Engine failed to load: ' + err.message, true);
       this.renderAll();
       return;
@@ -2713,20 +2852,17 @@ const chessDuel = {
     // sail on and start playing after the player already pressed Cancel.
     if (token !== this.startToken) return;
 
-    // A previous match released its engines when it ended; this match needs
-    // them back, and load() above has just started them.
-    this.claimMatchEngines();
-
     const startState = this.startState();
     this.startFen = chessToFen(startState);
     this.buildScript();
 
-    // chessGame.reset() calls back into onBoardReset(), which clears all of
-    // the match state below, so those assignments come afterwards rather than
-    // before.
-    chessGame.reset(startState);
-
+    // chessGame.reset() calls back into onBoardReset(), which calls stop().
+    // stop() treats "loading" as a cancelled Start and releases the engines,
+    // so the flag has to be cleared before the reset rather than after it.
+    // The reset also clears the match state assigned below, so those
+    // assignments come afterwards.
     this.loading = false;
+    chessGame.reset(startState);
     this.running = true;
     this.finished = false;
     this.thinking = false;
@@ -2834,6 +2970,10 @@ const chessDuel = {
         // The start attempt is abandoned, but its "Starting both engines..."
         // message is still on screen and would otherwise never be replaced.
         this.setStatus('Start cancelled.');
+        // Both workers were still compiling. Hand them back now; otherwise
+        // they finish loading into a match that no longer exists and stay
+        // resident for the rest of the visit.
+        this.releaseMatchEngines();
         this.renderAll();
         chessGame.updateUI();
       }
@@ -3998,13 +4138,59 @@ function setupVirtualPet() {
 
   let pet3dUnavailable = false;
   let pet3dHintShown = false;
+  let pet3dWanted = false;
+  let pet3dScriptPromise = null;
+
+  /* pet3d/pet3d.js is ~550 KB of minified three.js plus the pet stage.
+   *
+   * It used to be a plain <script> in index.html, so every launch paid to
+   * download, parse and compile it before the launcher could settle - even
+   * for players who only ever opened Flappy Bird. It is now injected the
+   * first time the pet page is opened. The promise is cached so repeated
+   * visits and a tap that races the warm-up share one request.
+   */
+  function loadPet3DScript() {
+    if (window.PetStage) return Promise.resolve(true);
+    if (pet3dScriptPromise) return pet3dScriptPromise;
+    pet3dScriptPromise = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'pet3d/pet3d.js';
+      script.async = true;
+      script.onload = () => resolve(!!window.PetStage);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+    return pet3dScriptPromise;
+  }
 
   function initPet3D() {
     if (pet3dUnavailable || petStage) return;
-    if (!window.PetStage || !petCanvas || !petWorld) {
+    if (!petCanvas || !petWorld) {
       pet3dUnavailable = true;
       return;
     }
+
+    /* Hide the flat dog the moment 3D is requested, not when the runtime
+       finishes loading. The script is ~550 KB and the model ~1 MB, so the old
+       order showed the SVG dog first and then swapped it for the model. The
+       loading class stays until the model is ready, and is removed on every
+       failure path so a device without WebGL still gets the SVG dog. */
+    petWorld.classList.add('pet-3d-loading');
+
+    /* The runtime may still be in flight. Initialise as soon as it arrives,
+       but only if the player still wants the stage. */
+    if (!window.PetStage) {
+      loadPet3DScript().then((loaded) => {
+        if (!loaded) {
+          pet3dUnavailable = true;
+          petWorld.classList.remove('pet-3d-loading');
+          return;
+        }
+        if (pet3dWanted) initPet3D();
+      });
+      return;
+    }
+
     try {
       const stage = new window.PetStage(petCanvas, {
         onReady: () => {
@@ -4024,11 +4210,14 @@ function setupVirtualPet() {
       if (stage.failed) {
         stage.destroy();
         pet3dUnavailable = true;
+        petWorld.classList.remove('pet-3d-loading');
         return;
       }
       petStage = stage;
-      petWorld.classList.add('pet-3d-loading');
       stage.load('models/virtual_pet.glb');
+      /* The page may have been left while the script was loading. Start the
+         render loop only if the pet page is the one on screen now. */
+      stage.setActive(state.currentPage === 'pet');
     } catch (error) {
       petStage = null;
       pet3dUnavailable = true;
@@ -4044,10 +4233,14 @@ function setupVirtualPet() {
   }
 
   /* switchPage() lives outside this setup function, so expose the two hooks
-     it needs. The 3D runtime is only built when the pet page is actually
-     opened, and rendering pauses again when it is left. */
-  window.ensurePet3D = initPet3D;
+     it needs. The 3D runtime is only fetched and built when the pet page is
+     actually opened, and rendering pauses again when it is left. */
+  window.ensurePet3D = () => {
+    pet3dWanted = true;
+    initPet3D();
+  };
   window.setPet3DActive = (active) => {
+    if (active) pet3dWanted = true;
     if (!petStage) return;
     petStage.setActive(active);
     if (active && petStage.ready) showPetHintOnce();
@@ -4282,6 +4475,24 @@ function setupVirtualPet() {
     status.textContent = 'Saved key removed from this device.';
   });
 
+  // Companion rename
+  const petNameEl = document.getElementById('pet-name');
+  if (petNameEl) {
+    const savedName = localStorage.getItem('pet_companion_name');
+    if (savedName) petNameEl.value = savedName;
+    petNameEl.addEventListener('blur', () => {
+      localStorage.setItem('pet_companion_name', petNameEl.value.trim() || 'Doggo');
+      const name = petNameEl.value.trim() || 'Doggo';
+      const landingName = document.getElementById('landing-pet-name');
+      const barName = document.getElementById('bar-pet-name');
+      if (landingName) landingName.textContent = name;
+      if (barName) barName.textContent = name;
+    });
+  }
+
+  // Load saved pet name into landing card and bar title on init
+  applySavedPetName();
+
   function receiveReply(requestId, text, isError) {
     const pendingMessage = pendingReplies.get(requestId);
     if (!pendingMessage) return;
@@ -4389,30 +4600,17 @@ function setupVirtualPet() {
 // --- App Initialization & Event Wiring ---
 
 document.addEventListener('DOMContentLoaded', () => {
-  /* Initialise each game in isolation.
+  /* The launcher is wired before any game is built.
    *
-   * These used to be three bare calls in a row, and a throw in any one of them
-   * aborted the rest of this handler. That is a terrible failure mode for a
-   * launcher: the game that broke was unreachable, and so was every other
-   * game, because the launch cards are wired a few lines further down. One
-   * game could take the whole app down with it.
-   *
-   * The card wiring is now first and cannot be skipped, and each game's init
-   * is contained, so a broken game is a broken game and nothing else. */
-  const initSafely = (name, fn) => {
-    try {
-      fn();
-    } catch (error) {
-      console.error('Failed to initialise ' + name, error);
-    }
-  };
+   * The card wiring used to run after three full game initialisations, and a
+   * throw in any one of them aborted the rest of this handler - so a broken
+   * game made every game, and the home screen itself, unreachable. Wiring is
+   * now first and cannot be skipped, and the games are initialised lazily
+   * (see gameBoot above) with failures contained to the game that threw. */
 
-  // 1. Initialize Games
-  initSafely('Flappy Bird', () => flappyGame.init());
-  initSafely('Chess', () => chessGame.init());
-  initSafely('Virtual Pet', () => setupVirtualPet());
+  // 1. Wire App Launch Cards (2x2 Grid)
+  applySavedPetName();
 
-  // 2. Wire App Launch Cards (2x2 Grid)
   const launchCards = document.querySelectorAll('.app-launch-card');
   launchCards.forEach(card => {
     card.addEventListener('click', () => {
@@ -4421,7 +4619,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 3. Wire Back Buttons
+  // 2. Wire Back Buttons
   const backButtons = document.querySelectorAll('[data-back]');
   backButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -4429,7 +4627,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 4. Wire Quick Nav Buttons (Next)
+  // 3. Wire Quick Nav Buttons (Next)
   const navQuickBtns = document.querySelectorAll('.nav-quick-btn');
   navQuickBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -4438,7 +4636,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 5. Wire Fullscreen Buttons Below Game Screen
+  // 4. Wire Fullscreen Buttons Below Game Screen
   // On Android WebView, requestFullscreen() is silently ignored.
   // We use a native bridge (window.AndroidBridge) injected by MainActivity.kt instead.
   const isAndroidWebView = typeof window.AndroidBridge !== 'undefined';
@@ -4523,7 +4721,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshFullscreenSurface();
   });
 
-  // 6. Wire Palette & Brushes for Artwork Pages
+  // 5. Wire Palette & Brushes for Artwork Pages
   const palettes = document.querySelectorAll('.color-palette');
   palettes.forEach(palette => {
     const canvasId = palette.getAttribute('data-target-canvas');
@@ -4539,7 +4737,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 7. Wire Clear Doodle Buttons
+  // 6. Wire Clear Doodle Buttons
   const clearBtns = document.querySelectorAll('.clear-doodle-btn');
   clearBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -4550,20 +4748,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 8. Keyboard Shortcut Navigation (ESC = Back to main)
+  // 7. Keyboard Shortcut Navigation (ESC = Back to main)
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && state.currentPage !== 'main') {
       switchPage('main');
     }
   });
 
-  // 9. URL Hash Navigation
+  // 8. URL Hash Navigation
   function handleHash() {
     const hash = window.location.hash.replace('#', '');
-    if (['flappy', 'chess', 'pet', 'economy'].includes(hash)) {
+    if (['flappy', 'chess', 'pet', 'alexcraft'].includes(hash)) {
       switchPage(hash);
     } else if (hash === 'fire') {
-      switchPage('economy');
+      switchPage('alexcraft');
     } else {
       switchPage('main');
     }
@@ -4573,44 +4771,63 @@ document.addEventListener('DOMContentLoaded', () => {
   if (window.location.hash) {
     handleHash();
   }
+
+  /* 9. Warm the games up once the launcher is on screen.
+   *
+   * requestIdleCallback lets the first paint and the first tap land before a
+   * 64-square board, three canvas setups and a pet save file are built. The
+   * timeout is a ceiling, not a delay: if the main thread never goes idle the
+   * work still starts within 1.5s. Anything opened before the warm-up reaches
+   * it is initialised by switchPage() instead, so this is purely anticipatory. */
+  const warmUpGames = () => {
+    initGameNow('flappy');
+    initGameNow('chess');
+    initGameNow('pet');
+  };
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(warmUpGames, { timeout: 1500 });
+  } else {
+    setTimeout(warmUpGames, 80);
+  }
 });
 
 // =======================================================
-// PROTO 2 (GAME 4) — IFRAME MOUNT
+// ALEXCRAFT (GAME 4) — IFRAME MOUNT
 // =======================================================
 
 /* Lazily attach the iframe, once.
  *
- * The src is deliberately absent from the markup. Proto 2 is 15 files and about
- * 512 KB of ES modules, and three of the four games in this launcher have
- * nothing to do with it — so it is not fetched until the player actually opens
- * game 4. Setting it more than once would restart the app and throw away the
- * simulation, hence the guard.
+ * The src is deliberately absent from the markup. Alexcraft is a whole game
+ * (about 1.3 MB with its textures and sounds) and three of the four games in
+ * this launcher have nothing to do with it — so it is not fetched until the
+ * player actually opens game 4. Setting it more than once would restart the
+ * world, hence the guard.
  *
  * A second case is easy to miss, and is why the reflow below is unconditional:
  * this launcher hides pages with `display: none`, and an iframe at zero size
  * gets no animation frames and never receives a resize event when it is shown
- * again. Proto 2 sizes its map canvas from its own clientWidth, so without the
- * nudge it would keep the 0x0 bitmap it built while hidden — a blank map, and
- * no error anywhere to say why. Same-origin, so the child window is directly
- * reachable. */
-let protoFrameMounted = false;
+ * again. The game sizes its canvas and its WebGL viewport from the window, so
+ * without the nudge it would keep the 0x0 drawing buffer it built while
+ * hidden — a black screen, and no error anywhere to say why. Same-origin, so
+ * the child window is directly reachable.
+ *
+ * On Android this never runs: switchPage() hands the card to
+ * AlexcraftActivity, which loads the same build in its own landscape WebView.
+ */
+let alexcraftFrameMounted = false;
 
-function mountProtoFrame(pageId) {
-  const frame = document.getElementById('proto-frame');
+function mountAlexcraftFrame(pageId) {
+  const frame = document.getElementById('alexcraft-frame');
   if (!frame) return;
 
-  const wantsProto = pageId === 'economy';
+  const wantsGame = pageId === 'alexcraft';
 
-  if (wantsProto && !protoFrameMounted && !frame.getAttribute('src')) {
-    frame.setAttribute('src', 'proto2/index.html');
-    protoFrameMounted = true;
-    frame.addEventListener('load', () => publishSafeArea(), { once: true });
-    /* contentDocument is null until the child parses; on load is the first
-       moment the document exists AND has the app mounted in it. */
+  if (wantsGame && !alexcraftFrameMounted && !frame.getAttribute('src')) {
+    frame.setAttribute('src', 'alexcraft/index.html');
+    alexcraftFrameMounted = true;
   }
 
-  if (!wantsProto) return;
+  if (!wantsGame) return;
 
   /* Re-measure once the page is actually laid out. Two frames: the first runs
      after the class flip has been styled, the second after the iframe has been
@@ -4618,53 +4835,22 @@ function mountProtoFrame(pageId) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     try {
       const w = frame.contentWindow;
-      if (!w) return;
-      /* Proto 2 listens for resize to re-fit its canvas and to re-evaluate
-         matchMedia for the rail/tab-bar layout switch. */
-      w.dispatchEvent(new w.Event('resize'));
-      if (w.app && typeof w.app.refreshCanvas === 'function') w.app.refreshCanvas();
+      if (w) w.dispatchEvent(new w.Event('resize'));
     } catch (e) {
       /* Child not reachable yet; its own resize handler will catch up. */
     }
-    /* Insets are a property of the display, so they arrive as 0 inside the
-       frame; hand the child the real values. See publishSafeArea. */
-    publishSafeArea();
   }));
 }
 
-/* The insets change when the device rotates, and the child is already mounted by
-   then, so this has to be re-run outside the first-entry path. */
-window.addEventListener('resize', () => publishSafeArea(), { passive: true });
-window.addEventListener('orientationchange', () => publishSafeArea());
-/* Write this document's safe-area insets into the Proto 2 child document.
- *
- * env() is measured with a throwaway probe element rather than guessed: there is
- * no JS API for safe-area insets, but a fixed-position element sized with
- * env(safe-area-inset-top) reports the real value through getBoundingClientRect.
- * One element, two reads, removed immediately. */
-function readSafeAreaInsets() {
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;visibility:hidden;'
-    + 'pointer-events:none;height:env(safe-area-inset-top,0px)';
-  document.body.appendChild(probe);
-  const top = probe.getBoundingClientRect().height;
-  probe.style.height = 'env(safe-area-inset-bottom,0px)';
-  const bottom = probe.getBoundingClientRect().height;
-  probe.remove();
-  return { top, bottom };
-}
-
-function publishSafeArea() {
-  const frame = document.getElementById('proto-frame');
+/* Hiding the page stops the animation frames but not the music, and the game
+   only mutes itself when its own pause menu opens. */
+function pauseAlexcraftFrame() {
+  const frame = document.getElementById('alexcraft-frame');
   if (!frame || !frame.getAttribute('src')) return;
-  let doc = null;
-  try { doc = frame.contentDocument; } catch (e) { return; }
-  /* Not loaded yet, or a cross-origin document (impossible here — same origin). */
-  if (!doc || !doc.documentElement) return;
-  if (!doc.getElementById('app')) return;   // still parsing
-  const { top, bottom } = readSafeAreaInsets();
-  const root = doc.documentElement.style;
-  root.setProperty('--safe-t', top + 'px');
-  root.setProperty('--safe-b', bottom + 'px');
+  try {
+    const w = frame.contentWindow;
+    if (w && typeof w.__alexcraftPause === 'function') w.__alexcraftPause();
+  } catch (e) {
+    /* Not reachable: nothing to pause. */
+  }
 }
-

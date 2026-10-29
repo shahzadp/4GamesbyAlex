@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+body { font-family: system-ui, sans-serif; background: #0a0c13; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
+h1 { font-size: 1.2rem; margin-bottom: 1rem; }
+#toolbar { display: flex; gap: 8px; }
+.toolbar-slot { width: 64px; height: 64px; background: #334; border: 2px solid #888; border-radius: 6px; display: grid; place-items: center; font-weight: bold; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.toolbar-slot.active { border-color: #f0c040; background: #556; }
+#log { margin-top: 1rem; background: #111; padding: 1rem; border-radius: 8px; width: 90%; max-width: 480px; height: 160px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Toolbar touch test — click/tap slots 1-9</h1>
+<div id="toolbar"></div>
+<div id="log">Waiting for taps...</div>
+
+<script type="module">
+// Minimal stub for Player and TouchControls so we can test wireHotbar in isolation
+class FakeInventory {
+  static SIZE = 9;
+  slots = new Array(9).fill(null);
+  selected = 0;
+  select(i) { this.selected = ((i % 9) + 9) % 9; }
+  get selectedBlock() { return this.slots[this.selected] ?? 1; }
+}
+
+class FakePlayer {
+  hotbar = new FakeInventory();
+  onHotbarChange = () => {};
+  touchMode = true;
+  selectSlot(i) {
+    this.hotbar.select(i);
+    this.onHotbarChange();
+    console.log('selectSlot(' + i + ') -> selected=' + this.hotbar.selected);
+  }
+}
+
+// Import the real TouchControls module from the bundler output
+// We load via a dynamic import from the app URL if available, else stub wireHotbar
+async function init() {
+  const logEl = document.getElementById('log');
+  function log(msg) { logEl.textContent += '\n' + msg; logEl.scrollTop = logEl.scrollHeight; }
+
+  const toolbar = document.getElementById('toolbar');
+  const player = new FakePlayer();
+
+  // Try to load real TouchControls (needs module context); fall back to manual wire
+  let wireHotbar;
+  try {
+    const mod = await import('./assets/index-DK4_TVf-.js');
+    // If exported class is available, use it; else we wire manually
+  } catch (e) {
+    log('Module import skipped: ' + e.message);
+  }
+
+  // Build 9 slots exactly like real game
+  for (let i = 0; i < 9; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'toolbar-slot';
+    slot.id = 'toolbar-slot-' + (i + 1);
+    slot.textContent = i + 1;
+    slot.addEventListener('click', (e) => {
+      e.preventDefault();
+      player.selectSlot(i);
+      document.querySelectorAll('.toolbar-slot').forEach((s, idx) => s.classList.toggle('active', idx === player.hotbar.selected));
+      log('CLICK slot ' + (i + 1) + ' -> selected=' + (player.hotbar.selected + 1));
+    });
+    toolbar.appendChild(slot);
+  }
+
+  // Also wire pointerdown to compare
+  for (let i = 0; i < 9; i++) {
+    const slot = document.getElementById('toolbar-slot-' + (i + 1));
+    slot.addEventListener('pointerdown', (e) => {
+      log('POINTERDOWN slot ' + (i + 1) + ' (preventDefault=' + (e.defaultPrevented ? 'yes' : 'no') + ')');
+    });
+  }
+
+  log('Test ready. Tap any slot 1-9.');
+  console.log('Test env ready');
+}
+init();
+</script>
+</body>
+</html>

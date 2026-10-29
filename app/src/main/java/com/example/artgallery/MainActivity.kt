@@ -54,7 +54,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var insetsController: WindowInsetsControllerCompat
     private val petApiExecutor = Executors.newSingleThreadExecutor()
+    // Text-to-speech is created on first use, not at startup. Binding the TTS
+    // service in onCreate delayed the first frame for a feature most launches
+    // never touch.
     private var textToSpeech: TextToSpeech? = null
+    private var ttsInitializing = false
+    private var pendingSpeech: String? = null
     private val petSpeechLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val spokenText = if (result.resultCode == Activity.RESULT_OK) {
             result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
@@ -85,11 +90,24 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        /**
+         * Opens Alexcraft in its own landscape activity.
+         *
+         * The game cannot run in this WebView: the launcher is a portrait,
+         * scrolling shell and the game needs a locked landscape surface with
+         * the system bars hidden, its own back handling, and its own WebView
+         * so that leaving the game does not throw away the launcher's state.
+         */
+        @JavascriptInterface
+        fun openAlexcraft() {
+            runOnUiThread {
+                startActivity(Intent(this@MainActivity, AlexcraftActivity::class.java))
+            }
+        }
+
         @JavascriptInterface
         fun speak(text: String) {
-            runOnUiThread {
-                textToSpeech?.speak(text.take(1200), TextToSpeech.QUEUE_FLUSH, null, "virtual-pet")
-            }
+            runOnUiThread { speakWithTts(text) }
         }
 
         @JavascriptInterface
@@ -218,11 +236,6 @@ class MainActivity : ComponentActivity() {
 
         insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.isAppearanceLightStatusBars = false
-        textToSpeech = TextToSpeech(this) { result ->
-            if (result == TextToSpeech.SUCCESS) {
-                textToSpeech?.language = Locale.forLanguageTag("ur-PK")
-            }
-        }
 
         webView = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#0a0c13"))
@@ -272,6 +285,25 @@ class MainActivity : ComponentActivity() {
                     // including a genuine network request, passes through.
                     if (url.host != ASSET_HOST) return null
 
+                    /* Web fonts are served here rather than through the asset
+                     * loader so the MIME type is explicit. Chromium will not
+                     * apply a font served as application/octet-stream on every
+                     * WebView version, and MimeTypeMap does not know .woff2 on
+                     * older releases - which would silently drop the bundled
+                     * fonts back to the system fallback. */
+                    val assetPath = url.path?.removePrefix(ASSET_PATH)?.trimStart('/')
+                    if (!assetPath.isNullOrEmpty() && assetPath.endsWith(".woff2", ignoreCase = true)) {
+                        try {
+                            return WebResourceResponse(
+                                "font/woff2",
+                                null,
+                                assets.open(assetPath)
+                            )
+                        } catch (e: java.io.IOException) {
+                            // Fall through to the generic handling below.
+                        }
+                    }
+
                     val response = assetLoader.shouldInterceptRequest(request.url)
                     if (response != null) return response
 
@@ -280,7 +312,7 @@ class MainActivity : ComponentActivity() {
                     // raw file keeps the app usable instead of returning
                     // null and letting the request reach the network as a DNS
                     // failure.
-                    val relative = url.path?.removePrefix(ASSET_PATH)
+                    val relative = url.path?.removePrefix(ASSET_PATH)?.trimStart('/')
                     if (!relative.isNullOrEmpty()) {
                         try {
                             val stream = assets.open(relative)
@@ -292,6 +324,8 @@ class MainActivity : ComponentActivity() {
                                 relative.endsWith(".svg") -> "image/svg+xml"
                                 relative.endsWith(".png") -> "image/png"
                                 relative.endsWith(".jpg") -> "image/jpeg"
+                                relative.endsWith(".woff2") -> "font/woff2"
+                                relative.endsWith(".woff") -> "font/woff"
                                 else -> "application/octet-stream"
                             }
                             return WebResourceResponse(mime, "utf-8", stream)
@@ -320,7 +354,7 @@ class MainActivity : ComponentActivity() {
             }
             webChromeClient = WebChromeClient()
 
-            loadUrl("$ASSET_ORIGIN$ASSET_PATH/index.html")
+            loadUrl("$ASSET_ORIGIN${ASSET_PATH}index.html")
         }
 
         setContentView(webView)
@@ -409,6 +443,38 @@ class MainActivity : ComponentActivity() {
         val file = File(dir, fileName)
         file.writeBytes(bytes)
         return file.absolutePath
+    }
+
+    /**
+     * Speaks through TextToSpeech, creating the engine on first use.
+     *
+     * Creating it in onCreate bound the TTS service during cold start for a
+     * feature only the pet page uses, and the bind can take a noticeable
+     * slice of the launch budget on a slow device. The first utterance pays
+     * that cost instead; a request that arrives before the engine is ready is
+     * held in pendingSpeech rather than dropped.
+     */
+    private fun speakWithTts(text: String) {
+        val trimmed = text.take(1200)
+        textToSpeech?.let {
+            it.speak(trimmed, TextToSpeech.QUEUE_FLUSH, null, "virtual-pet")
+            return
+        }
+        pendingSpeech = trimmed
+        if (ttsInitializing) return
+        ttsInitializing = true
+        textToSpeech = TextToSpeech(this) { result ->
+            ttsInitializing = false
+            if (result == TextToSpeech.SUCCESS) {
+                textToSpeech?.language = Locale.forLanguageTag("ur-PK")
+            }
+            pendingSpeech?.let { pending ->
+                if (result == TextToSpeech.SUCCESS) {
+                    textToSpeech?.speak(pending, TextToSpeech.QUEUE_FLUSH, null, "virtual-pet")
+                }
+            }
+            pendingSpeech = null
+        }
     }
 
     private fun deliverPetSpeechResult(text: String) {

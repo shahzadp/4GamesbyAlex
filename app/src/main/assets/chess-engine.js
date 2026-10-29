@@ -99,14 +99,20 @@ class ChessEngineClient {
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
+        this._loadTimer = null;
+        this._loadReject = null;
         this.loadFailed = true;
         reject(new Error('Engine load timed out'));
       }, 20000);
+      this._loadTimer = timer;
+      this._loadReject = reject;
 
       const finish = (ok, payload) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        this._loadTimer = null;
+        this._loadReject = null;
         if (ok) { this.ready = true; resolve(payload); }
         else { this.loadFailed = true; reject(payload instanceof Error ? payload : new Error(String(payload))); }
       };
@@ -302,6 +308,18 @@ class ChessEngineClient {
     if (this.worker) {
       try { this.worker.postMessage('quit'); this.worker.terminate(); } catch (e) { /* already gone */ }
       this.worker = null;
+    }
+    // A load still waiting for readyok will never finish now. Clear its timer
+    // and settle it, otherwise the caller hangs for the full 20s timeout and
+    // the timer keeps the engine closure alive in the meantime.
+    if (this._loadTimer) {
+      clearTimeout(this._loadTimer);
+      this._loadTimer = null;
+    }
+    if (this._loadReject) {
+      const rejectLoad = this._loadReject;
+      this._loadReject = null;
+      rejectLoad(new Error('Engine was disposed'));
     }
     // A search that was in flight when the engine was torn down will never
     // produce a bestmove now, so its promise has to be settled here. Without

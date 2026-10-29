@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Matches MainActivity.SPLASH_BACKGROUND and the WebView's own background.
+        The window background, the Android 12 splash, and the native launch
+        overlay all use this one colour, so there is no visible step between
+        the system splash, the overlay, and the page's first frame.
+    -->
+    <color name="splash_background">#05070C</color>
+</resources>

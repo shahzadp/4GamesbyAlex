@@ -4,10 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>4 Games by Alex</title>
+  <!--
+    Fonts are bundled in assets/fonts and declared with @font-face at the top
+    of styles.css.
+
+    They used to come from fonts.googleapis.com with a render-blocking <link>.
+    That is the one and only remote resource the launcher needed at startup, and
+    it sat in front of the first paint: on a cold start the WebView had to do
+    DNS, TLS and two round trips before it would render anything, and with no
+    connection it waited for the socket to time out. The app was otherwise
+    fully offline, so a plane-mode launch could sit on a blank screen for
+    seconds. Local files remove that entire class of delay and keep the exact
+    same type.
+  -->
+  <link rel="preload" href="fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body class="theme-main">
 
@@ -25,13 +36,8 @@
       <div class="app-grid-2x2">
         <!-- Card 1: Flappy Bird -->
         <button class="app-launch-card flappy-card" data-target="flappy">
-          <div class="card-thumb">
-            <div class="mini-sky">
-              <div class="mini-pipe p-top"></div>
-              <div class="mini-pipe p-bot"></div>
-              <div class="mini-bird">🐦</div>
-            </div>
-            <div class="mini-ground"></div>
+          <div class="card-thumb flappy-thumb">
+            <span class="flappy-card-emoji" aria-hidden="true">🐦</span>
           </div>
           <div class="card-meta">
             <span class="card-badge">01</span>
@@ -42,10 +48,21 @@
         <!-- Card 2: Chess -->
         <button class="app-launch-card chess-card" data-target="chess">
           <div class="card-thumb chess-thumb">
-            <div class="mini-chess-preview">
-              <span class="sq sq-w">♞</span><span class="sq sq-b">♟</span>
-              <span class="sq sq-b">♙</span><span class="sq sq-w">♜</span>
-            </div>
+            <!-- The same Staunton white pawn the board draws (buildPieceSvg in
+                 app.js), inlined so the card matches the pieces in play and
+                 stays crisp at any density. -->
+            <svg class="chess-card-pawn" viewBox="3.5 4.5 38 36" aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="card-pawn-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="55%" stop-color="#f7f5ee"/>
+                  <stop offset="100%" stop-color="#d9d5c7"/>
+                </linearGradient>
+              </defs>
+              <path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"
+                    fill="url(#card-pawn-fill)" stroke="#2a2a26" stroke-width="1.25"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </div>
           <div class="card-meta">
             <span class="card-badge">02</span>
@@ -60,47 +77,37 @@
           </div>
           <div class="card-meta">
             <span class="card-badge">03</span>
-            <h2>Virtual Pet</h2>
+            <h2 id="landing-pet-name">Virtual Pet</h2>
           </div>
         </button>
 
-        <!-- Card 4: Proto 2 -->
-        <button class="app-launch-card proto2-card" data-target="economy">
-          <div class="card-thumb proto2-thumb">
-            <!-- The Proto 2 adaptive launcher icon, transcribed from the APK's
-                 ic_launcher_background.xml + ic_launcher_foreground.xml. Inline SVG
-                 because a res/ drawable is not addressable from a WebView page. -->
-            <svg class="proto2-thumb-icon" viewBox="0 0 108 108" aria-hidden="true" focusable="false">
-              <defs>
-                <linearGradient id="p2-bg" x1="0" y1="0" x2="108" y2="108" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stop-color="#3B4363"/>
-                  <stop offset="1" stop-color="#5A5480"/>
-                </linearGradient>
-                <radialGradient id="p2-bloom" cx="30" cy="26" r="54" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stop-color="#BFC6F5" stop-opacity=".4"/>
-                  <stop offset="1" stop-color="#BFC6F5" stop-opacity="0"/>
-                </radialGradient>
-                <linearGradient id="p2-crown" x1="0" y1="0" x2="0" y2="24" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stop-color="#FFF2CD"/>
-                  <stop offset="1" stop-color="#FFDF94"/>
-                </linearGradient>
-              </defs>
-              <rect width="108" height="108" fill="url(#p2-bg)"/>
-              <rect width="108" height="108" fill="url(#p2-bloom)"/>
-              <g transform="translate(27.6 27.6) scale(2.2)">
-                <path d="M3.4 8.6l3.5 2.9L12 4.8l5.1 6.7 3.5-2.9-1.4 8.8H4.8L3.4 8.6z"
-                      fill="url(#p2-crown)" stroke="#A8801F" stroke-width="1.15" stroke-linejoin="round"/>
-                <path d="M5.2 15.4h13.6" fill="none" stroke="#A8801F" stroke-width="1.1" stroke-linecap="round"/>
-                <circle cx="12" cy="13.2" r="1.5" fill="#FFFAF0"/>
-                <circle cx="3.4" cy="8.6" r="1.5" fill="#FFF2CD"/>
-                <circle cx="20.6" cy="8.6" r="1.5" fill="#FFF2CD"/>
-                <circle cx="12" cy="4.8" r="1.6" fill="#FFFAF0"/>
+        <!-- Card 4: Alexcraft -->
+        <button class="app-launch-card alexcraft-card" data-target="alexcraft">
+          <div class="card-thumb alexcraft-thumb">
+            <!-- An isometric grass block: three faces, one texture colour each,
+                 shaded the way the game's own block light falls. Inline SVG so
+                 the card stays crisp at every density and needs no extra file. -->
+            <svg class="alexcraft-thumb-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+              <rect width="64" height="64" fill="#0b1220"/>
+              <g stroke="#0b1220" stroke-width="1.2" stroke-linejoin="round">
+                <!-- top face (grass) -->
+                <path d="M32 8 56 21 32 34 8 21z" fill="#7cbd4a"/>
+                <!-- left face (dirt) -->
+                <path d="M8 21 32 34v22L8 43z" fill="#8a5a34"/>
+                <!-- right face (dirt, in shade) -->
+                <path d="M56 21 32 34v22l24-13z" fill="#6f4527"/>
               </g>
+              <!-- grass fringe hanging over the dirt -->
+              <path d="M8 21 32 34l7-3.8-8-4.4z" fill="#5f9a34"/>
+              <path d="M56 21 32 34l-7-3.8 8-4.4z" fill="#54882e"/>
+              <!-- a few blocky highlights on the top face -->
+              <path d="M26 15.5 30 17.5 26 19.5 22 17.5z" fill="#8fd257" opacity=".7"/>
+              <path d="M38 22.5 41 24 38 25.5 35 24z" fill="#8fd257" opacity=".5"/>
             </svg>
           </div>
           <div class="card-meta">
             <span class="card-badge">04</span>
-            <h2>Proto 2</h2>
+            <h2>Alexcraft</h2>
           </div>
         </button>
       </div>
@@ -416,19 +423,11 @@
           <div id="chess-move-log" class="chess-movelog"></div>
         </div>
 
-        <!-- Fullscreen & Reset Buttons Below Game Screen -->
+        <!-- Reset Button Below Game Screen -->
         <div class="mobile-bottom-actions">
-          <button class="mobile-btn btn-fullscreen" data-target-container="stage-chess">
-            <span class="btn-icon">⛶</span> <span class="btn-label">Fullscreen</span>
-          </button>
           <button id="btn-reset-chess" class="mobile-btn btn-reset">
             <span class="btn-icon">🔄</span> <span class="btn-label">Reset</span>
           </button>
-        </div>
-
-        <!-- Quick Hint Bar -->
-        <div class="mobile-hint-box">
-          <span>👑 Castling enabled &bull; Tap King then 2 squares over</span>
         </div>
       </div>
 
@@ -486,9 +485,9 @@
         </button>
         <div class="bar-title-box">
           <span class="bar-subtitle">Your companion</span>
-          <h2 class="bar-title">Virtual Pet</h2>
+          <h2 class="bar-title" id="bar-pet-name">Virtual Pet</h2>
         </div>
-        <button class="icon-btn-round nav-quick-btn" data-target="economy" title="Next: Micro Economy">
+        <button class="icon-btn-round nav-quick-btn" data-target="alexcraft" title="Next: Alexcraft">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </header>
@@ -734,30 +733,38 @@
               <button id="pet-connect" class="mobile-btn" type="button">Save key securely</button>
               <button id="pet-forget-key" class="pet-forget-key" type="button" hidden>Forget saved key</button>
               <p id="pet-connection-status" class="pet-connection-status" role="status">On Android, saved API keys are encrypted on this device.</p>
+              <label for="pet-name">Companion name</label>
+              <input id="pet-name" type="text" value="Doggo" autocomplete="off" spellcheck="false" placeholder="Name your pet...">
             </div>
           </details>
         </section>
       </div>
     </section>
-    <!-- ================= PAGE 4: PROTO 2 ================= -->
-    <!-- Proto 2, the economy simulator, running as a same-origin iframe so it keeps
-         its own document, module scope and 100dvh layout. See tools/embed-proto2.cjs
-         for why it is framed rather than inlined.
+    <!-- ================= PAGE 4: ALEXCRAFT ================= -->
+    <!-- Alexcraft, the voxel sandbox. In the browser it runs as a same-origin
+         iframe so it keeps its own document, module scope and 100dvh layout.
+         On Android the card opens AlexcraftActivity instead and this frame is
+         never used; see switchPage() in app.js.
 
-         No src in the markup: app.js attaches it on first entry, so the whole module
-         graph (about 512 KB across 15 files) is not fetched by a player who only ever
-         opens the other three games. -->
-    <section id="page-economy" class="page" data-page="economy">
-      <iframe class="proto-frame" id="proto-frame" title="Proto 2 economy simulator"
-              allow="autoplay"></iframe>
+         No src in the markup: app.js attaches it on first entry, so the game
+         (about 1.3 MB including its textures and sounds) is not fetched by a
+         player who only ever opens the other three games. -->
+    <section id="page-alexcraft" class="page" data-page="alexcraft">
+      <iframe class="alexcraft-frame" id="alexcraft-frame" title="Alexcraft"
+              allow="autoplay; fullscreen; pointer-lock"></iframe>
     </section>
   </div>
 
-  <script src="chess-core.js"></script>
-  <script src="chess-openings.js"></script>
-  <script src="chess-engine.js"></script>
-  <script src="chess-quiz.js"></script>
-  <script src="pet3d/pet3d.js"></script>
-  <script src="app.js"></script>
+  <script defer src="chess-core.js"></script>
+  <script defer src="chess-openings.js"></script>
+  <script defer src="chess-engine.js"></script>
+  <script defer src="chess-quiz.js"></script>
+  <!--
+    pet3d/pet3d.js (~550 KB of three.js) is deliberately NOT loaded here.
+    It used to be a blocking script on every launch, so every player paid to
+    parse and compile it even if they only ever opened Flappy Bird. app.js
+    injects it the first time the pet page is opened; see loadPet3DScript().
+  -->
+  <script defer src="app.js"></script>
 </body>
 </html>

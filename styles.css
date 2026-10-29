@@ -1,0 +1,3209 @@
+/* =======================================================
+   4 Games by Alex - Mobile-Centric App Design
+   Fast, tactile, native mobile feel
+   ======================================================= */
+
+/* ------------------------------------------------------------------
+   Bundled web fonts.
+
+   These replace the render-blocking fonts.googleapis.com stylesheet the
+   page used to load. Outfit is a variable font, so one file covers every
+   weight the UI asks for (400-800). Latin-ext is kept because a few labels
+   use accented characters; Urdu text falls through to the system font via
+   unicode-range, exactly as it did with the hosted copy.
+   ------------------------------------------------------------------ */
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/outfit-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/outfit-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/press-start-2p-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-arcade: 'Press Start 2P', monospace, sans-serif;
+  
+  --bg-app: #090b10;
+  --bg-surface: #131722;
+  --bg-card: rgba(23, 28, 42, 0.9);
+  --bg-card-active: #1e2436;
+  
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-active: rgba(255, 255, 255, 0.25);
+  
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  
+  --accent-gold: #f59e0b;
+  --accent-green: #10b981;
+  --accent-indigo: #6366f1;
+  --accent-red: #ef4444;
+  
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+  
+  --touch-scale: scale(0.96);
+  --transition-fast: 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Page Background Themes */
+body {
+  font-family: var(--font-main);
+  background: #030407;
+  color: var(--text-main);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  overflow-x: hidden;
+}
+
+body.theme-main { background: radial-gradient(circle at 50% 10%, #151a2d 0%, #05070c 85%); }
+body.theme-flappy { background: radial-gradient(circle at 50% 10%, #1c2738 0%, #05070c 85%); }
+body.theme-chess { background: radial-gradient(circle at 50% 10%, #10261f 0%, #05070c 85%); }
+body.theme-pet { background: radial-gradient(circle at 50% 10%, #272a2f 0%, #05070c 85%); }
+body.theme-alexcraft { background: radial-gradient(circle at 50% 10%, #142b24 0%, #05070c 85%); }
+
+* {
+  box-sizing: border-box;
+}
+
+/* ================= MOBILE APP SHELL ================= */
+
+.mobile-app-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  background: var(--bg-app);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+  padding: 1.25rem 1rem env(safe-area-inset-bottom);
+}
+
+.page {
+  display: none;
+  opacity: 0;
+  width: 100%;
+  flex-grow: 1;
+}
+
+.page.active {
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  animation: mobileFadeIn 0.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@keyframes mobileFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================= MOBILE TOP APP BAR ================= */
+
+.mobile-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+  gap: 0.5rem;
+}
+
+.icon-btn-round {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.icon-btn-round:active {
+  transform: var(--touch-scale);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.bar-title-box {
+  text-align: center;
+  flex: 1;
+}
+
+.bar-subtitle {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-gold);
+}
+
+body.theme-chess .bar-subtitle { color: var(--accent-green); }
+body.theme-pet .bar-subtitle { color: #c3c8ce; }
+
+.bar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* ================= MAIN HOME SCREEN ================= */
+
+.app-home-header {
+  text-align: center;
+  padding: 1.5rem 0 1.25rem;
+}
+
+.app-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.app-logo {
+  font-size: 2.4rem;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(16, 185, 129, 0.25));
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.app-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 2x2 App Grid */
+.app-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.app-launch-card {
+  appearance: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  animation: spring-bounce 0.6s ease-out;
+}
+
+@keyframes spring-bounce {
+  0% { transform: scale(1) translateY(0); }
+  30% { transform: scale(1.06) translateY(-6px); }
+  50% { transform: scale(0.98) translateY(0); }
+  70% { transform: scale(1.02) translateY(-2px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+.app-launch-card:active {
+  transform: var(--touch-scale);
+  background: var(--bg-card-active);
+}
+
+.flappy-card { border-bottom: 3px solid var(--accent-gold); }
+.chess-card { border-bottom: 3px solid var(--accent-green); }
+.pet-card { border-bottom: 3px solid #a9afb6; }
+/* Same green as the grass on the card's block, so the accent and the artwork
+   cannot drift apart. */
+.alexcraft-card { border-bottom: 3px solid #7cbd4a; }
+
+.alexcraft-thumb {
+  overflow: hidden;
+  border: 1px solid rgba(124, 189, 74, 0.28);
+  background: #0b1220;
+}
+
+.pet-card .card-thumb {
+  background: radial-gradient(circle at 50% 40%, #f7f4ef, #d2d5d9 78%);
+}
+
+.pet-card-emoji {
+  font-size: 4.25rem;
+  line-height: 1;
+  filter: drop-shadow(0 7px 5px rgba(24, 28, 33, 0.25));
+  animation: tileBob 2.4s ease-in-out infinite;
+}
+
+@keyframes tileBob {
+  0%, 100% { transform: translateY(1px) rotate(-2deg); }
+  50% { transform: translateY(-4px) rotate(2deg); }
+}
+
+.card-thumb {
+  width: 100%;
+  aspect-ratio: 1/1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.6rem;
+}
+
+.card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Flappy thumbnail inside card: the bird alone on its sky. */
+.flappy-thumb {
+  background: linear-gradient(to bottom, #1a2a3a 0%, #2d4a6e 55%, #4a6fa5 100%);
+}
+
+.flappy-card-emoji {
+  font-size: 4.25rem;
+  line-height: 1;
+  filter: drop-shadow(0 7px 5px rgba(24, 28, 33, 0.25));
+  animation: tileBob 2.4s ease-in-out infinite;
+}
+
+/* Chess thumbnail inside card: one white pawn, as large as the thumb allows. */
+.chess-thumb {
+  background: #1e293b;
+}
+
+.chess-card-pawn {
+  width: 86%;
+  height: 86%;
+  display: block;
+  filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.35));
+}
+
+.card-meta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.card-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+}
+
+.card-meta h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.app-footer-bar {
+  margin-top: auto;
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+/* ================= GAME STAGE & FULLSCREEN BUTTONS ================= */
+
+.mobile-stage-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  flex: 1;
+}
+
+/* Action Bar Below Game Screen */
+.mobile-bottom-actions {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Wrap onto a second row instead of running off the side of the screen.
+     Three buttons with labels like "Reset Board" and "Stockfish 19" simply do
+     not fit across a narrow phone, and a single overflowing row pushed the
+     bar partly outside the layout. */
+  flex-wrap: wrap;
+  row-gap: 0.6rem;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  margin-bottom: 0.5rem;
+  /* Never allow a child to push the bar wider than its container. */
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.mobile-btn {
+  appearance: none;
+  font-family: var(--font-main);
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0.75rem 1.4rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  flex: 1 1 auto;
+  /* A flex item will not shrink below its content width unless min-width is
+     explicitly zero. Without this the labels set a floor and the row
+     overflows the screen. */
+  min-width: 0;
+  max-width: 200px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+/* Let the label ellipsis rather than forcing the button wider than its share. */
+.mobile-btn .btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-btn .btn-icon {
+  flex: 0 0 auto;
+}
+
+.mobile-btn:active {
+  transform: var(--touch-scale);
+}
+
+.btn-fullscreen {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-reset {
+  background: #10b981;
+  color: #042f2e;
+  border-color: #34d399;
+}
+
+.mobile-stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  font-family: var(--font-arcade);
+  font-size: 0.78rem;
+  color: var(--accent-gold);
+}
+
+.pill-label { color: var(--text-muted); font-size: 0.7rem; }
+
+/* Fullscreen Mode State */
+.mobile-stage-container.fullscreen-active,
+.mobile-stage-container:fullscreen,
+.mobile-stage-container:-webkit-full-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  overflow: hidden;
+  background: #000;
+}
+
+body.android-fullscreen {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body.android-fullscreen .page.active {
+  transform: none !important;
+  animation: none !important;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-bottom-actions {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: 12px;
+  z-index: 30;
+  width: auto;
+  margin: 0;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-bottom-actions > :not(.btn-fullscreen) {
+  display: none;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-bottom-actions .btn-fullscreen {
+  flex: none;
+  width: auto;
+  max-width: none;
+}
+
+/* ================= FLAPPY BIRD STYLING ================= */
+
+.arcade-cabinet {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  height: 520px;
+  background: #000;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 24px rgba(245, 158, 11, 0.25);
+  border: 2px solid rgba(245, 158, 11, 0.7);
+  touch-action: manipulation;
+}
+
+.mobile-stage-container.fullscreen-active .arcade-cabinet {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+#flappy-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.flappy-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 12, 19, 0.85);
+  backdrop-filter: blur(4px);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+  z-index: 20;
+}
+
+.flappy-overlay.active {
+  display: flex;
+}
+
+.retro-title {
+  font-family: var(--font-arcade);
+  font-size: 1.4rem;
+  color: #facc15;
+  text-shadow: 2px 2px #b45309, 0 0 12px rgba(245, 158, 11, 0.8);
+  margin-bottom: 1.2rem;
+}
+
+.bird-avatar-anim {
+  font-size: 3rem;
+  margin-bottom: 1.2rem;
+  animation: birdBounce 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes birdBounce {
+  from { transform: translateY(-4px); }
+  to { transform: translateY(6px); }
+}
+
+.instructions-pill {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-full);
+  margin-bottom: 1.5rem;
+}
+
+.arcade-btn {
+  font-family: var(--font-arcade);
+  font-size: 0.85rem;
+  background: #f59e0b;
+  color: #000;
+  padding: 0.85rem 1.6rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: 0 4px #b45309;
+}
+
+.arcade-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px #b45309;
+}
+
+.retro-gameover {
+  font-family: var(--font-arcade);
+  font-size: 1.45rem;
+  color: #ef4444;
+  text-shadow: 2px 2px #7f1d1d, 0 0 15px rgba(239, 68, 68, 0.6);
+  margin-bottom: 1.2rem;
+}
+
+.score-board {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.75rem;
+  width: 100%;
+  max-width: 240px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-arcade);
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.score-row .score-num {
+  font-size: 1.15rem;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* ================= CHESS STYLING (FILLED SOLID PIECES) ================= */
+
+.mobile-chess-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+}
+
+.chess-turn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 0.82rem;
+  border: 1px solid var(--border-light);
+}
+
+.chess-turn-pill .turn-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.chess-turn-pill.white-turn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+.chess-turn-pill.white-turn .turn-dot {
+  background: #ffffff;
+  box-shadow: 0 0 8px #ffffff;
+}
+
+.chess-turn-pill.black-turn {
+  background: rgba(15, 23, 42, 0.9);
+  color: #94a3b8;
+}
+.chess-turn-pill.black-turn .turn-dot {
+  background: #1e293b;
+  border: 1px solid #94a3b8;
+}
+
+.chess-move-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  padding: 0.35rem 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+}
+
+.board-frame {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1/1;
+  background: #312e2b;
+  border: 2px solid rgba(0, 0, 0, 0.45);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  /* Promoted to its own compositor layer.
+   *
+   * The board is 64 squares each holding an inline SVG, sitting on a large
+   * blurred shadow. Without its own layer the whole thing is repainted on
+   * every scroll frame, which on a phone WebView is the single most expensive
+   * thing on the page and reads as the page being slow to scroll. Promoting it
+   * means scrolling only has to move the layer. */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.mobile-stage-container.fullscreen-active .board-frame {
+  width: min(100%, calc(100dvh - 150px));
+  max-width: none;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-hint-box {
+  display: none;
+}
+
+.chessboard-grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+}
+
+.chess-square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chess-square.sq-w { background-color: #ebecd0; }
+.chess-square.sq-b { background-color: #739552; }
+
+/* Last move square */
+.chess-square.last-move {
+  background-image: linear-gradient(rgba(255, 255, 0, 0.38), rgba(255, 255, 0, 0.38)) !important;
+}
+
+/* Selected square */
+.chess-square.selected {
+  background-image: linear-gradient(rgba(255, 255, 0, 0.55), rgba(255, 255, 0, 0.55)) !important;
+}
+
+/* Valid move target dot - translucent, like a physical board marker */
+.chess-square.valid-move::after {
+  content: '';
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  background: rgba(20, 30, 10, 0.22);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Valid capture target ring - drawn around the piece that can be taken */
+.chess-square.valid-capture::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 6px solid rgba(20, 30, 10, 0.22);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* --- Quiz markers --------------------------------------------------------
+ *
+ * When the quiz reveals a side's answer it marks the moves that counted, so
+ * the player can count the same moves on the board that the quiz counted.
+ * The origin of a move gets a corner dot and its destination gets a ring,
+ * which is the same language the move hints already use.
+ */
+
+.chess-square.quiz-from::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(6, 214, 160, 0.98);
+  box-shadow: 0 0 8px rgba(6, 214, 160, 0.9), 0 0 0 3px rgba(4, 47, 46, 0.6);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.chess-square.quiz-to::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 4px solid rgba(6, 214, 160, 0.98);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(6, 214, 160, 0.7), 0 0 0 3px rgba(4, 47, 46, 0.5);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* The moves that were left out because they are blunders. They are drawn in
+   red, because the whole point of showing them is that a player who counted
+   one of them is looking at the wrong answer. */
+.chess-square.quiz-bad-from::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.98);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.9), 0 0 0 3px rgba(60, 10, 10, 0.6);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.chess-square.quiz-bad-to::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 4px solid rgba(239, 68, 68, 0.98);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7), 0 0 0 3px rgba(60, 10, 10, 0.5);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Solid Filled Vector Chess Piece - full square footprint with a soft shadow */
+.chess-piece {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+  transition: transform 0.1s ease;
+  position: relative;
+}
+
+.chess-piece svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Black pieces get a slightly deeper shadow to sit above the dark squares */
+.chess-piece.piece-b {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+.chess-square:active .chess-piece {
+  transform: scale(0.94);
+}
+
+/* Captured Trays */
+.captured-tray {
+  width: 100%;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-xs);
+  overflow-x: auto;
+  font-size: 1.15rem;
+  margin: 0.2rem 0;
+}
+
+.captured-tray svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mobile-hint-box {
+  width: 100%;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin-top: 0.35rem;
+}
+
+/* ================= VIRTUAL PET ================= */
+
+.pet-stage-container {
+  min-height: 0;
+  align-items: stretch;
+  gap: 0.7rem;
+}
+
+.pet-world {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 230px;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 0.85rem 0.6rem;
+  overflow: hidden;
+  border: 1px solid rgba(196, 201, 207, 0.18);
+  border-radius: 14px;
+  background: linear-gradient(155deg, #262a2e, #1a1d20 78%);
+  perspective: 900px;
+  transform-style: preserve-3d;
+}
+
+.pet-world::before {
+  position: absolute;
+  right: -8%;
+  bottom: -2%;
+  left: -8%;
+  height: 30%;
+  background: linear-gradient(180deg, rgba(160, 166, 172, 0.06), rgba(92, 98, 104, 0.38));
+  clip-path: polygon(0 28%, 100% 0, 100% 100%, 0 100%);
+  content: '';
+  pointer-events: none;
+}
+
+.pet-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 34px;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(226, 231, 236, 0.09);
+  color: #d2d6da;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.pet-mood-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: #c3c8ce;
+  box-shadow: 0 0 10px rgba(195, 200, 206, 0.5);
+}
+
+.pet-bond {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  padding: 0.22rem 0.48rem;
+  border: 1px solid rgba(255, 156, 137, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 156, 137, 0.08);
+  color: #f2ab98;
+  font-weight: 700;
+}
+
+.pet-needs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  width: 100%;
+  margin: 0.45rem 0 0.25rem;
+}
+
+.pet-need {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  color: #c6cace;
+  font-size: 0.7rem;
+}
+
+.pet-need progress, .pet-bond-progress progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  accent-color: #c3c8ce;
+}
+
+.pet-need progress::-webkit-progress-bar, .pet-bond-progress progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.pet-need progress::-webkit-progress-value, .pet-bond-progress progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8f969d, #d3d7db);
+  transition: width 350ms ease;
+}
+
+.pet-need:nth-child(2) progress::-webkit-progress-value { background: linear-gradient(90deg, #79bfe0, #a4e1e3); }
+.pet-need:nth-child(3) progress::-webkit-progress-value { background: linear-gradient(90deg, #f29d83, #f2cb7a); }
+
+.pet-bond-progress {
+  display: grid;
+  grid-template-columns: auto minmax(40px, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  color: #f2c4a5;
+  font-size: 0.68rem;
+}
+
+.pet-bond-progress progress {
+  height: 6px;
+  accent-color: #edaa70;
+}
+
+.pet-bond-progress progress::-webkit-progress-value {
+  background: linear-gradient(90deg, #dd865e, #f2c36f);
+}
+
+.pet-image-wrap {
+  position: relative;
+  display: grid;
+  flex: 1;
+  place-items: center;
+  width: 100%;
+  min-height: 150px;
+  max-height: 310px;
+  z-index: 1;
+  perspective: 900px;
+}
+
+.pet-toy {
+  position: absolute;
+  bottom: 20%;
+  left: 5%;
+  z-index: 3;
+  font-size: 1.5rem;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pet-world.pet-playing .pet-toy {
+  animation: petFetchToy 1.05s cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+@keyframes petFetchToy {
+  0% { opacity: 0; transform: translate(0, 10px) rotate(0) scale(0.55); }
+  15%, 75% { opacity: 1; }
+  55% { transform: translate(185px, -38px) rotate(260deg) scale(1.15); }
+  100% { opacity: 0; transform: translate(255px, 8px) rotate(520deg) scale(0.7); }
+}
+
+.pet-world.pet-playing .pet-avatar { animation: petPlayHop 520ms ease-in-out 2; }
+.pet-world.pet-feeding .pet-avatar { animation: petNibble 420ms ease-in-out 2; }
+.pet-world.pet-napping .pet-avatar { animation: petDoze 750ms ease-in-out; }
+
+@keyframes petPlayHop {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-14px) rotate(-3deg); }
+}
+
+@keyframes petNibble {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(-4deg) translateY(2px); }
+  70% { transform: rotate(4deg) translateY(2px); }
+}
+
+@keyframes petDoze {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  50% { transform: rotate(-3deg) translateY(5px); }
+}
+
+.pet-avatar {
+  position: relative;
+  /* The dog fills whatever vertical room the world panel has left over, rather
+     than claiming a fixed height. A fixed height only worked on one screen
+     size: the paws sit at y=562 of the 600-unit viewBox, so a box that is
+     even slightly too tall drops them onto the button row, and the height
+     that is safe on a phone was leaving the dog far too small on a tablet.
+     Filling the space keeps the clearance identical everywhere and lets the
+     art be as large as the layout allows. The bottom padding is the guarantee
+     that the paws stop short of the controls. */
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 0 0 18px;
+  box-sizing: border-box;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* ---------- 3D stage -------------------------------------------------
+   The canvas takes over from the flat artwork once the Blender-built
+   model has loaded. `touch-action: pan-y` is what makes the sideways
+   scroll work: the browser keeps handling vertical page scroll, while
+   horizontal drags are handed to the 3D stage so the pet can be spun
+   around. Without it a horizontal swipe would try to scroll the page
+   instead of turning the model. */
+.pet-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  touch-action: pan-y;
+  cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.pet-canvas.is-live {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pet-canvas.is-dragging {
+  cursor: grabbing;
+}
+
+/* While the 3D pet is up, the flat artwork steps aside. It stays in the
+   DOM so a device without WebGL still gets the original SVG dog. */
+.pet-world.pet-3d-active .pet-avatar #touch-dog-svg {
+  display: none;
+}
+
+/* While the 3D model is loading, the flat artwork is hidden completely. It
+   used to be dimmed to 35%, which still read as "the 2D dog" and then swapped
+   visibly to the model once the ~1 MB GLB arrived. If 3D cannot start (no
+   WebGL, script or model failure) app.js removes this class, and the SVG dog
+   returns as the fallback. */
+.pet-world.pet-3d-loading .pet-avatar #touch-dog-svg {
+  visibility: hidden;
+}
+
+/* The avatar is an invisible box while the model loads, so it must not swallow
+   taps or show the petting cursor for content that is not on screen yet. */
+.pet-world.pet-3d-loading .pet-avatar {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Quiet loading indicator in the space the model will occupy. */
+.pet-world.pet-3d-loading .pet-image-wrap::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 3px solid rgba(255, 255, 255, 0.16);
+  border-top-color: #f2c36f;
+  border-radius: 50%;
+  animation: pet3dSpin 900ms linear infinite;
+  pointer-events: none;
+}
+
+@keyframes pet3dSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Speech bubble for the 3D pet. The SVG carried its own bubble, so in 3D
+   mode this overlay takes over the same role. */
+.pet-bubble {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  z-index: 4;
+  max-width: 62%;
+  padding: 0.42rem 0.7rem;
+  border: 2px solid #4a2a14;
+  border-radius: 12px;
+  background: #fff;
+  color: #d2452b;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.7);
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(.2, .9, .3, 1.3);
+}
+
+.pet-bubble[hidden] {
+  display: none;
+}
+
+.pet-bubble.is-shown {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* A short nudge on first load so people know the pet can be turned. */
+.pet-hint {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  z-index: 4;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(20, 22, 25, 0.6);
+  color: #cfd3d7;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  transition: opacity 400ms ease, transform 400ms ease;
+}
+
+.pet-hint.is-shown {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Touch-dog renders inline and carries its own shading, so there is no shadow here —
+   which is what the comment above this rule always said. The rule had re-added a
+   13px/12px drop-shadow, and because a transform animation inside the SVG repaints
+   its raster, that blur was re-rasterised on every frame of every idle loop. Worth
+   ~15% of a core on its own.
+
+   The one animation here is deliberately on the SVG ELEMENT and not on one of its
+   parts: an HTML box transform is compositor-accelerated, an SVG child transform is
+   not. See tools/fix-pet-perf.js for the measurements. */
+.pet-avatar #touch-dog-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: petIdle 5.5s ease-in-out infinite;
+  will-change: transform;
+  transform-origin: 50% 78%;
+}
+
+@keyframes petIdle {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%      { transform: translateY(-1.5px) scaleY(1.018); }
+}
+
+/* Honoured for the idle loops, not for the player-triggered reactions: if someone
+   has asked the system for less motion, a dog that breathes on its own forever is
+   exactly the thing they asked not to see. A tap still gets a bark. */
+@media (prefers-reduced-motion: reduce) {
+  .pet-avatar #touch-dog-svg, .pet-spark, .pet-card-emoji,
+  .flappy-card-emoji { animation: none !important; }
+  #eyes { animation: none !important; }
+}
+
+.pet-portrait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@keyframes petPuppyReact {
+  0%, 100% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-5px) scale(1.035) rotate(-2deg); }
+  70% { transform: translateY(-2px) scale(1.015) rotate(2deg); }
+}
+
+.pet-body {
+  transform-box: fill-box;
+  transform-origin: 50% 85%;
+  animation: petBreathing 2.8s ease-in-out infinite;
+}
+
+.pet-head {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+  animation: petHeadIdle 4.5s ease-in-out infinite;
+}
+
+.pet-tail {
+  transform-box: fill-box;
+  transform-origin: 10% 75%;
+  animation: petTailWag 1.3s ease-in-out infinite alternate;
+}
+
+.pet-ear {
+  transform-box: fill-box;
+  transform-origin: 50% 85%;
+}
+
+.pet-ear-left { animation: petEarLeft 3.4s ease-in-out infinite; }
+.pet-ear-right { animation: petEarRight 3.4s ease-in-out infinite; }
+
+.pet-leg-front-left, .pet-leg-front-right {
+  transform-box: fill-box;
+  transform-origin: 50% 10%;
+}
+
+.pet-blink {
+  opacity: 0;
+  animation: petBlink 4.8s linear infinite;
+}
+
+@keyframes petBreathing {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-2px) scaleY(1.018); }
+}
+
+@keyframes petHeadIdle {
+  0%, 42%, 100% { transform: rotateY(-3deg) rotateZ(0); }
+  66% { transform: rotateY(4deg) rotateZ(1.5deg); }
+  82% { transform: rotateY(0) rotateZ(-1deg); }
+}
+
+@keyframes petTailWag {
+  from { transform: rotate(-19deg); }
+  to { transform: rotate(23deg); }
+}
+
+@keyframes petEarLeft {
+  0%, 88%, 100% { transform: rotate(0); }
+  92% { transform: rotate(-9deg); }
+  96% { transform: rotate(3deg); }
+}
+
+@keyframes petEarRight {
+  0%, 88%, 100% { transform: rotate(0); }
+  92% { transform: rotate(8deg); }
+  96% { transform: rotate(-2deg); }
+}
+
+@keyframes petBlink {
+  0%, 89%, 93%, 100% { opacity: 0; }
+  90%, 92% { opacity: 1; }
+}
+
+/* Touch-dog SVG drives its own reactions via the `r <name>` class on the root,
+     so the old per-part `pet-reacting` overrides are no longer needed. */
+@keyframes petTailExcited {
+  from { transform: rotate(-29deg); }
+  to { transform: rotate(31deg); }
+}
+
+@keyframes petHeadNuzzle {
+  0%, 100% { transform: translateY(0) rotateZ(0); }
+  35% { transform: translateY(-5px) rotateZ(-4deg); }
+  70% { transform: translateY(-2px) rotateZ(3deg); }
+}
+
+@keyframes petPawLift {
+  0%, 100% { transform: rotate(0); }
+  45% { transform: rotate(-18deg) translateY(-5px); }
+}
+
+@keyframes petRearStep {
+  0%, 100% { transform: rotate(0); }
+  45% { transform: rotate(8deg) translateY(2px); }
+}
+
+.pet-heart {
+  position: absolute;
+  right: 14%;
+  bottom: 20%;
+  color: #ff8d83;
+  font-size: 2rem;
+  opacity: 0;
+  transform: translateY(8px) scale(0.6);
+  pointer-events: none;
+}
+
+@keyframes petHeartPop {
+  25% { opacity: 1; transform: translateY(-9px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-28px) scale(0.8); }
+}
+
+.pet-spark {
+  position: absolute;
+  z-index: 1;
+  color: #f1d58a;
+  pointer-events: none;
+  animation: petSparkle 2.4s ease-in-out infinite;
+}
+
+.pet-spark-one { top: 14%; left: 16%; font-size: 1.15rem; }
+.pet-spark-two { right: 14%; bottom: 18%; font-size: 0.85rem; animation-delay: 0.8s; }
+
+@keyframes petSparkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.pet-care-actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.pet-care-action {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid rgba(226, 231, 236, 0.12);
+  border-radius: 8px;
+  background: #3a3d42;
+  color: #f2f4f6;
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.pet-care-action:nth-child(2) { background: #34383d; }
+.pet-care-action:nth-child(3) { background: #3f4147; }
+.pet-care-action:active { transform: scale(0.95); filter: brightness(1.2); }
+
+.pet-conversation {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.pet-chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  height: clamp(82px, 14vh, 120px);
+  padding: 0.55rem 0.65rem;
+  overflow-y: auto;
+  border: 1px solid rgba(218, 224, 230, 0.1);
+  border-radius: 10px;
+  background: #17191c;
+  overscroll-behavior: contain;
+}
+
+.pet-message {
+  max-width: 88%;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  color: #e9ebee;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.pet-message-bot, .pet-message-thinking {
+  align-self: flex-start;
+  border: 1px solid rgba(195, 200, 206, 0.12);
+  background: #25282c;
+}
+
+.pet-message-user {
+  align-self: flex-end;
+  background: #343a41;
+}
+
+.pet-message[lang="ur"] { direction: rtl; text-align: right; }
+
+.pet-message-thinking { color: #b7bcc1; }
+
+.pet-chat-form {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 48px;
+}
+
+.pet-chat-form input {
+  min-width: 0;
+  height: 44px;
+  flex: 1;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(218, 224, 230, 0.16);
+  border-radius: 12px;
+  outline: none;
+  background: #1b1e21;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.pet-chat-form input:focus {
+  border-color: rgba(195, 200, 206, 0.65);
+  box-shadow: 0 0 0 2px rgba(195, 200, 206, 0.08);
+}
+
+.pet-voice-btn, .pet-send-btn {
+  display: grid;
+  flex: 0 0 44px;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: #34373c;
+  color: #eef0f2;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.pet-send-btn { border-color: #c9ced4; background: #c9ced4; color: #191b1e; }
+.pet-send-btn:disabled { opacity: 0.5; cursor: wait; }
+
+.pet-settings {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.pet-settings summary {
+  width: fit-content;
+  padding: 0.25rem 0;
+  cursor: pointer;
+}
+
+.pet-settings-fields {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: #1c1f22;
+}
+
+.pet-settings-fields label { color: #cdd1d5; }
+
+.pet-settings-fields input {
+  min-width: 0;
+  width: 100%;
+  height: 40px;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xs);
+  background: #131518;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.pet-settings-fields .mobile-btn {
+  width: 100%;
+  max-width: none;
+  min-height: 40px;
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--radius-xs);
+  background: #c9ced4;
+  color: #191b1e;
+}
+
+.pet-connection-status {
+  margin: 0;
+  color: #a9aeb3;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* ================= DRAWING PAGE (FIRE) ================= */
+
+.mobile-drawing-frame {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 4/3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-light);
+  background: #000;
+}
+
+.mobile-stage-container.fullscreen-active .mobile-drawing-frame {
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  flex: 1;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
+
+.art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.doodle-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  z-index: 5;
+  touch-action: none;
+}
+
+.mobile-palette-bar {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: center;
+}
+
+.color-palette {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--c);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.color-swatch.active {
+  border-color: #fff;
+  transform: scale(1.15);
+  box-shadow: 0 0 10px var(--c);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-world *, .pet-image-wrap * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* =======================================================
+   FLAPPY BIRD - HARDCORE MODE
+   ======================================================= */
+
+/* Inactive: a muted ember tone that still reads as a button. */
+.btn-hardcore {
+  background: linear-gradient(135deg, rgba(239, 71, 111, 0.22), rgba(255, 209, 102, 0.12));
+  border-color: rgba(255, 209, 102, 0.45);
+  color: #ffe8b0;
+}
+
+/* Active: a solid hot gradient with a glow, so the current mode is
+   unmistakable at a glance without needing to read the label. */
+.btn-hardcore.active {
+  background: linear-gradient(135deg, #ef476f, #ff8c42);
+  border-color: #ffd166;
+  color: #2b0a0a;
+  box-shadow: 0 0 0 2px rgba(255, 209, 102, 0.35), 0 6px 18px rgba(239, 71, 111, 0.5);
+}
+
+.btn-hardcore .btn-icon {
+  filter: saturate(1.2);
+}
+
+/* The mode badge on the start overlay. */
+.flappy-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0.1rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffe8b0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+/* While hardcore is on, tint the mode badge to match. */
+#stage-flappy.hardcore-mode .flappy-mode-badge {
+  background: linear-gradient(135deg, rgba(239, 71, 111, 0.85), rgba(255, 140, 66, 0.75));
+  border-color: #ffd166;
+  color: #2b0a0a;
+}
+
+.flappy-status-line {
+  min-height: 1.1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffd166;
+  opacity: 0.9;
+}
+
+/* =======================================================
+   CHESS - STOCKFISH BOT, PROMOTION, MOVE LOG
+   ======================================================= */
+
+/* --- Mode selector (2-Player / Stockfish) ------------------------------- */
+
+.chess-mode-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.15rem 0 0.5rem;
+  min-width: 0;
+}
+
+.chess-mode-switch {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.chess-mode-opt {
+  appearance: none;
+  flex: 1 1 0;
+  /* Without min-width:0 the labels set a floor and the switch overflows. */
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.chess-mode-opt .mode-ico {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.chess-mode-opt .mode-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chess-mode-opt.active {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  color: #042f2e;
+  box-shadow: 0 2px 10px rgba(6, 214, 160, 0.35);
+}
+
+.chess-mode-label {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+}
+
+/* On a narrow phone the label is redundant next to the switch itself. */
+@media (max-width: 420px) {
+  .chess-mode-label {
+    display: none;
+  }
+}
+
+/* --- Bot / mode buttons ------------------------------------------------ */
+
+/* Both these buttons carry a text label that must stay on one line. Without
+   an explicit white-space they wrapped ("Stockfish / 19") and the button grew
+   tall enough to unbalance the whole action row. */
+.btn-bot,
+.btn-hardcore {
+  white-space: nowrap;
+}
+
+/* On a narrow phone, drop the text label to an icon-only button rather than
+   letting three labelled buttons fight for a single row. The title/aria-label
+   still identify the control.
+   Only the mode buttons are collapsed: the chess action bar now holds just
+   Fullscreen and Reset, which fit side by side with their labels intact. */
+@media (max-width: 420px) {
+  .mobile-bottom-actions .btn-bot .btn-label,
+  .mobile-bottom-actions .btn-hardcore .btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .mobile-bottom-actions .btn-bot,
+  .mobile-bottom-actions .btn-hardcore {
+    flex: 0 0 auto;
+    min-width: 52px;
+    padding: 0.75rem 0.9rem;
+    gap: 0;
+  }
+}
+.btn-bot {
+  background: linear-gradient(135deg, rgba(17, 138, 178, 0.28), rgba(6, 214, 160, 0.14));
+  border-color: rgba(6, 214, 160, 0.45);
+  color: #c9f7ea;
+}
+
+/* Bot engaged: solid, so it is obvious the machine is now playing. */
+.btn-bot.active {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  border-color: #7ef0d0;
+  color: #042f2e;
+  box-shadow: 0 0 0 2px rgba(6, 214, 160, 0.3), 0 6px 18px rgba(6, 214, 160, 0.4);
+}
+
+/* Disabled while the engine is calculating: show it, do not allow re-entry. */
+.btn-bot:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Engine status line: loading and error messages land here. */
+.chess-status-line {
+  min-height: 1.15rem;
+  margin: 0.15rem 0 0.35rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #7ef0d0;
+}
+
+/* --- Promotion picker ------------------------------------------------- */
+
+.promotion-picker {
+  display: none;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  margin: 0.5rem 0;
+  padding: 0.7rem;
+  border-radius: var(--radius-md, 14px);
+  border: 1px solid rgba(255, 209, 102, 0.4);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* The JS adds .active; the picker is hidden by default. */
+.promotion-picker.active {
+  display: flex;
+}
+
+.promo-title {
+  width: 100%;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffd166;
+}
+
+.promo-choice {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.7rem;
+  min-width: 62px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.promo-choice:active {
+  transform: var(--touch-scale);
+  background: rgba(255, 209, 102, 0.25);
+}
+
+.promo-piece {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
+
+.promo-piece svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.promo-name {
+  white-space: nowrap;
+}
+
+/* --- Move log --------------------------------------------------------- */
+
+.chess-movelog-wrap {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.chess-movelog-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.35rem;
+}
+
+.chess-movelog {
+  max-height: 132px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.movelog-row {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.1rem 0;
+}
+
+.movelog-num {
+  color: rgba(255, 255, 255, 0.45);
+  text-align: right;
+}
+
+.movelog-san {
+  color: #eaf6ff;
+  font-weight: 600;
+}
+
+.movelog-empty {
+  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+}
+
+/* --- Move count quiz ------------------------------------------------------
+ *
+ * The fourth chess mode. Hidden by default and switched on by the .active
+ * class, which only the quiz controller sets, so the other three modes lay
+ * out exactly as they did before.
+ */
+
+.chess-quiz-panel {
+  display: none;
+  width: 100%;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.7rem 0.75rem 0.65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  background: rgba(255, 209, 102, 0.07);
+}
+
+.chess-quiz-panel.active {
+  display: block;
+}
+
+.quiz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.quiz-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #ffd166;
+}
+
+.quiz-score-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.quiz-score-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.quiz-score {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #ffd166;
+}
+
+.quiz-note {
+  margin: 0 0 0.55rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.quiz-tally {
+  margin: 0 0 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.quiz-answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.quiz-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.quiz-answer-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.quiz-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+.quiz-dot.white { background: #ffffff; }
+.quiz-dot.black { background: #2b2b2b; }
+
+.quiz-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  appearance: none;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  padding: 0.4rem 0.3rem;
+}
+
+.quiz-input:focus {
+  outline: none;
+  border-color: rgba(255, 209, 102, 0.8);
+}
+
+.quiz-input:disabled {
+  opacity: 0.45;
+}
+
+.quiz-input::-webkit-outer-spin-button,
+.quiz-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.quiz-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+.quiz-btn {
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.quiz-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.quiz-btn-primary {
+  background: linear-gradient(135deg, #ffd166, #ff9f45);
+  border-color: #ffe6a8;
+  color: #3a2400;
+}
+
+.quiz-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.quiz-fb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-light);
+}
+
+.quiz-fb-right {
+  border-color: rgba(6, 214, 160, 0.55);
+}
+
+.quiz-fb-wrong {
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.quiz-fb-side {
+  font-weight: 800;
+  color: #ffd166;
+}
+
+.quiz-fb-text {
+  flex: 1 1 140px;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.quiz-fb-btn {
+  appearance: none;
+  flex: 0 0 auto;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(6, 214, 160, 0.5);
+  background: rgba(6, 214, 160, 0.12);
+  color: #7ef0d0;
+  font-family: var(--font-main);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* The key to the board markers. Shown only while the moves are on the
+   board. */
+.quiz-legend {
+  display: none;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.45rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.quiz-legend.active {
+  display: flex;
+}
+
+.quiz-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.quiz-legend-ring {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.quiz-legend-ring.good { border-color: #06d6a0; }
+.quiz-legend-ring.bad { border-color: #ef4444; }
+
+.quiz-summary {
+  display: none;
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.quiz-summary.active {
+  display: block;
+}
+
+.quiz-summary-text {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffd166;
+}
+
+/* --- 2x Stockfish 19: clocks, match setup, result overlay ---------------
+ *
+ * The third chess mode. Everything here is hidden by default and switched on
+ * by the .active class, which only the duel controller sets, so the two
+ * existing modes lay out exactly as they did before.
+ */
+
+/* Four tabs share the same fixed switch, so the labels need less padding and
+   a slightly smaller type than the two-tab version they replaced. */
+.chess-mode-switch.four-up .chess-mode-opt {
+  padding: 0.55rem 0.35rem;
+  font-size: 0.78rem;
+  gap: 0.3rem;
+}
+
+/* Four labels and four icons cannot share the row on a phone: the icons go
+   first, so the text gets the whole width of each tab and nothing has to be
+   ellipsised away. The titles and the mode label beside the switch still
+   identify each tab. */
+@media (max-width: 700px) {
+  .chess-mode-switch.four-up .mode-ico {
+    display: none;
+  }
+  .chess-mode-switch.four-up .chess-mode-opt {
+    padding: 0.55rem 0.25rem;
+    font-size: 0.74rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .chess-mode-switch.four-up .chess-mode-opt {
+    padding: 0.5rem 0.2rem;
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .chess-mode-switch.four-up .chess-mode-opt {
+    padding: 0.5rem 0.12rem;
+    font-size: 0.66rem;
+  }
+}
+
+/* --- Clocks ------------------------------------------------------------ */
+
+.chess-clocks {
+  display: none;
+  width: 100%;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.chess-clocks.active {
+  display: flex;
+}
+
+.chess-clock {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.35);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* The side that is on move. */
+.chess-clock.active {
+  border-color: rgba(6, 214, 160, 0.75);
+  box-shadow: 0 0 0 2px rgba(6, 214, 160, 0.22);
+}
+
+/* Under thirty seconds. Wins over .active because it is the more urgent
+   state, and it is also the state that must survive a clock ticking at 10Hz. */
+.chess-clock.low {
+  border-color: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.22);
+}
+
+.chess-clock.low .chess-clock-time {
+  color: #ff9d9d;
+}
+
+.chess-clock-side {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.chess-clock-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #eaf6ff;
+}
+
+.chess-clock-white .chess-clock-side { color: #ffffff; }
+.chess-clock-black .chess-clock-side { color: #94a3b8; }
+
+/* --- Match setup panel -------------------------------------------------- */
+
+.chess-duel-panel {
+  display: none;
+  width: 100%;
+  margin: 0.5rem 0 0.25rem;
+  padding: 0.7rem 0.75rem 0.6rem;
+  border-radius: 14px;
+  border: 1px solid rgba(6, 214, 160, 0.28);
+  background: rgba(6, 214, 160, 0.06);
+}
+
+.chess-duel-panel.active {
+  display: block;
+}
+
+.duel-tc-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7ef0d0;
+  margin-bottom: 0.45rem;
+}
+
+.duel-tc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+}
+
+.duel-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.duel-field-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.duel-field-input {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.duel-field-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  appearance: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  padding: 0;
+}
+
+.duel-field-input input::-webkit-outer-spin-button,
+.duel-field-input input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.duel-field-input:focus-within {
+  border-color: rgba(6, 214, 160, 0.7);
+}
+
+.duel-unit {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.duel-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+/* Start gets its own row because it is the one control that has to be
+   findable without hunting, and because three labelled buttons on one line
+   do not fit a narrow phone. */
+.duel-btn-wide {
+  flex: 1 1 100%;
+}
+
+.duel-btn {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.duel-btn .btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.duel-btn .btn-icon {
+  flex: 0 0 auto;
+}
+
+.duel-btn:active:not(:disabled) {
+  transform: var(--touch-scale);
+}
+
+.duel-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.duel-btn-primary {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  border-color: #7ef0d0;
+  color: #042f2e;
+  box-shadow: 0 4px 14px rgba(6, 214, 160, 0.3);
+}
+
+/* Match running: the same button turns into Pause, so it needs the solid
+   "this is live" treatment rather than the primary gradient again. */
+.duel-btn-primary.active {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  border-color: #fca5a5;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+/* Paused: amber rather than red. The game is intact and one tap away from
+   carrying on, so it must not read like a destructive action. */
+.duel-btn-primary.paused {
+  background: linear-gradient(135deg, #ffd166, #f59e0b);
+  border-color: #ffe4a3;
+  color: #3a2a00;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+
+.duel-engine-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.duel-engine-tag {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.25rem 0.45rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Error colouring for the shared chess status line, which the match uses for
+   load failures and save failures as well as for progress. */
+.chess-status-line.is-error {
+  color: #ff9d9d;
+}
+
+/* --- Starting position: opening explorer / custom FEN ------------------ */
+
+.duel-source {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.duel-source-opt {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.4rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--font-main);
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.duel-source-opt.active {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  color: #042f2e;
+  box-shadow: 0 2px 10px rgba(6, 214, 160, 0.35);
+}
+
+.duel-subpanel {
+  display: none;
+  margin-top: 0.5rem;
+}
+
+.duel-subpanel.active {
+  display: block;
+}
+
+.duel-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.45);
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.duel-input:focus {
+  border-color: rgba(6, 214, 160, 0.7);
+}
+
+.duel-search {
+  /* 16px or larger, or a phone browser zooms the viewport on focus and the
+     whole page jumps. */
+  font-size: 1rem;
+}
+
+.duel-fen-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+/* The results list. A fixed height with a scroll keeps the board from being
+   pushed off the screen by a long book, and keeps the panel the same size
+   whatever the query returns. */
+.duel-openlist {
+  margin-top: 0.4rem;
+  max-height: 168px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.duel-open {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.42rem 0.55rem;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  font-size: 0.76rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.duel-open:last-child {
+  border-bottom: 0;
+}
+
+.duel-open:active {
+  background: rgba(6, 214, 160, 0.16);
+}
+
+.duel-open.selected {
+  background: rgba(6, 214, 160, 0.2);
+  box-shadow: inset 2px 0 0 #06d6a0;
+}
+
+.duel-open-eco {
+  flex: 0 0 auto;
+  min-width: 2.3rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #ffd166;
+}
+
+.duel-open-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-open-moves {
+  flex: 0 0 auto;
+  max-width: 40%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.64rem;
+  color: rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-open-empty {
+  padding: 0.6rem;
+  text-align: center;
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.duel-chip {
+  margin-top: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(6, 214, 160, 0.14);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #7ef0d0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-side-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.duel-side-switch {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.duel-side-opt {
+  appearance: none;
+  padding: 0.3rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--font-main);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.duel-side-opt.active {
+  background: rgba(255, 209, 102, 0.9);
+  color: #3a2a00;
+}
+
+.duel-note {
+  margin: 0.4rem 0 0;
+  min-height: 0.9rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.duel-note.is-error {
+  color: #ff9d9d;
+}
+
+.duel-note.is-ok {
+  color: #7ef0d0;
+}
+
+/* --- Match history -------------------------------------------------------- */
+
+.chess-history-panel {
+  display: none;
+  width: 100%;
+  margin: 0.5rem 0 0.25rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 209, 102, 0.28);
+  background: rgba(255, 209, 102, 0.05);
+}
+
+.chess-history-panel.active {
+  display: block;
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.history-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffd166;
+}
+
+.history-count {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.history-btn {
+  appearance: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-btn-icon {
+  padding: 0.25rem 0.45rem;
+}
+
+.history-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.history-list {
+  max-height: 240px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.history-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: #eaf6ff;
+  font-family: var(--font-main);
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-entry:last-child {
+  border-bottom: 0;
+}
+
+.history-entry:active {
+  background: rgba(255, 209, 102, 0.14);
+}
+
+.history-badge {
+  flex: 0 0 auto;
+  min-width: 3.1rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.history-badge.white {
+  background: rgba(255, 255, 255, 0.85);
+  color: #10131c;
+}
+
+.history-badge.black {
+  background: rgba(20, 24, 36, 0.95);
+  color: #cbd5f5;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.history-badge.draw {
+  background: rgba(255, 209, 102, 0.85);
+  color: #3a2a00;
+}
+
+.history-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.history-line1 {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-line2 {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-empty {
+  padding: 0.9rem 0.6rem;
+  text-align: center;
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.result-btn-danger {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ffb4b4;
+}
+
+/* --- Result overlay ----------------------------------------------------- */
+
+.chess-result-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(4, 6, 12, 0.82);
+  backdrop-filter: blur(6px);
+  box-sizing: border-box;
+}
+
+.chess-result-overlay.active {
+  display: flex;
+}
+
+.chess-result-card {
+  width: 100%;
+  max-width: 460px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 1rem 1rem 0.85rem;
+  border-radius: 20px;
+  border: 1px solid rgba(6, 214, 160, 0.3);
+  background: linear-gradient(160deg, #141a28, #0b0f18);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  box-sizing: border-box;
+}
+
+.chess-result-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.7rem;
+}
+
+.chess-result-badge {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  color: #042f2e;
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 14px rgba(6, 214, 160, 0.35);
+}
+
+.chess-result-headings {
+  min-width: 0;
+}
+
+.chess-result-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.chess-result-sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #7ef0d0;
+}
+
+.chess-result-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.6rem;
+  margin-bottom: 0.7rem;
+  padding: 0.6rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.chess-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: 0.74rem;
+}
+
+.chess-stat-k {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+}
+
+.chess-stat-v {
+  color: #eaf6ff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.chess-result-moves {
+  max-height: 148px;
+  overflow-y: auto;
+  padding: 0.5rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.3);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.chess-result-pgn-wrap {
+  margin-top: 0.55rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.chess-result-pgn-wrap summary {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+
+/* Selectable so the PGN can still be copied by hand when both the native save
+   and the clipboard bridge are unavailable. */
+.chess-pgn {
+  margin: 0;
+  padding: 0 0.6rem 0.6rem;
+  max-height: 160px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: #cfe6f5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.chess-result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+.result-btn {
+  appearance: none;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.result-btn .btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-btn .btn-icon {
+  flex: 0 0 auto;
+}
+
+.result-btn:active {
+  transform: var(--touch-scale);
+}
+
+/* .result-btn sets display:inline-flex, which beats the browser's default
+   [hidden] rule, so the mode-dependent buttons need this to actually hide. */
+.result-btn[hidden] {
+  display: none;
+}
+
+.result-btn-primary {
+  background: linear-gradient(135deg, #06d6a0, #118ab2);
+  border-color: #7ef0d0;
+  color: #042f2e;
+  box-shadow: 0 4px 14px rgba(6, 214, 160, 0.3);
+}
+
+.chess-result-note {
+  margin: 0.6rem 0 0;
+  min-height: 1rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #7ef0d0;
+}
+
+/* The overlay is absolutely positioned inside the page, which needs to be the
+   containing block for that to cover the full chess screen. */
+#page-chess {
+  position: relative;
+}
+
+/* ================= ALEXCRAFT (GAME 4) LAYOUT =================
+ * Alexcraft is a self-contained document with its own canvas, hotbar and touch
+ * overlay, so it gets the whole page: no host chrome. On Android the card opens
+ * AlexcraftActivity instead of this frame; the iframe is the browser fallback.
+ */
+
+/* The frame fills the page box. `.page.active` is a flex column, so flex:1 gives
+   the frame the full height between the status bar and the system nav bar. */
+.alexcraft-frame {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  display: block;
+  border: 0;            /* the UA 2px inset border would shrink clientWidth by 4px */
+  background: #0a0c13;
+  color-scheme: dark;
+}
+
+/* The game owns its own scrolling and draws edge to edge, so the host document
+   must not scroll behind it and the shell's padding would show as a dead
+   border around the world. */
+body.theme-alexcraft {
+  display: block;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.theme-alexcraft .mobile-app-shell {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
+/* The host's page-fade animation translates the page; on a WebGL canvas that
+   reads as a smear every time the game is entered, and it also creates a
+   compositing layer that makes the frame repaint on the wrong cadence. */
+body.theme-alexcraft #page-alexcraft.active {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  animation: none;
+}
+
+/* ---- launcher card artwork ---- */
+
+/* The icon is an inline SVG block, so it just fills the 1:1 thumb and lets the
+   thumb's own overflow:hidden + border-radius crop it to the card shape. */
+.alexcraft-thumb-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
