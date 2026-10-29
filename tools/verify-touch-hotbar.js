@@ -4,159 +4,20 @@
  * Usage:
  *   node tools/verify-touch-hotbar.js [url]
  *
- * The browser tab of the IDE is not an option here: the game needs a
- * landscape viewport with touch enabled, and the only way to get both is a
- * headless Edge driven over the DevTools protocol. WebGL runs on SwiftShader,
- * so the game boots without a GPU.
- *
- * Before the taps the pause menu is dismissed with a real touch tap on
- * "Back to Game", which is the same path a player takes.
+ * The pause menu is dismissed with a real tap on "Back to Game" first, which
+ * is the same path a player takes.
  */
-const http = require("http");
-const os = require("os");
-const path = require("path");
-const { spawn } = require("child_process");
+const { evaluate, launchEdge, sleep, tap } = require("./cdp-harness");
 
-const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
-const PORT = 9333;
 const URL_UNDER_TEST =
   process.argv[2] || "http://127.0.0.1:5173/index.html?touch=1";
 const WIDTH = 900;
 const HEIGHT = 420;
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function getJson(url) {
-  return new Promise((resolve, reject) => {
-    http
-      .get(url, (res) => {
-        let body = "";
-        res.on("data", (chunk) => (body += chunk));
-        res.on("end", () => {
-          try {
-            resolve(JSON.parse(body));
-          } catch (error) {
-            reject(error);
-          }
-        });
-      })
-      .on("error", reject);
-  });
-}
-
-async function waitForTarget() {
-  for (let attempt = 0; attempt < 60; attempt++) {
-    try {
-      const targets = await getJson(`http://127.0.0.1:${PORT}/json/list`);
-      const page = targets.find((t) => t.type === "page");
-      if (page) return page;
-    } catch {
-      // the browser has not opened its debugging port yet
-    }
-    await sleep(250);
-  }
-  throw new Error("Edge never exposed a page target");
-}
-
-class Cdp {
-  constructor(ws) {
-    this.ws = ws;
-    this.nextId = 0;
-    this.pending = new Map();
-    this.events = new Map();
-    ws.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data);
-      if (message.id && this.pending.has(message.id)) {
-        const { resolve, reject } = this.pending.get(message.id);
-        this.pending.delete(message.id);
-        if (message.error) reject(new Error(JSON.stringify(message.error)));
-        else resolve(message.result);
-        return;
-      }
-      const handler = this.events.get(message.method);
-      if (handler) handler(message.params);
-    });
-  }
-
-  send(method, params = {}) {
-    const id = ++this.nextId;
-    this.ws.send(JSON.stringify({ id, method, params }));
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-    });
-  }
-
-  on(method, handler) {
-    this.events.set(method, handler);
-  }
-}
-
-async function evaluate(cdp, expression) {
-  const result = await cdp.send("Runtime.evaluate", {
-    expression,
-    returnByValue: true,
-    awaitPromise: true,
-  });
-  if (result.exceptionDetails) {
-    throw new Error(
-      `evaluate failed: ${result.exceptionDetails.text ?? "unknown"}`
-    );
-  }
-  return result.result.value;
-}
-
-async function tap(cdp, x, y) {
-  const point = [{ x, y, id: 1, radiusX: 3, radiusY: 3, force: 1 }];
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: point });
-  await sleep(40);
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  await sleep(80);
-}
-
 async function main() {
-  const profile = path.join(os.tmpdir(), "alexcraft-touch-cdp");
-  const edge = spawn(
-    EDGE,
-    [
-      "--headless=new",
-      `--remote-debugging-port=${PORT}`,
-      `--user-data-dir=${profile}`,
-      "--use-angle=swiftshader",
-      "--enable-unsafe-swiftshader",
-      "--no-first-run",
-      "--no-default-browser-check",
-      "--disable-gpu-sandbox",
-      `--window-size=${WIDTH},${HEIGHT}`,
-      "about:blank",
-    ],
-    { stdio: "ignore" }
-  );
-
+  const { cdp, close } = await launchEdge({ width: WIDTH, height: HEIGHT });
   let exitCode = 1;
   try {
-    const target = await waitForTarget();
-    const ws = new WebSocket(target.webSocketDebuggerUrl);
-    await new Promise((resolve, reject) => {
-      ws.addEventListener("open", resolve, { once: true });
-      ws.addEventListener("error", reject, { once: true });
-    });
-    const cdp = new Cdp(ws);
-
-    await cdp.send("Page.enable");
-    await cdp.send("Runtime.enable");
-    await cdp.send("Emulation.setDeviceMetricsOverride", {
-      width: WIDTH,
-      height: HEIGHT,
-      deviceScaleFactor: 2,
-      mobile: true,
-      screenOrientation: { type: "landscapePrimary", angle: 90 },
-    });
-    await cdp.send("Emulation.setTouchEmulationEnabled", {
-      enabled: true,
-      maxTouchPoints: 5,
-    });
-    await cdp.send("Emulation.setEmitTouchEventsForMouse", { enabled: false });
-
     await cdp.send("Page.navigate", { url: URL_UNDER_TEST });
 
     let ready = false;
@@ -336,9 +197,8 @@ async function main() {
       console.log("\nPASS: every hotbar slot selects and the camera still turns");
     }
     exitCode = failures.length ? 1 : 0;
-    ws.close();
   } finally {
-    edge.kill();
+    close();
   }
   process.exit(exitCode);
 }
