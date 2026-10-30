@@ -230,6 +230,78 @@ function playChime(theme) {
 
 // --- Navigation & Page Transitions ---
 
+/* Fullscreen is the default for a game.
+ *
+ * There used to be a button under the game to turn it on and off. A game
+ * either fills the screen or it does not, and the player should not have to
+ * think about it, so the button is gone and the game takes the screen as
+ * soon as it is opened.
+ *
+ * On Android the system bars are hidden through the native bridge, which
+ * needs no gesture from the player. In a browser the fullscreen api does
+ * need one, so it is asked for while a tap is being handled; if the browser
+ * says no, the game simply stays in the page and everything still works. */
+const FULLSCREEN_STAGES = {
+  flappy: 'stage-flappy'
+};
+
+/* The stage that is filling the screen right now, if any */
+let fullscreenStage = null;
+
+function fullscreenStageFor(pageId) {
+  const id = FULLSCREEN_STAGES[pageId];
+  return id ? document.getElementById(id) : null;
+}
+
+/** Puts the game on the whole screen */
+function enterFullscreen(stage) {
+  if (!stage) return;
+  fullscreenStage = stage;
+  stage.classList.add('fullscreen-active');
+
+  if (window.AndroidBridge && typeof window.AndroidBridge.enterFullscreen === 'function') {
+    document.body.classList.add('android-fullscreen');
+    window.AndroidBridge.enterFullscreen();
+  } else if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    const request = stage.requestFullscreen
+      ? stage.requestFullscreen()
+      : stage.webkitRequestFullscreen
+        ? stage.webkitRequestFullscreen()
+        : null;
+    if (request && request.catch) {
+      // The browser refused, most likely because it was not asked for
+      // during a tap. The game stays where it is.
+      request.catch(() => {
+        stage.classList.remove('fullscreen-active');
+        if (fullscreenStage === stage) fullscreenStage = null;
+      });
+    }
+  }
+
+  // The stage is a different size now, so the canvas has to be measured
+  // again once the new layout has settled.
+  requestAnimationFrame(() => flappyGame.resize());
+}
+
+/** Gives the screen back to the launcher */
+function leaveFullscreen() {
+  const stage = fullscreenStage;
+  fullscreenStage = null;
+  if (!stage) return;
+
+  stage.classList.remove('fullscreen-active');
+  document.body.classList.remove('android-fullscreen');
+
+  if (window.AndroidBridge && typeof window.AndroidBridge.exitFullscreen === 'function') {
+    window.AndroidBridge.exitFullscreen();
+  } else if (document.fullscreenElement || document.webkitFullscreenElement) {
+    if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
+
+  requestAnimationFrame(() => flappyGame.resize());
+}
+
 function switchPage(targetPageId) {
   if (state.currentPage === targetPageId) return;
 
@@ -240,6 +312,9 @@ function switchPage(targetPageId) {
      below stays for the browser build. */
   if (targetPageId === 'alexcraft' && window.AndroidBridge
       && typeof window.AndroidBridge.openAlexcraft === 'function') {
+    // The game has its own activity and its own full screen, so the launcher
+    // gives the screen back before it goes behind it.
+    leaveFullscreen();
     window.AndroidBridge.openAlexcraft();
     return;
   }
@@ -278,8 +353,12 @@ function switchPage(targetPageId) {
   if (targetPageId === 'flappy') {
     flappyGame.resume();
     requestAnimationFrame(() => flappyGame.resize());
+    // A game takes the whole screen as soon as it is opened
+    enterFullscreen(fullscreenStageFor('flappy'));
   } else {
     flappyGame.pause();
+    // ...and gives it back when the player leaves
+    leaveFullscreen();
   }
 
   /* The pet's 3D stage is built the first time the pet page opens, then
@@ -337,6 +416,15 @@ const FLAPPY_DPR_CAP = 2;
  * instead of once per drawn frame, so that it plays the same on a phone
  * that draws twenty frames a second and on one that draws a hundred. */
 const FLAPPY_STEP = 1 / 60;
+
+/* The shortest the world of the game may be.
+ *
+ * The ground takes sixty five pixels and the gap between the pipes is a
+ * hundred and twenty six, and the pipes need fifty pixels of room above
+ * and below it. A space shorter than this - a phone held sideways - cannot
+ * hold them, so the game keeps its shape and the space around it stays
+ * empty. */
+const MIN_WORLD_HEIGHT = 360;
 
 /* Mixes two "#rrggbb" colours and returns a css rgb() string */
 function mixHex(a, b, t) {
@@ -398,11 +486,12 @@ const flappyGame = {
   },
 
   pipes: [],
-  pipeSpacing: 100,
   pipeTimer: 0,
   pipeWidth: 54,
-  pipeGap: 130,
-  speed: 2.3,
+  /** How often a pipe is spawned, in steps of the game */
+  pipeSpacing: 96,
+  /** The scroll speed right now. It is set from the score on every step. */
+  speed: 2.9,
 
   /** Where the sun is in its day: 0 is midnight, 0.42 is noon */
   dayPhase: 0.42,
@@ -424,86 +513,43 @@ const flappyGame = {
   /** Fixed stars, so they do not swim about when the sky changes */
   stars: [],
 
-  // Difficulty profile. Hardcore is faster and tighter but stays playable:
-  // the gap is never allowed to fall below a floor the bird can still fit
-  // through, and the jump arc is tuned so one flap still clears the gap.
-  //
-  // Both profiles also ramp with the score: the scroll speeds up and the gap
-  // closes, so a run gets harder on its own instead of staying on one
-  // setting until the player dies. The ramps are capped, because an endless
-  // ramp only produces runs that end at the same score every time.
-  hardcore: false,
-  DIFFICULTY: {
-    normal: {
-      speed: 2.9, pipeGap: 126, pipeSpacing: 96, gravity: 0.4, jumpPower: -5.9,
-      speedRamp: 0.03, speedMax: 3.6, gapRamp: 0.55, gapMin: 112
-    },
-    // Faster scroll and a narrower window, with a slightly stronger flap so
-    // the bird still rises decisively instead of drifting.
-    //
-    // These numbers were tuned against an in-page autopilot rather than by
-    // feel, because "feels too hard" is not a measurement. An earlier attempt
-    // used gap 96 at speed 3.9 and was literally unplayable: the opening pipe
-    // reached the bird about 40 frames after spawning and at gravity 0.44 the
-    // bird could not cross a 96px window in time. It died at score 0 on every
-    // run. The gap is now 108 with slightly higher gravity, which gives the
-    // bird authority while still demanding quicker, more accurate taps than
-    // classic.
-    hardcore: {
-      speed: 3.6, pipeGap: 108, pipeSpacing: 80, gravity: 0.43, jumpPower: -6.2,
-      speedRamp: 0.04, speedMax: 4.3, gapRamp: 0.45, gapMin: 102
-    }
-  },
-  // The narrowest gap the generator may produce, as a fraction of the
-  // profile gap. Prevents an unlucky random gap from being impossible.
-  MIN_GAP_RATIO: 0.86,
+  /* The difficulty.
+   *
+   * There used to be a second, harder mode behind a button on the screen.
+   * It was only a little faster and a little tighter, and that was not
+   * enough of a difference to be worth a button: the game is the same for
+   * everyone now.
+   *
+   * The run still gets harder on its own. The scroll speeds up and the gap
+   * closes with every point, up to a cap, because a ramp with no end only
+   * produces runs that end at the same score every time. The gap never
+   * falls below a window the bird can still fit through, and the jump arc
+   * is tuned so that one flap still clears it. */
+  /** The scroll speed at the start of a run */
+  baseSpeed: 2.9,
+  /** How much the scroll speeds up per point */
+  speedRamp: 0.03,
+  /** The fastest the scroll ever gets */
+  speedMax: 3.6,
+  /** The window between the pipes at the start of a run */
+  baseGap: 126,
+  /** How much the window closes per point */
+  gapRamp: 0.55,
+  /** The narrowest window the pipes may ever have */
+  gapMin: 112,
 
-  profile() {
-    return this.hardcore ? this.DIFFICULTY.hardcore : this.DIFFICULTY.normal;
-  },
+  // The narrowest gap the generator may produce, as a fraction of the gap
+  // of the moment. Prevents an unlucky random gap from being impossible.
+  MIN_GAP_RATIO: 0.86,
 
   /** Scroll speed at the current score */
   currentSpeed() {
-    const d = this.profile();
-    return Math.min(d.speed + this.score * d.speedRamp, d.speedMax);
+    return Math.min(this.baseSpeed + this.score * this.speedRamp, this.speedMax);
   },
 
   /** Gap at the current score */
   currentGap() {
-    const d = this.profile();
-    return Math.max(d.gapMin, d.pipeGap - this.score * d.gapRamp);
-  },
-
-  applyDifficulty() {
-    const d = this.profile();
-    this.speed = d.speed;
-    this.pipeGap = d.pipeGap;
-    this.pipeSpacing = d.pipeSpacing;
-    this.bird.gravity = d.gravity;
-    this.bird.jumpPower = d.jumpPower;
-    this.updateDifficultyUI();
-  },
-
-  toggleHardcore() {
-    this.hardcore = !this.hardcore;
-    this.applyDifficulty();
-    this.setStatus('');
-    // Apply immediately: a mode switch mid-run should not require a restart,
-    // but existing pipes keep whatever gap they were spawned with.
-    this.reset();
-  },
-
-  updateDifficultyUI() {
-    const btn = document.getElementById('btn-hardcore');
-    if (btn) {
-      btn.classList.toggle('active', this.hardcore);
-      btn.setAttribute('aria-pressed', this.hardcore ? 'true' : 'false');
-    }
-    const label = document.getElementById('flappy-mode-label');
-    if (label) label.textContent = this.hardcore ? 'HARDCORE' : 'CLASSIC';
-
-    const body = document.getElementById('stage-flappy');
-    if (body) body.classList.toggle('hardcore-mode', this.hardcore);
+    return Math.max(this.gapMin, this.baseGap - this.score * this.gapRamp);
   },
 
   setStatus(msg) {
@@ -563,13 +609,6 @@ const flappyGame = {
       this.jump();
     });
 
-    const btnHardcore = document.getElementById('btn-hardcore');
-    if (btnHardcore) btnHardcore.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.toggleHardcore();
-    });
-
-    this.applyDifficulty();
     this.reset();
     this.resize();
     this.draw();
@@ -603,15 +642,39 @@ const flappyGame = {
     const rect = this.canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
 
-    const nextHeight = Math.max(1, Math.round(rect.height * this.width / rect.width));
+    /* The height of the world follows the shape of the space the game is
+     * drawn in, so the game is never squashed.
+     *
+     * It is not allowed to go below MIN_WORLD_HEIGHT, because a wide and
+     * short space - a phone held sideways - would leave a play area shorter
+     * than the gap between the pipes, and the pipes would then have nowhere
+     * to go. The drawing keeps its shape in that case and the space around
+     * it stays empty, which is what the canvas does with object-fit. */
+    const wanted = Math.round(rect.height * this.width / rect.width);
+    const nextHeight = Math.max(MIN_WORLD_HEIGHT, wanted);
+
+    /* How much of the space the world fills: all of it when the shapes
+     * agree, and only the height of it when the space is wider. */
+    const scale = Math.min(rect.width / this.width, rect.height / nextHeight);
+
     const heightScale = nextHeight / this.height;
     const dpr = Math.min(window.devicePixelRatio || 1, FLAPPY_DPR_CAP);
 
-    if (this.canvas.width !== this.width * dpr || this.canvas.height !== nextHeight * dpr) {
-      this.canvas.width = this.width * dpr;
-      this.canvas.height = nextHeight * dpr;
-      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    /* The backing store is the size the game is really shown at, so it is
+     * never scaled up to the size of the space.
+     *
+     * The world is drawn into it at the scale it is shown at, so that the
+     * drawing fills the backing store exactly and no strip of empty canvas
+     * is left at the edge. */
+    const backingWidth = Math.round(this.width * scale * dpr);
+    const backingHeight = Math.round(nextHeight * scale * dpr);
+    if (this.canvas.width !== backingWidth || this.canvas.height !== backingHeight) {
+      this.canvas.width = backingWidth;
+      this.canvas.height = backingHeight;
     }
+    this.ctx.setTransform(
+      backingWidth / this.width, 0, 0, backingHeight / nextHeight, 0, 0
+    );
 
     this.height = nextHeight;
     this.bird.y *= heightScale;
@@ -644,8 +707,8 @@ const flappyGame = {
     // The bird starts where it is drawn
     this.prevBirdY = this.bird.y;
     this.prevBirdRotation = this.bird.rotation;
-    // Re-apply so a mode switch always takes effect on a fresh run.
-    this.applyDifficulty();
+    // The scroll starts at the speed of the first pipe and ramps from there
+    this.speed = this.baseSpeed;
 
     this.showOverlay('flappy-start-screen');
     this.hideOverlay('flappy-gameover-screen');
@@ -4956,6 +5019,10 @@ document.addEventListener('DOMContentLoaded', () => {
       pauseAlexcraftFrame();
     } else if (state.currentPage === 'flappy') {
       flappyGame.resume();
+      // The game takes the whole screen, so it has to take it again when the
+      // launcher comes back: it may have been away to play Alexcraft, which
+      // has its own activity and its own full screen.
+      enterFullscreen(fullscreenStageFor('flappy'));
     }
   });
 
@@ -4987,89 +5054,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 4. Wire Fullscreen Buttons Below Game Screen
-  // On Android WebView, requestFullscreen() is silently ignored.
-  // We use a native bridge (window.AndroidBridge) injected by MainActivity.kt instead.
-  const isAndroidWebView = typeof window.AndroidBridge !== 'undefined';
-  window._androidFsActive = false;
-  let androidFullscreenStage = null;
-  const fsButtons = document.querySelectorAll('.btn-fullscreen');
-
-  function refreshFullscreenSurface() {
-    requestAnimationFrame(() => {
-      flappyGame.resize();
-    });
-  }
-
-  function setAndroidFullscreen(active, stage) {
-    if (stage) stage.classList.toggle('fullscreen-active', active);
-    document.body.classList.toggle('android-fullscreen', active);
-    androidFullscreenStage = active ? stage : null;
-    window._androidFsActive = active;
-    fsButtons.forEach(btn => {
-      btn.innerHTML = active
-        ? '<span class="btn-icon">✖</span> Exit Fullscreen'
-        : '<span class="btn-icon">⛶</span> Fullscreen';
-    });
-    refreshFullscreenSurface();
-  }
-
-  window.exitAndroidFullscreen = function () {
-    if (isAndroidWebView) {
-      window.AndroidBridge.exitFullscreen();
-      setAndroidFullscreen(false, androidFullscreenStage);
-    }
-  };
-
-  fsButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (isAndroidWebView) {
-        // Native Android fullscreen via bridge
-        if (!window._androidFsActive) {
-          const targetId = btn.getAttribute('data-target-container');
-          androidFullscreenStage = targetId ? document.getElementById(targetId) : null;
-          setAndroidFullscreen(true, androidFullscreenStage);
-          window.AndroidBridge.enterFullscreen();
-        } else {
-          window.AndroidBridge.exitFullscreen();
-          setAndroidFullscreen(false, androidFullscreenStage);
-        }
-      } else {
-        // Standard browser fullscreen API
-        const targetId = btn.getAttribute('data-target-container');
-        const targetElem = targetId ? document.getElementById(targetId) : document.documentElement;
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-          targetElem.classList.add('fullscreen-active');
-          if (targetElem.requestFullscreen) {
-            targetElem.requestFullscreen().catch(() => targetElem.classList.remove('fullscreen-active'));
-          } else if (targetElem.webkitRequestFullscreen) {
-            targetElem.webkitRequestFullscreen();
-          }
-        } else {
-          if (document.exitFullscreen) {
-            document.exitFullscreen().catch(() => {});
-          } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-          }
-        }
-      }
-    });
-  });
-
-  // Standard browser fullscreenchange (fires on non-Android)
+  // 4. Fullscreen
+  // There is no button for it any more: a game takes the whole screen as
+  // soon as it is opened, and gives it back when it is left. The functions
+  // that do that live next to switchPage(), because the page change is what
+  // calls them.
+  //
+  // On Android WebView requestFullscreen() is silently ignored, so the
+  // system bars are hidden through the native bridge (window.AndroidBridge)
+  // injected by MainActivity.kt instead.
+  //
+  // This only watches for the browser leaving fullscreen on its own, for
+  // instance when the escape key is pressed: the stage has to go back to the
+  // layout of the page, or the game would keep the size of the screen while
+  // sitting in a strip of it.
   document.addEventListener('fullscreenchange', () => {
-    const fullscreenStage = document.fullscreenElement || document.webkitFullscreenElement;
-    document.querySelectorAll('.mobile-stage-container.fullscreen-active').forEach(stage => {
-      if (stage !== fullscreenStage) stage.classList.remove('fullscreen-active');
-    });
-    if (fullscreenStage && fullscreenStage.classList.contains('mobile-stage-container')) {
-      fullscreenStage.classList.add('fullscreen-active');
-    }
-    const isFs = !!fullscreenStage;
-    fsButtons.forEach(btn => {
-      btn.innerHTML = isFs ? '<span class="btn-icon">✖</span> Exit Fullscreen' : '<span class="btn-icon">⛶</span> Fullscreen';
-    });
-    refreshFullscreenSurface();
+    const active = document.fullscreenElement || document.webkitFullscreenElement;
+    if (active || !fullscreenStage) return;
+    const stage = fullscreenStage;
+    fullscreenStage = null;
+    stage.classList.remove('fullscreen-active');
+    requestAnimationFrame(() => flappyGame.resize());
   });
 
   // 5. Wire Palette & Brushes for Artwork Pages

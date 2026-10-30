@@ -361,21 +361,17 @@ class MainActivity : ComponentActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                // If in fullscreen, exit it first
-                webView.evaluateJavascript("typeof _androidFsActive !== 'undefined' && _androidFsActive") { fsResult ->
-                    if (fsResult == "true") {
-                        webView.evaluateJavascript("exitAndroidFullscreen();", null)
-                        return@evaluateJavascript
-                    }
-                    webView.evaluateJavascript("typeof state !== 'undefined' && state.currentPage !== 'main'") { result ->
-                        if (result == "true") {
-                            webView.evaluateJavascript("switchPage('main');", null)
-                        } else if (webView.canGoBack()) {
-                            webView.goBack()
-                        } else {
-                            isEnabled = false
-                            onBackPressedDispatcher.onBackPressed()
-                        }
+                // A game takes the whole screen on its own, so there is no
+                // fullscreen to leave first: leaving the page gives the
+                // screen back to the launcher and shows the system bars.
+                webView.evaluateJavascript("typeof state !== 'undefined' && state.currentPage !== 'main'") { result ->
+                    if (result == "true") {
+                        webView.evaluateJavascript("switchPage('main');", null)
+                    } else if (webView.canGoBack()) {
+                        webView.goBack()
+                    } else {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
                     }
                 }
             }

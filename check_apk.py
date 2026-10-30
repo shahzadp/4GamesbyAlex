@@ -40,6 +40,17 @@ if launcher:
     # The frame is drawn between two steps, so a late frame does not look
     # like a mistimed tap
     print('flappy drawn between steps:', 'prevBirdY' in a and 'FLAPPY_STEP' in a)
+    # The game takes the whole screen on its own, and there is one mode
+    print('flappy fullscreen by default:', 'enterFullscreen' in a)
+    print('flappy one mode:', 'hardcore' not in a and 'btn-hardcore' not in a)
+    launcher_css = [n for n in z.namelist() if n == 'assets/styles.css']
+    if launcher_css:
+        s = z.read(launcher_css[0]).decode('utf-8', errors='ignore')
+        # The game keeps its shape when the screen is of another shape
+        print('flappy keeps its shape:', 'MIN_WORLD_HEIGHT' in a and 'object-fit' in s)
+        print('no fullscreen button style:', '.btn-fullscreen' not in s)
+    else:
+        print('assets/styles.css: MISSING')
     print('launcher pauses on hide:', '__alexcraftPause' in a and 'visibilitychange' in a)
 else:
     print('assets/app.js: MISSING')

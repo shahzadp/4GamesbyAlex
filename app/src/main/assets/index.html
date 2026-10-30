@@ -141,7 +141,6 @@
           <!-- Start Screen Overlay -->
           <div id="flappy-start-screen" class="flappy-overlay active">
             <div class="retro-title">FLAPPY BIRD</div>
-            <div class="flappy-mode-badge">MODE: <span id="flappy-mode-label">CLASSIC</span></div>
             <div class="bird-avatar-anim">🐦</div>
             <p class="instructions-pill">Tap screen to flap</p>
             <button id="btn-start-flappy" class="arcade-btn">TAP TO FLY</button>
@@ -164,15 +163,10 @@
           </div>
         </div>
 
-        <!-- Fullscreen, Mode & Action Toolbar Below Game Screen -->
+        <!-- Action Toolbar Below Game Screen -->
+        <!-- The game takes the whole screen on its own, so there is no button
+             to turn that on. Only the best score is left to show. -->
         <div class="mobile-bottom-actions">
-          <button class="mobile-btn btn-fullscreen" data-target-container="stage-flappy">
-            <span class="btn-icon">⛶</span> <span class="btn-label">Fullscreen</span>
-          </button>
-          <button id="btn-hardcore" class="mobile-btn btn-hardcore" aria-pressed="false"
-                  title="Hardcore mode: faster scroll and a tighter gap">
-            <span class="btn-icon">🔥</span> <span class="btn-label">Hardcore</span>
-          </button>
           <div class="mobile-stat-pill">
             <span class="pill-label">BEST:</span>
             <span class="pill-value" id="sidebar-high-score">0</span>
