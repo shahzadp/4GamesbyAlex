@@ -33,7 +33,10 @@ android {
         applicationId = "com.example.artgallery"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
+        // Bumped for every release build: an installer treats a package with
+        // the same version code as "already installed" and refuses to replace
+        // it, so the fix builds would never reach the device.
+        versionCode = 2
         versionName = "1.0"
     }
 

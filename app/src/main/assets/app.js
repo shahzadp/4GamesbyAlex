@@ -321,19 +321,45 @@ function switchPage(targetPageId) {
 // FLAPPY BIRD GAME ENGINE
 // =======================================================
 
+/* The canvas is drawn at this scale, not at the device pixel ratio.
+ *
+ * The backing store used to be the full device pixel ratio, so on a 3x phone
+ * it was 1080 x ~2100: two and a quarter million pixels cleared and redrawn
+ * every frame, then scaled down to the size they are displayed at. Measured
+ * on an itel S685LN that idle redraw alone cost 76% of a core, and the frame
+ * rate it produced was low enough that the game ran in slow motion.
+ *
+ * Two is enough: the art is axis-aligned rectangles and arcs, which upscale
+ * cleanly, and the score text stays crisp. */
+const FLAPPY_DPR_CAP = 2;
+
+/* Mixes two "#rrggbb" colours and returns a css rgb() string */
+function mixHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const r = Math.round(((pa >> 16) & 255) + (((pb >> 16) & 255) - ((pa >> 16) & 255)) * t);
+  const g = Math.round(((pa >> 8) & 255) + (((pb >> 8) & 255) - ((pa >> 8) & 255)) * t);
+  const bl = Math.round((pa & 255) + ((pb & 255) - (pa & 255)) * t);
+  return `rgb(${r}, ${g}, ${bl})`;
+}
+
 const flappyGame = {
   canvas: null,
   ctx: null,
   animId: null,
   isRunning: false,
   gameState: 'idle',
-  
+  /** Timestamp of the previous frame: the simulation runs on real time */
+  lastTime: 0,
+  /** Play time left over from the last frame, in seconds */
+  accumulator: 0,
+
   width: 360,
   height: 520,
   groundHeight: 65,
   score: 0,
   highScore: 0,
-  
+
   bird: {
     x: 80,
     y: 220,
@@ -344,7 +370,7 @@ const flappyGame = {
     rotation: 0,
     wingAngle: 0
   },
-  
+
   pipes: [],
   pipeSpacing: 100,
   pipeTimer: 0,
@@ -352,12 +378,40 @@ const flappyGame = {
   pipeGap: 130,
   speed: 2.3,
 
+  /** Where the sun is in its day: 0 is midnight, 0.42 is noon */
+  dayPhase: 0.42,
+  /** How much of the day one point advances */
+  DAY_PER_POINT: 1 / 40,
+  /** How much the day drifts on its own, per frame */
+  DAY_DRIFT: 0.00012,
+  /** Night sky, used to darken the art as the sun goes down */
+  NIGHT_TONE: '#2b3350',
+  /** The sky over the course of one day */
+  SKY: [
+    { at: 0.00, top: '#0a1633', mid: '#152c52', low: '#24406b', tint: [8, 16, 40], tintA: 0.46, light: 0.16, stars: 1 },
+    { at: 0.20, top: '#2f4a86', mid: '#d97a5c', low: '#f6b978', tint: [255, 150, 95], tintA: 0.16, light: 0.62, stars: 0.12 },
+    { at: 0.42, top: '#4ec0ca', mid: '#74c9d2', low: '#d3f2f4', tint: [255, 255, 255], tintA: 0, light: 1, stars: 0 },
+    { at: 0.68, top: '#243a6e', mid: '#c85a4c', low: '#ef9a58', tint: [255, 120, 70], tintA: 0.17, light: 0.6, stars: 0.08 },
+    { at: 0.86, top: '#132347', mid: '#1d3a63', low: '#2c4d78', tint: [10, 20, 48], tintA: 0.4, light: 0.26, stars: 0.8 },
+    { at: 1.00, top: '#0a1633', mid: '#152c52', low: '#24406b', tint: [8, 16, 40], tintA: 0.46, light: 0.16, stars: 1 },
+  ],
+  /** Fixed stars, so they do not swim about when the sky changes */
+  stars: [],
+
   // Difficulty profile. Hardcore is faster and tighter but stays playable:
   // the gap is never allowed to fall below a floor the bird can still fit
   // through, and the jump arc is tuned so one flap still clears the gap.
+  //
+  // Both profiles also ramp with the score: the scroll speeds up and the gap
+  // closes, so a run gets harder on its own instead of staying on one
+  // setting until the player dies. The ramps are capped, because an endless
+  // ramp only produces runs that end at the same score every time.
   hardcore: false,
   DIFFICULTY: {
-    normal: { speed: 2.3, pipeGap: 130, pipeSpacing: 100, gravity: 0.38, jumpPower: -6.8 },
+    normal: {
+      speed: 2.9, pipeGap: 126, pipeSpacing: 96, gravity: 0.38, jumpPower: -6.8,
+      speedRamp: 0.035, speedMax: 3.8, gapRamp: 0.7, gapMin: 104
+    },
     // Faster scroll and a narrower window, with a slightly stronger flap so
     // the bird still rises decisively instead of drifting.
     //
@@ -366,17 +420,36 @@ const flappyGame = {
     // used gap 96 at speed 3.9 and was literally unplayable: the opening pipe
     // reached the bird about 40 frames after spawning and at gravity 0.44 the
     // bird could not cross a 96px window in time. It died at score 0 on every
-    // run. The gap is now 108 with slightly higher gravity, which gives the
+    // run. The gap is now 106 with slightly higher gravity, which gives the
     // bird authority while still demanding quicker, more accurate taps than
     // classic.
-    hardcore: { speed: 3.4, pipeGap: 108, pipeSpacing: 82, gravity: 0.41, jumpPower: -7.1 }
+    hardcore: {
+      speed: 3.6, pipeGap: 108, pipeSpacing: 80, gravity: 0.41, jumpPower: -7.1,
+      speedRamp: 0.045, speedMax: 4.5, gapRamp: 0.6, gapMin: 94
+    }
   },
   // The narrowest gap the generator may produce, as a fraction of the
   // profile gap. Prevents an unlucky random gap from being impossible.
   MIN_GAP_RATIO: 0.86,
 
+  profile() {
+    return this.hardcore ? this.DIFFICULTY.hardcore : this.DIFFICULTY.normal;
+  },
+
+  /** Scroll speed at the current score */
+  currentSpeed() {
+    const d = this.profile();
+    return Math.min(d.speed + this.score * d.speedRamp, d.speedMax);
+  },
+
+  /** Gap at the current score */
+  currentGap() {
+    const d = this.profile();
+    return Math.max(d.gapMin, d.pipeGap - this.score * d.gapRamp);
+  },
+
   applyDifficulty() {
-    const d = this.hardcore ? this.DIFFICULTY.hardcore : this.DIFFICULTY.normal;
+    const d = this.profile();
     this.speed = d.speed;
     this.pipeGap = d.pipeGap;
     this.pipeSpacing = d.pipeSpacing;
@@ -423,9 +496,10 @@ const flappyGame = {
     this.canvas = document.getElementById('flappy-canvas');
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
-    
+
     this.highScore = parseInt(localStorage.getItem('flappy_best_score') || '0', 10);
     this.updateScoreUI();
+    this.stars = this.makeStars();
 
     const handleTap = (e) => {
       if (state.currentPage !== 'flappy') return;
@@ -475,6 +549,28 @@ const flappyGame = {
     this.draw();
   },
 
+  /** A fixed star field, so the night sky does not shuffle between frames */
+  makeStars() {
+    const stars = [];
+    // A tiny deterministic generator: the stars must land in the same places
+    // on every run, and Math.random would move them every time.
+    let seed = 1337;
+    const rand = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    for (let i = 0; i < 46; i++) {
+      stars.push({
+        x: rand() * this.width,
+        y: rand() * (this.height - this.groundHeight) * 0.74,
+        r: 0.7 + rand() * 1.5,
+        phase: rand() * Math.PI * 2,
+        speed: 0.6 + rand() * 1.6
+      });
+    }
+    return stars;
+  },
+
   resize() {
     if (!this.canvas || !this.ctx) return;
 
@@ -483,7 +579,7 @@ const flappyGame = {
 
     const nextHeight = Math.max(1, Math.round(rect.height * this.width / rect.width));
     const heightScale = nextHeight / this.height;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, FLAPPY_DPR_CAP);
 
     if (this.canvas.width !== this.width * dpr || this.canvas.height !== nextHeight * dpr) {
       this.canvas.width = this.width * dpr;
@@ -514,6 +610,11 @@ const flappyGame = {
     this.bird.rotation = 0;
     this.pipes = [];
     this.pipeTimer = 0;
+    // Every run starts in the early morning, so the day rolls over as the
+    // run goes on instead of starting at an arbitrary hour.
+    this.dayPhase = 0.16;
+    this.accumulator = 0;
+    this.lastTime = 0;
     // Re-apply so a mode switch always takes effect on a fresh run.
     this.applyDifficulty();
 
@@ -572,6 +673,10 @@ const flappyGame = {
     if (!this.isRunning) {
       this.isRunning = true;
       this.loop = this.loop.bind(this);
+      // Start the clock fresh: the time spent on another page is not play
+      // time, and catching up on it would jump the bird through a pipe.
+      this.lastTime = 0;
+      this.accumulator = 0;
       this.animId = requestAnimationFrame(this.loop);
     }
   },
@@ -586,10 +691,11 @@ const flappyGame = {
 
   spawnPipe() {
     const minHeight = 50;
-    // Clamp the gap so a random draw can never produce an impossible wall.
-    // The bird is 28px across, so a gap below that would be unfair.
-    const minGap = Math.max(56, Math.round(this.pipeGap * this.MIN_GAP_RATIO));
-    const gap = Math.max(minGap, this.pipeGap);
+    // The gap closes as the run goes on, but never below a window the bird
+    // can still fit through.
+    const wanted = this.currentGap();
+    const minGap = Math.max(56, Math.round(wanted * this.MIN_GAP_RATIO));
+    const gap = Math.max(minGap, wanted);
     const maxHeight = this.height - this.groundHeight - gap - minHeight;
     const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
     const bottomY = topHeight + gap;
@@ -603,11 +709,16 @@ const flappyGame = {
   },
 
   update() {
+    // The day moves on its own between points as well
+    this.dayPhase = (this.dayPhase + this.DAY_DRIFT) % 1;
+
     this.clouds.forEach(c => {
       c.x -= 0.4 * c.scale;
       if (c.x < -80) c.x = this.width + 40;
     });
 
+    // The scroll speeds up as the run goes on
+    this.speed = this.currentSpeed();
     this.groundOffset = (this.groundOffset + this.speed) % 18;
 
     if (this.gameState === 'idle') {
@@ -660,6 +771,8 @@ const flappyGame = {
       if (!p.passed && p.x + this.pipeWidth < this.bird.x) {
         p.passed = true;
         this.score++;
+        // Every point moves the day on a little
+        this.dayPhase = (this.dayPhase + this.DAY_PER_POINT) % 1;
         playScoreSound();
       }
 
@@ -683,19 +796,103 @@ const flappyGame = {
     }
   },
 
+  /** The sky colours at the current point in the day */
+  skyNow() {
+    const keys = this.SKY;
+    let i = 0;
+    while (i < keys.length - 2 && this.dayPhase > keys[i + 1].at) i++;
+    const a = keys[i];
+    const b = keys[i + 1];
+    const t = (this.dayPhase - a.at) / (b.at - a.at);
+    const tint = [
+      a.tint[0] + (b.tint[0] - a.tint[0]) * t,
+      a.tint[1] + (b.tint[1] - a.tint[1]) * t,
+      a.tint[2] + (b.tint[2] - a.tint[2]) * t
+    ];
+    const tintA = a.tintA + (b.tintA - a.tintA) * t;
+    return {
+      top: mixHex(a.top, b.top, t),
+      mid: mixHex(a.mid, b.mid, t),
+      low: mixHex(a.low, b.low, t),
+      tint: `rgba(${Math.round(tint[0])}, ${Math.round(tint[1])}, ${Math.round(tint[2])}, ${tintA.toFixed(3)})`,
+      light: a.light + (b.light - a.light) * t,
+      stars: a.stars + (b.stars - a.stars) * t
+    };
+  },
+
+  /** The sun by day, the moon by night, both crossing the sky */
+  drawCelestial(ctx, sky, groundY) {
+    const p = this.dayPhase;
+    let t;
+    let sun = true;
+    let r = 21;
+    let color = '#ffd54a';
+    let glow = 'rgba(255, 213, 74, 0.32)';
+    if (p >= 0.18 && p < 0.70) {
+      t = (p - 0.18) / 0.52;
+    } else {
+      sun = false;
+      t = (p - 0.70) / 0.48;
+      if (t < 0) t += 1;
+      r = 15;
+      color = '#e9eef8';
+      glow = 'rgba(233, 238, 248, 0.18)';
+    }
+    const x = t * this.width;
+    const y = groundY * 0.6 - Math.sin(t * Math.PI) * groundY * 0.44;
+
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (!sun) {
+      // A couple of craters, so the moon is not a flat dot
+      ctx.fillStyle = 'rgba(176, 186, 206, 0.85)';
+      ctx.beginPath();
+      ctx.arc(x - 5, y - 4, 3, 0, Math.PI * 2);
+      ctx.arc(x + 4, y + 3, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+
   draw() {
     const ctx = this.ctx;
     if (!ctx) return;
 
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, this.height - this.groundHeight);
-    skyGrad.addColorStop(0, '#4ec0ca');
-    skyGrad.addColorStop(0.7, '#70c5ce');
-    skyGrad.addColorStop(1, '#cbf0f3');
+    const groundY = this.height - this.groundHeight;
+    const sky = this.skyNow();
+    // How far the sun has set, 0 by day and 1 at night
+    const night = 1 - sky.light;
+
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+    skyGrad.addColorStop(0, sky.top);
+    skyGrad.addColorStop(0.7, sky.mid);
+    skyGrad.addColorStop(1, sky.low);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, this.width, this.height);
 
+    // Stars come out as the sun goes down
+    if (sky.stars > 0.01) {
+      const now = performance.now();
+      this.stars.forEach(s => {
+        const twinkle = 0.55 + 0.45 * Math.sin(now / 420 + s.phase * s.speed);
+        ctx.fillStyle = `rgba(255, 255, 255, ${(sky.stars * twinkle * 0.9).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    this.drawCelestial(ctx, sky, groundY);
+
     this.clouds.forEach(c => {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.fillStyle = mixHex('#ffffff', this.NIGHT_TONE, night * 0.85);
       ctx.beginPath();
       ctx.arc(c.x, c.y, 20 * c.scale, 0, Math.PI * 2);
       ctx.arc(c.x + 22 * c.scale, c.y - 6 * c.scale, 24 * c.scale, 0, Math.PI * 2);
@@ -703,9 +900,13 @@ const flappyGame = {
       ctx.fill();
     });
 
+    const pipeBody = mixHex('#73bf2e', '#2b4430', night);
+    const pipeLip = mixHex('#82cf36', '#37543a', night);
+    const pipeEdge = mixHex('#558022', '#1e3323', night);
+
     this.pipes.forEach(p => {
-      ctx.fillStyle = '#73bf2e';
-      ctx.strokeStyle = '#558022';
+      ctx.fillStyle = pipeBody;
+      ctx.strokeStyle = pipeEdge;
       ctx.lineWidth = 3;
 
       ctx.fillRect(p.x, 0, this.pipeWidth, p.topHeight);
@@ -713,16 +914,16 @@ const flappyGame = {
 
       const lipHeight = 20;
       const lipOverlap = 4;
-      ctx.fillStyle = '#82cf36';
+      ctx.fillStyle = pipeLip;
       ctx.fillRect(p.x - lipOverlap, p.topHeight - lipHeight, this.pipeWidth + lipOverlap * 2, lipHeight);
       ctx.strokeRect(p.x - lipOverlap, p.topHeight - lipHeight, this.pipeWidth + lipOverlap * 2, lipHeight);
 
       const bottomHeight = this.height - this.groundHeight - p.bottomY;
-      ctx.fillStyle = '#73bf2e';
+      ctx.fillStyle = pipeBody;
       ctx.fillRect(p.x, p.bottomY, this.pipeWidth, bottomHeight);
       ctx.strokeRect(p.x, p.bottomY, this.pipeWidth, bottomHeight);
 
-      ctx.fillStyle = '#82cf36';
+      ctx.fillStyle = pipeLip;
       ctx.fillRect(p.x - lipOverlap, p.bottomY, this.pipeWidth + lipOverlap * 2, lipHeight);
       ctx.strokeRect(p.x - lipOverlap, p.bottomY, this.pipeWidth + lipOverlap * 2, lipHeight);
 
@@ -731,16 +932,20 @@ const flappyGame = {
       ctx.fillRect(p.x + 5, p.bottomY, 5, bottomHeight);
     });
 
-    const groundY = this.height - this.groundHeight;
-    ctx.fillStyle = '#ded895';
+    const grass = mixHex('#73bf2e', '#2c4a2a', night);
+    const grassEdge = mixHex('#558022', '#1f351f', night);
+    const soil = mixHex('#ded895', '#3c4257', night);
+    const soilEdge = mixHex('#cbb868', '#2f3448', night);
+
+    ctx.fillStyle = soil;
     ctx.fillRect(0, groundY, this.width, this.groundHeight);
 
-    ctx.fillStyle = '#73bf2e';
+    ctx.fillStyle = grass;
     ctx.fillRect(0, groundY, this.width, 12);
-    ctx.fillStyle = '#558022';
+    ctx.fillStyle = grassEdge;
     ctx.fillRect(0, groundY + 10, this.width, 3);
 
-    ctx.strokeStyle = '#cbb868';
+    ctx.strokeStyle = soilEdge;
     ctx.lineWidth = 3;
     for (let x = -20 - this.groundOffset; x < this.width + 20; x += 16) {
       ctx.beginPath();
@@ -800,6 +1005,11 @@ const flappyGame = {
 
     ctx.restore();
 
+    // Night falls over the whole scene, then the score is drawn on top of it
+    // so it stays readable at any hour
+    ctx.fillStyle = sky.tint;
+    ctx.fillRect(0, 0, this.width, this.height);
+
     if (this.gameState === 'playing') {
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#000000';
@@ -811,9 +1021,31 @@ const flappyGame = {
     }
   },
 
-  loop() {
+  loop(now) {
     if (!this.isRunning) return;
-    this.update();
+
+    /* The simulation runs in fixed steps of a sixtieth of a second, and the
+     * number of steps is taken from the real time that passed.
+     *
+     * It used to move one step per animation frame, which tied the speed of
+     * the game to the frame rate of the device: a phone that could only
+     * manage 30 frames a second played the game at half speed, and the
+     * cheaper the frame the slower the game felt. A long stall is still
+     * capped, so the bird can never be teleported through a pipe. */
+    if (!this.lastTime) this.lastTime = now;
+    this.accumulator += Math.min((now - this.lastTime) / 1000, 0.25);
+    this.lastTime = now;
+
+    const STEP = 1 / 60;
+    let steps = 0;
+    while (this.accumulator >= STEP && steps < 15) {
+      this.update();
+      this.accumulator -= STEP;
+      steps++;
+    }
+    // Too far behind to catch up: drop the backlog rather than spiral
+    if (steps >= 15) this.accumulator = 0;
+
     this.draw();
     this.animId = requestAnimationFrame(this.loop);
   }
@@ -4608,6 +4840,22 @@ document.addEventListener('DOMContentLoaded', () => {
    * now first and cannot be skipped, and the games are initialised lazily
    * (see gameBoot above) with failures contained to the game that threw. */
 
+  /* A launcher that is not on screen must not keep drawing.
+   *
+   * The browser stops the animation frames of a hidden tab on its own, but
+   * the loop is still scheduled, and every other page of the launcher keeps
+   * its game paused through switchPage(). The one that does not is the game
+   * itself: it lives in its own WebView on Android, and in an iframe in the
+   * browser, and neither of them is told when the launcher goes away. */
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flappyGame.pause();
+      pauseAlexcraftFrame();
+    } else if (state.currentPage === 'flappy') {
+      flappyGame.resume();
+    }
+  });
+
   // 1. Wire App Launch Cards (2x2 Grid)
   applySavedPetName();
 
@@ -4831,11 +5079,16 @@ function mountAlexcraftFrame(pageId) {
 
   /* Re-measure once the page is actually laid out. Two frames: the first runs
      after the class flip has been styled, the second after the iframe has been
-     given a size by that layout. */
+     given a size by that layout.
+     The game stops its render loop while it is paused, so coming back to it
+     has to start it again. Without this the page comes back to a frozen
+     world. */
   requestAnimationFrame(() => requestAnimationFrame(() => {
     try {
       const w = frame.contentWindow;
-      if (w) w.dispatchEvent(new w.Event('resize'));
+      if (!w) return;
+      if (typeof w.__alexcraftResume === 'function') w.__alexcraftResume();
+      w.dispatchEvent(new w.Event('resize'));
     } catch (e) {
       /* Child not reachable yet; its own resize handler will catch up. */
     }
