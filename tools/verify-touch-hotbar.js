@@ -26,13 +26,12 @@ async function main() {
       ready = await evaluate(
         cdp,
         `(function () {
-           const pause = document.getElementById('pause');
+           const start = document.getElementById('start-menu');
            const ui = document.getElementById('touch-ui');
-           if (!pause || !ui) return false;
+           if (!start || !ui) return false;
            if (!document.body.classList.contains('touch-mode')) return false;
-           // The pause menu only opens once the spawn area has loaded, so this
-           // is the point where the game is really up.
-           return getComputedStyle(pause).display === 'flex';
+           // The start page is the first thing the game shows
+           return getComputedStyle(start).display === 'flex';
          })()`
       );
       if (ready) break;
@@ -44,13 +43,40 @@ async function main() {
            hasGame: Boolean(window.game),
            touchMode: document.body.classList.contains('touch-mode'),
            hasTouchUi: Boolean(document.getElementById('touch-ui')),
-           pauseDisplay: document.getElementById('pause')
-             ? getComputedStyle(document.getElementById('pause')).display
+           startDisplay: document.getElementById('start-menu')
+             ? getComputedStyle(document.getElementById('start-menu')).display
              : 'missing',
          })`
       );
       throw new Error(`the game never came up (${state})`);
     }
+
+    // Play, then the first world in the list
+    await evaluate(cdp, `document.getElementById('start-play').click()`);
+    await sleep(600);
+    await evaluate(
+      cdp,
+      `(function () {
+         const open = document.querySelector('#world-list .world-open');
+         if (open) open.click();
+       })()`
+    );
+
+    // The pause menu only opens once the spawn area has loaded, so this is
+    // the point where the game is really up.
+    let inWorld = false;
+    for (let attempt = 0; attempt < 240; attempt++) {
+      await sleep(250);
+      inWorld = await evaluate(
+        cdp,
+        `(function () {
+           const pause = document.getElementById('pause');
+           return pause && getComputedStyle(pause).display === 'flex';
+         })()`
+      );
+      if (inWorld) break;
+    }
+    if (!inWorld) throw new Error("the world never finished loading");
 
     const paused = await evaluate(
       cdp,

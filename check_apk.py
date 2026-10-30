@@ -22,6 +22,31 @@ if css:
 if js:
     print('alexcraft suspend hooks:', '__alexcraftPause' in t and '__alexcraftResume' in t)
     print('alexcraft auto jump:', 'AUTO_JUMP_ENABLED' in t)
+    # The start page and the pages behind it
+    print('alexcraft start page:', 'start-menu' in t and 'start-play' in t)
+    print('alexcraft play page:', 'play-menu' in t and 'world-list' in t)
+    print('alexcraft skin page:', 'skin-menu' in t and 'skin-list' in t)
+    # The worlds are saved side by side, each with its own name and its own
+    # chunks, and only the one that is played is read
+    print('alexcraft named worlds:', 'listWorlds' in t and 'There is already a world called' in t)
+    print('alexcraft world chunks:', 'saveChunks' in t and 'loadChunks' in t)
+    print('alexcraft old world moved over:', 'migrateLegacyWorld' in t)
+    print('alexcraft change world:', 'change-world' in t)
+    print('alexcraft skins:', 'minicraft.skin' in t and 'skin-item' in t)
+if css:
+    print('alexcraft start page styled:', 'mc-screen' in c)
+    print('alexcraft world list styled:', 'world-list' in c)
+    print('alexcraft skin list styled:', 'skin-list' in c)
+
+# The labels of the start page live in the page itself, not in the bundle
+page = [n for n in z.namelist() if n == 'assets/alexcraft/index.html']
+if page:
+    h = z.read(page[0]).decode('utf-8', errors='ignore')
+    print('start page buttons:', 'start-play' in h and 'start-skin' in h
+          and 'start-music-volume' in h and 'Back to 4Games' in h)
+    print('pause menu rows:', 'change-world' in h and 'Back to Games' in h)
+else:
+    print('assets/alexcraft/index.html: MISSING')
 
 # The launcher carries the Flappy Bird work: the fixed timestep loop, the
 # capped pixel ratio, the score ramp and the day-night cycle.
@@ -43,6 +68,9 @@ if launcher:
     # The game takes the whole screen on its own, and there is one mode
     print('flappy fullscreen by default:', 'enterFullscreen' in a)
     print('flappy one mode:', 'hardcore' not in a and 'btn-hardcore' not in a)
+    # The sun and the moon sit in the sky instead of on top of it: soft
+    # gradients rather than a solid disc with a hard rim
+    print('flappy soft sun and moon:', 'createRadialGradient' in a and 'drawCelestial' in a)
     launcher_css = [n for n in z.namelist() if n == 'assets/styles.css']
     if launcher_css:
         s = z.read(launcher_css[0]).decode('utf-8', errors='ignore')

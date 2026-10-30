@@ -36,7 +36,7 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        versionCode = 3
+        versionCode = 4
         versionName = "1.0"
     }
 
