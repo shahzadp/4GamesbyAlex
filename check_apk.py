@@ -31,7 +31,7 @@ if js:
     print('alexcraft named worlds:', 'listWorlds' in t and 'There is already a world called' in t)
     print('alexcraft world chunks:', 'saveChunks' in t and 'loadChunks' in t)
     print('alexcraft old world moved over:', 'migrateLegacyWorld' in t)
-    print('alexcraft change world:', 'change-world' in t)
+    print('alexcraft quit to title:', 'quit-to-title' in t)
     print('alexcraft skins:', 'minicraft.skin' in t and 'skin-item' in t)
 if css:
     print('alexcraft start page styled:', 'mc-screen' in c)
@@ -44,7 +44,12 @@ if page:
     h = z.read(page[0]).decode('utf-8', errors='ignore')
     print('start page buttons:', 'start-play' in h and 'start-skin' in h
           and 'start-music-volume' in h and 'Back to 4Games' in h)
-    print('pause menu rows:', 'change-world' in h and 'Back to Games' in h)
+    print('pause menu rows:', 'quit-to-title' in h and 'Save and Quit to Title' in h)
+    # The pause menu is plain now: no sliders and one button to leave
+    print('pause menu has no sliders:', 'id="render-distance-slider"' not in h
+          and 'id="music-volume-slider"' not in h)
+    print('pause menu has one way out:', 'change-world' not in h
+          and 'exit-game' not in h)
 else:
     print('assets/alexcraft/index.html: MISSING')
 
