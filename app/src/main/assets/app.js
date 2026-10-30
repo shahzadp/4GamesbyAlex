@@ -333,6 +333,11 @@ function switchPage(targetPageId) {
  * cleanly, and the score text stays crisp. */
 const FLAPPY_DPR_CAP = 2;
 
+/* The length of one simulation step. The game is stepped at a fixed rate
+ * instead of once per drawn frame, so that it plays the same on a phone
+ * that draws twenty frames a second and on one that draws a hundred. */
+const FLAPPY_STEP = 1 / 60;
+
 /* Mixes two "#rrggbb" colours and returns a css rgb() string */
 function mixHex(a, b, t) {
   const pa = parseInt(a.slice(1), 16);
@@ -353,6 +358,13 @@ const flappyGame = {
   lastTime: 0,
   /** Play time left over from the last frame, in seconds */
   accumulator: 0,
+  /** The bird's place before the last step and the angle it had then.
+   *
+   * A frame is drawn between two steps rather than on one of them, so the
+   * bird moves smoothly even when the device cannot draw a frame for every
+   * step of the game. */
+  prevBirdY: 220,
+  prevBirdRotation: 0,
 
   width: 360,
   height: 520,
@@ -365,8 +377,22 @@ const flappyGame = {
     y: 220,
     radius: 14,
     velocity: 0,
-    gravity: 0.38,
-    jumpPower: -6.8,
+    gravity: 0.4,
+    jumpPower: -5.9,
+    /* The bird does not fall faster than this.
+     *
+     * The fall was left open before, so the speed it picked up kept growing
+     * until it hit the ground. One late tap was enough to lose the run: the
+     * bird dropped most of the screen before the finger could land again.
+     * With a limit the same mistake costs height instead of the game. */
+    maxFallSpeed: 9.5,
+    /* How much of the bird is given away on the edges when it is hit.
+     *
+     * The bird is drawn with a radius of fourteen pixels, but the box it is
+     * hit with is smaller than that, so a graze of the wing is not a crash.
+     * It is the single biggest reason a run ends on a frame the player did
+     * not see. */
+    hitInset: 5,
     rotation: 0,
     wingAngle: 0
   },
@@ -409,8 +435,8 @@ const flappyGame = {
   hardcore: false,
   DIFFICULTY: {
     normal: {
-      speed: 2.9, pipeGap: 126, pipeSpacing: 96, gravity: 0.38, jumpPower: -6.8,
-      speedRamp: 0.035, speedMax: 3.8, gapRamp: 0.7, gapMin: 104
+      speed: 2.9, pipeGap: 126, pipeSpacing: 96, gravity: 0.4, jumpPower: -5.9,
+      speedRamp: 0.03, speedMax: 3.6, gapRamp: 0.55, gapMin: 112
     },
     // Faster scroll and a narrower window, with a slightly stronger flap so
     // the bird still rises decisively instead of drifting.
@@ -420,12 +446,12 @@ const flappyGame = {
     // used gap 96 at speed 3.9 and was literally unplayable: the opening pipe
     // reached the bird about 40 frames after spawning and at gravity 0.44 the
     // bird could not cross a 96px window in time. It died at score 0 on every
-    // run. The gap is now 106 with slightly higher gravity, which gives the
+    // run. The gap is now 108 with slightly higher gravity, which gives the
     // bird authority while still demanding quicker, more accurate taps than
     // classic.
     hardcore: {
-      speed: 3.6, pipeGap: 108, pipeSpacing: 80, gravity: 0.41, jumpPower: -7.1,
-      speedRamp: 0.045, speedMax: 4.5, gapRamp: 0.6, gapMin: 94
+      speed: 3.6, pipeGap: 108, pipeSpacing: 80, gravity: 0.43, jumpPower: -6.2,
+      speedRamp: 0.04, speedMax: 4.3, gapRamp: 0.45, gapMin: 102
     }
   },
   // The narrowest gap the generator may produce, as a fraction of the
@@ -615,6 +641,9 @@ const flappyGame = {
     this.dayPhase = 0.16;
     this.accumulator = 0;
     this.lastTime = 0;
+    // The bird starts where it is drawn
+    this.prevBirdY = this.bird.y;
+    this.prevBirdRotation = this.bird.rotation;
     // Re-apply so a mode switch always takes effect on a fresh run.
     this.applyDifficulty();
 
@@ -702,6 +731,8 @@ const flappyGame = {
 
     this.pipes.push({
       x: this.width,
+      // The place it starts from, so it can be drawn between the steps
+      prevX: this.width,
       topHeight: topHeight,
       bottomY: bottomY,
       passed: false
@@ -709,6 +740,11 @@ const flappyGame = {
   },
 
   update() {
+    // Where the bird was before this step, so the frame can be drawn
+    // between the two steps instead of on one of them.
+    this.prevBirdY = this.bird.y;
+    this.prevBirdRotation = this.bird.rotation;
+
     // The day moves on its own between points as well
     this.dayPhase = (this.dayPhase + this.DAY_DRIFT) % 1;
 
@@ -725,6 +761,10 @@ const flappyGame = {
       this.bird.y = this.height * 0.42 + Math.sin(Date.now() / 200) * 8;
       this.bird.rotation = 0;
       this.bird.wingAngle = Math.sin(Date.now() / 100) * 0.4;
+      // The bird does not really move here, so there is nothing to draw
+      // between the steps
+      this.prevBirdY = this.bird.y;
+      this.prevBirdRotation = this.bird.rotation;
       return;
     }
 
@@ -734,10 +774,16 @@ const flappyGame = {
         this.bird.y += this.bird.velocity;
         this.bird.rotation = Math.min(Math.PI / 2, this.bird.rotation + 0.1);
       }
+      // The pipes have stopped, so they are drawn where they are
+      this.pipes.forEach(p => { p.prevX = p.x; });
       return;
     }
 
     this.bird.velocity += this.bird.gravity;
+    // The fall has a top speed, so a late tap costs height and not the run
+    if (this.bird.velocity > this.bird.maxFallSpeed) {
+      this.bird.velocity = this.bird.maxFallSpeed;
+    }
     this.bird.y += this.bird.velocity;
     this.bird.wingAngle = Math.sin(Date.now() / 60) * 0.5;
 
@@ -764,8 +810,15 @@ const flappyGame = {
       this.spawnPipe();
     }
 
+    // The box the bird is hit with is smaller than the bird is drawn, so
+    // that a wing that clips a pipe is not a crash
+    const inset = this.bird.hitInset;
+
     for (let i = this.pipes.length - 1; i >= 0; i--) {
       const p = this.pipes[i];
+      // Where the pipe was before this step, so it can be drawn between the
+      // steps like the bird
+      p.prevX = p.x;
       p.x -= this.speed;
 
       if (!p.passed && p.x + this.pipeWidth < this.bird.x) {
@@ -777,10 +830,10 @@ const flappyGame = {
       }
 
       const birdBox = {
-        left: this.bird.x - this.bird.radius + 3,
-        right: this.bird.x + this.bird.radius - 3,
-        top: this.bird.y - this.bird.radius + 3,
-        bottom: this.bird.y + this.bird.radius - 3
+        left: this.bird.x - this.bird.radius + inset,
+        right: this.bird.x + this.bird.radius - inset,
+        top: this.bird.y - this.bird.radius + inset,
+        bottom: this.bird.y + this.bird.radius - inset
       };
 
       if (birdBox.right > p.x && birdBox.left < p.x + this.pipeWidth) {
@@ -810,6 +863,13 @@ const flappyGame = {
       a.tint[2] + (b.tint[2] - a.tint[2]) * t
     ];
     const tintA = a.tintA + (b.tintA - a.tintA) * t;
+    /* The colours are worked out every frame and not cached.
+     *
+     * They look like they would be worth keeping: the day-night sky mixes
+     * nine colours and builds a gradient for each frame. Measured on the
+     * page, all of that together costs about a hundredth of a millisecond
+     * against a frame budget of sixteen, so caching it would only have
+     * rounded the day off to a step and put a faint seam in the sky. */
     return {
       top: mixHex(a.top, b.top, t),
       mid: mixHex(a.mid, b.mid, t),
@@ -870,6 +930,19 @@ const flappyGame = {
     // How far the sun has set, 0 by day and 1 at night
     const night = 1 - sky.light;
 
+    /* Where the frame sits between the last two steps of the game.
+     *
+     * The bird and the pipes are drawn here rather than on the state of the
+     * last step, so they move smoothly even when the device cannot draw a
+     * frame for every step. Without this the bird jumps from one place to
+     * the next every time a frame arrives late, and a late frame looks
+     * exactly like the player mistimed a tap. */
+    const alpha = Math.min(1, Math.max(0, this.accumulator / FLAPPY_STEP));
+    const birdY = this.prevBirdY + (this.bird.y - this.prevBirdY) * alpha;
+    const birdRotation =
+      this.prevBirdRotation +
+      (this.bird.rotation - this.prevBirdRotation) * alpha;
+
     const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
     skyGrad.addColorStop(0, sky.top);
     skyGrad.addColorStop(0.7, sky.mid);
@@ -880,19 +953,46 @@ const flappyGame = {
     // Stars come out as the sun goes down
     if (sky.stars > 0.01) {
       const now = performance.now();
-      this.stars.forEach(s => {
-        const twinkle = 0.55 + 0.45 * Math.sin(now / 420 + s.phase * s.speed);
-        ctx.fillStyle = `rgba(255, 255, 255, ${(sky.stars * twinkle * 0.9).toFixed(3)})`;
+      const stars = this.stars;
+      if (!this._twinkle || this._twinkle.length !== stars.length) {
+        this._twinkle = new Float32Array(stars.length);
+      }
+      const twinkle = this._twinkle;
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        twinkle[i] =
+          sky.stars * (0.55 + 0.45 * Math.sin(now / 420 + s.phase * s.speed)) * 0.9;
+      }
+      /* The stars are drawn in a few groups instead of one by one.
+       *
+       * Each of the forty six stars had a fill of its own, and filling a
+       * path is the most expensive thing a canvas does. Six fills look the
+       * same and cost a fraction of it. */
+      const BUCKETS = 6;
+      for (let b = 0; b < BUCKETS; b++) {
+        const low = b / BUCKETS;
+        const high = (b + 1) / BUCKETS;
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        let any = false;
+        for (let i = 0; i < stars.length; i++) {
+          const a = twinkle[i];
+          if (a < low || a >= high) continue;
+          const s = stars[i];
+          // moveTo keeps the stars from being joined to each other by a line
+          ctx.moveTo(s.x + s.r, s.y);
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          any = true;
+        }
+        if (!any) continue;
+        ctx.fillStyle = `rgba(255, 255, 255, ${((low + high) / 2).toFixed(3)})`;
         ctx.fill();
-      });
+      }
     }
 
     this.drawCelestial(ctx, sky, groundY);
 
+    ctx.fillStyle = mixHex('#ffffff', this.NIGHT_TONE, night * 0.85);
     this.clouds.forEach(c => {
-      ctx.fillStyle = mixHex('#ffffff', this.NIGHT_TONE, night * 0.85);
       ctx.beginPath();
       ctx.arc(c.x, c.y, 20 * c.scale, 0, Math.PI * 2);
       ctx.arc(c.x + 22 * c.scale, c.y - 6 * c.scale, 24 * c.scale, 0, Math.PI * 2);
@@ -905,31 +1005,33 @@ const flappyGame = {
     const pipeEdge = mixHex('#558022', '#1e3323', night);
 
     this.pipes.forEach(p => {
+      // The pipe is drawn between the two steps, like the bird
+      const x = p.prevX + (p.x - p.prevX) * alpha;
       ctx.fillStyle = pipeBody;
       ctx.strokeStyle = pipeEdge;
       ctx.lineWidth = 3;
 
-      ctx.fillRect(p.x, 0, this.pipeWidth, p.topHeight);
-      ctx.strokeRect(p.x, -2, this.pipeWidth, p.topHeight + 2);
+      ctx.fillRect(x, 0, this.pipeWidth, p.topHeight);
+      ctx.strokeRect(x, -2, this.pipeWidth, p.topHeight + 2);
 
       const lipHeight = 20;
       const lipOverlap = 4;
       ctx.fillStyle = pipeLip;
-      ctx.fillRect(p.x - lipOverlap, p.topHeight - lipHeight, this.pipeWidth + lipOverlap * 2, lipHeight);
-      ctx.strokeRect(p.x - lipOverlap, p.topHeight - lipHeight, this.pipeWidth + lipOverlap * 2, lipHeight);
+      ctx.fillRect(x - lipOverlap, p.topHeight - lipHeight, this.pipeWidth + lipOverlap * 2, lipHeight);
+      ctx.strokeRect(x - lipOverlap, p.topHeight - lipHeight, this.pipeWidth + lipOverlap * 2, lipHeight);
 
       const bottomHeight = this.height - this.groundHeight - p.bottomY;
       ctx.fillStyle = pipeBody;
-      ctx.fillRect(p.x, p.bottomY, this.pipeWidth, bottomHeight);
-      ctx.strokeRect(p.x, p.bottomY, this.pipeWidth, bottomHeight);
+      ctx.fillRect(x, p.bottomY, this.pipeWidth, bottomHeight);
+      ctx.strokeRect(x, p.bottomY, this.pipeWidth, bottomHeight);
 
       ctx.fillStyle = pipeLip;
-      ctx.fillRect(p.x - lipOverlap, p.bottomY, this.pipeWidth + lipOverlap * 2, lipHeight);
-      ctx.strokeRect(p.x - lipOverlap, p.bottomY, this.pipeWidth + lipOverlap * 2, lipHeight);
+      ctx.fillRect(x - lipOverlap, p.bottomY, this.pipeWidth + lipOverlap * 2, lipHeight);
+      ctx.strokeRect(x - lipOverlap, p.bottomY, this.pipeWidth + lipOverlap * 2, lipHeight);
 
       ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-      ctx.fillRect(p.x + 5, 0, 5, p.topHeight);
-      ctx.fillRect(p.x + 5, p.bottomY, 5, bottomHeight);
+      ctx.fillRect(x + 5, 0, 5, p.topHeight);
+      ctx.fillRect(x + 5, p.bottomY, 5, bottomHeight);
     });
 
     const grass = mixHex('#73bf2e', '#2c4a2a', night);
@@ -945,18 +1047,20 @@ const flappyGame = {
     ctx.fillStyle = grassEdge;
     ctx.fillRect(0, groundY + 10, this.width, 3);
 
+    // The stripes of the soil are one path with one stroke, instead of a
+    // stroke for every one of them
     ctx.strokeStyle = soilEdge;
     ctx.lineWidth = 3;
+    ctx.beginPath();
     for (let x = -20 - this.groundOffset; x < this.width + 20; x += 16) {
-      ctx.beginPath();
       ctx.moveTo(x, groundY + 14);
       ctx.lineTo(x + 10, this.height);
-      ctx.stroke();
     }
+    ctx.stroke();
 
     ctx.save();
-    ctx.translate(this.bird.x, this.bird.y);
-    ctx.rotate(this.bird.rotation);
+    ctx.translate(this.bird.x, birdY);
+    ctx.rotate(birdRotation);
 
     ctx.fillStyle = '#facc15';
     ctx.beginPath();
@@ -1036,11 +1140,10 @@ const flappyGame = {
     this.accumulator += Math.min((now - this.lastTime) / 1000, 0.25);
     this.lastTime = now;
 
-    const STEP = 1 / 60;
     let steps = 0;
-    while (this.accumulator >= STEP && steps < 15) {
+    while (this.accumulator >= FLAPPY_STEP && steps < 15) {
       this.update();
-      this.accumulator -= STEP;
+      this.accumulator -= FLAPPY_STEP;
       steps++;
     }
     // Too far behind to catch up: drop the backlog rather than spiral

@@ -29,9 +29,17 @@ launcher = [n for n in z.namelist() if n == 'assets/app.js']
 if launcher:
     a = z.read(launcher[0]).decode('utf-8', errors='ignore')
     print('flappy dpr cap:', 'FLAPPY_DPR_CAP' in a)
-    print('flappy fixed timestep:', 'const STEP = 1 / 60' in a)
+    print('flappy fixed timestep:', 'FLAPPY_STEP' in a)
     print('flappy day cycle:', 'DAY_PER_POINT' in a and 'dayPhase' in a)
     print('flappy score ramp:', 'currentSpeed' in a and 'currentGap' in a)
+    # The feel of the game: a short jump, a limit on the fall and a hitbox
+    # that is smaller than the bird is drawn
+    print('flappy short jump:', 'jumpPower: -5.9' in a)
+    print('flappy fall limit:', 'maxFallSpeed' in a)
+    print('flappy forgiving hitbox:', 'hitInset' in a)
+    # The frame is drawn between two steps, so a late frame does not look
+    # like a mistimed tap
+    print('flappy drawn between steps:', 'prevBirdY' in a and 'FLAPPY_STEP' in a)
     print('launcher pauses on hide:', '__alexcraftPause' in a and 'visibilitychange' in a)
 else:
     print('assets/app.js: MISSING')
