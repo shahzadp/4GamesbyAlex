@@ -1,10 +1,15 @@
 // Minimal static server for the Android assets, used to exercise the chess
 // page in a desktop browser. Serves with the MIME types the engine needs.
+//
+// Usage: node tools/serve-assets.cjs [root] [port]
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const root = path.join(__dirname, '..', 'app', 'src', 'main', 'assets');
+const root = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.join(__dirname, '..', 'app', 'src', 'main', 'assets');
+const port = parseInt(process.argv[3] || '8099', 10);
 const types = {
   '.html': 'text/html',
   '.js': 'text/javascript',
@@ -24,4 +29,4 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream' });
     res.end(buf);
   });
-}).listen(8099, () => console.log('serving assets on http://127.0.0.1:8099'));
+}).listen(port, () => console.log(`serving ${root} on http://127.0.0.1:${port}`));

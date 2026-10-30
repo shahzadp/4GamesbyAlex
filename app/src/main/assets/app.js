@@ -943,40 +943,62 @@ const flappyGame = {
     };
   },
 
-  /** The sun by day, the moon by night, both crossing the sky */
+  /**
+   * The sun by day, the moon by night, both crossing the sky.
+   *
+   * Both are drawn as soft radial gradients rather than flat discs. A solid
+   * body with a hard rim and a bright ring around it read as a sticker laid
+   * over the sky instead of part of it, and pulled the eye away from the
+   * pipes and the bird. The glow now fades out well past the body and the
+   * body itself thins towards its rim, so the sky shows through both.
+   */
   drawCelestial(ctx, sky, groundY) {
     const p = this.dayPhase;
     let t;
     let sun = true;
     let r = 21;
-    let color = '#ffd54a';
-    let glow = 'rgba(255, 213, 74, 0.32)';
+    let rgb = '255, 214, 128';
+    let peak = 0.72;
     if (p >= 0.18 && p < 0.70) {
       t = (p - 0.18) / 0.52;
     } else {
       sun = false;
       t = (p - 0.70) / 0.48;
       if (t < 0) t += 1;
-      r = 15;
-      color = '#e9eef8';
-      glow = 'rgba(233, 238, 248, 0.18)';
+      r = 16;
+      rgb = '222, 232, 250';
+      peak = 0.58;
     }
     const x = t * this.width;
     const y = groundY * 0.6 - Math.sin(t * Math.PI) * groundY * 0.44;
+    // Near the horizon the sun is dimmer, so it sinks into the dusk instead
+    // of hanging over it
+    const a = peak * (0.6 + 0.4 * Math.sin(t * Math.PI));
 
-    ctx.fillStyle = glow;
+    // The halo: wide, faint and open at the edges
+    const halo = ctx.createRadialGradient(x, y, 0, x, y, r * 3.4);
+    halo.addColorStop(0, `rgba(${rgb}, ${(a * 0.32).toFixed(3)})`);
+    halo.addColorStop(0.3, `rgba(${rgb}, ${(a * 0.14).toFixed(3)})`);
+    halo.addColorStop(1, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
+    ctx.arc(x, y, r * 3.4, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = color;
+    // The body: brightest in the middle, thinning out towards the rim
+    const body = ctx.createRadialGradient(x, y, 0, x, y, r);
+    body.addColorStop(0, `rgba(${rgb}, ${a.toFixed(3)})`);
+    body.addColorStop(0.62, `rgba(${rgb}, ${(a * 0.88).toFixed(3)})`);
+    body.addColorStop(0.85, `rgba(${rgb}, ${(a * 0.42).toFixed(3)})`);
+    body.addColorStop(1, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = body;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
 
     if (!sun) {
-      // A couple of craters, so the moon is not a flat dot
-      ctx.fillStyle = 'rgba(176, 186, 206, 0.85)';
+      // A couple of craters, just enough to keep the moon from being a dot
+      ctx.fillStyle = 'rgba(176, 186, 206, 0.26)';
       ctx.beginPath();
       ctx.arc(x - 5, y - 4, 3, 0, Math.PI * 2);
       ctx.arc(x + 4, y + 3, 2.2, 0, Math.PI * 2);
