@@ -39,7 +39,8 @@ if js:
     print('the fly button is gone:', '"touch-fly"' not in t)
     print('the flight badge is there:', '"touch-fly-badge"' in t)
     print('alexcraft inventory tab:', '"inventory-preview"' in t
-          and '"inventory-canvas"' in t and '"inventory-hotbar"' in t)
+          and '"inventory-canvas"' in t and '"inventory-hotbar"' in t
+          and '"inventory-grid"' in t)
     print('alexcraft inventory closes:', '"inventory-close"' in t)
     print('alexcraft inventory on the E key:', '"KeyE"' in t)
 if css:
@@ -49,7 +50,11 @@ if css:
     # The crosshair is small and half transparent, so it stays out of the way
     print('crosshair is small:', '#cursor{' in c and 'opacity:.55' in c)
     print('alexcraft inventory styled:', '#inventory-panel' in c
-          and '#inventory-preview' in c and '.inventory-slot' in c)
+          and '#inventory-preview' in c and '.inv-slot' in c)
+    print('alexcraft inventory window:', '#inventory-armour' in c
+          and '#inventory-craft-grid' in c and '#inventory-arrow' in c
+          and '#inventory-grid' in c and '#inventory-close' in c)
+    print('alexcraft inventory scales:', '--inv-scale' in c)
     print('alexcraft touch inventory styled:', '#touch-inventory' in c
           and '#touch-fly-badge' in c)
 
@@ -72,6 +77,12 @@ if page:
     print('inventory tab is on the page:', 'id="inventory"' in h
           and 'id="inventory-preview"' in h and 'id="inventory-canvas"' in h
           and 'id="inventory-hotbar"' in h and 'id="inventory-close"' in h)
+    # The vanilla window: the armour, the player, the crafting table and the
+    # three rows of carried things
+    print('inventory window is the vanilla one:', 'id="inventory-armour"' in h
+          and 'id="inventory-craft-grid"' in h and 'id="inventory-arrow"' in h
+          and 'id="inventory-grid"' in h and 'id="inventory-craft-result"' in h
+          and '>Crafting<' in h)
 else:
     print('assets/alexcraft/index.html: MISSING')
 

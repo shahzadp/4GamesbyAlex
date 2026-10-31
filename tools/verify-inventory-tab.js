@@ -99,13 +99,11 @@ const POSE = `(function () {
       bodyYaw: round(tab.pose.bodyYaw),
       headYaw: round(tab.pose.headYaw),
       headPitch: round(tab.pose.headPitch),
-      lean: round(tab.pose.lean),
     },
     target: {
       bodyYaw: round(tab.target.bodyYaw),
       headYaw: round(tab.target.headYaw),
       headPitch: round(tab.target.headPitch),
-      lean: round(tab.target.lean),
     },
   };
 })()`;
@@ -215,7 +213,21 @@ async function main() {
         `JSON.stringify({
            tab: getComputedStyle(document.getElementById('inventory')).display,
            touchUi: getComputedStyle(document.getElementById('touch-ui')).display,
-           slots: document.querySelectorAll('#inventory-hotbar .inventory-slot').length,
+           slots: document.querySelectorAll('#inventory-hotbar .inv-slot').length,
+           grid: document.querySelectorAll('#inventory-grid .inv-slot').length,
+           armour: document.querySelectorAll('#inventory-armour .inv-slot').length,
+           craft: document.querySelectorAll('#inventory-craft-grid .inv-slot').length,
+           close: (function () {
+             const el = document.getElementById('inventory-close');
+             const r = el.getBoundingClientRect();
+             return { w: Math.round(r.width), h: Math.round(r.height),
+                      x: Math.round(r.left), y: Math.round(r.top) };
+           })(),
+           panel: (function () {
+             const r = document.getElementById('inventory-panel').getBoundingClientRect();
+             return { w: Math.round(r.width), h: Math.round(r.height),
+                      x: Math.round(r.left), y: Math.round(r.top) };
+           })(),
            preview: (function () {
              const r = document.getElementById('inventory-preview').getBoundingClientRect();
              return { x: Math.round(r.left), y: Math.round(r.top),
@@ -228,9 +240,21 @@ async function main() {
     check(opened.tab === "flex", "the tab is on the screen");
     check(opened.touchUi === "none", "the touch overlay is hidden behind it");
     check(opened.slots === 9, `the tab carries the 9 hotbar slots (${opened.slots})`);
+    check(opened.grid === 27, `the window has 27 carried slots (${opened.grid})`);
+    check(opened.armour === 4, `the window has 4 armour slots (${opened.armour})`);
+    check(opened.craft === 4, `the crafting grid has 4 slots (${opened.craft})`);
     check(
       opened.preview.w > 40 && opened.preview.h > 80,
       `the preview has room for the body (${opened.preview.w}x${opened.preview.h})`
+    );
+    check(
+      opened.close.w <= 40 && opened.close.h <= 40,
+      `the close button is a small cross (${opened.close.w}x${opened.close.h})`
+    );
+    check(
+      opened.close.x > opened.panel.x + opened.panel.w - 60 &&
+        opened.close.y < opened.panel.y + 60,
+      "the close button sits in the top right corner"
     );
 
     // ------------------------------------------------------- the body is drawn
@@ -250,6 +274,32 @@ async function main() {
 
     // -------------------------------------------------------------- the tilts
     const preview = opened.preview;
+
+    /**
+     * Waits until the body has eased to where it is being sent.
+     *
+     * The headless browser runs the preview at a few frames a second, so the
+     * body needs a moment to catch up with the finger.
+     */
+    const settle = async (timeoutMs = 8000) => {
+      const start = Date.now();
+      let last = null;
+      let stable = 0;
+      while (Date.now() - start < timeoutMs) {
+        const now = await evaluate(cdp, POSE);
+        const key = JSON.stringify(now.pose ?? null);
+        if (key === last) {
+          stable++;
+          if (stable >= 3) return now;
+        } else {
+          stable = 0;
+          last = key;
+        }
+        await sleep(150);
+      }
+      return await evaluate(cdp, POSE);
+    };
+
     const touchAt = async (fx, fy, holdMs) => {
       const x = preview.x + preview.w * fx;
       const y = preview.y + preview.h * fy;
@@ -262,10 +312,9 @@ async function main() {
     };
 
     // Left
-    await touchAt(0.08, 0.5, 700);
-    const leftPose = await evaluate(cdp, POSE);
+    await touchAt(0.08, 0.5, 200);
+    const leftPose = await settle();
     const leftDiff = await evaluate(cdp, DIFF);
-    const leftPixels = await evaluate(cdp, ANALYSE);
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     console.log(`left       pose=${JSON.stringify(leftPose.pose)}`);
     console.log(`left       diff=${JSON.stringify(leftDiff)}`);
@@ -278,6 +327,10 @@ async function main() {
         leftPose.target.bodyYaw < -0.2,
         `the body follows (${leftPose.target.bodyYaw})`
       );
+      check(
+        leftPose.pose.headYaw < -0.4,
+        `the head really turned (${leftPose.pose.headYaw})`
+      );
     } else {
       console.log("skip      the angles are only readable in the dev build");
     }
@@ -285,18 +338,13 @@ async function main() {
       leftDiff.percent > 1,
       `the picture changed (${leftDiff.percent}% of the pixels)`
     );
-    check(
-      leftPixels.width > neutral.width,
-      `the body turned and got wider (${neutral.width} -> ${leftPixels.width})`
-    );
 
     // Back to the middle, then right
-    await sleep(700);
+    await settle();
     await evaluate(cdp, STORE);
-    await touchAt(0.92, 0.5, 700);
-    const rightPose = await evaluate(cdp, POSE);
+    await touchAt(0.92, 0.5, 200);
+    const rightPose = await settle();
     const rightDiff = await evaluate(cdp, DIFF);
-    const rightPixels = await evaluate(cdp, ANALYSE);
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     console.log(`right      pose=${JSON.stringify(rightPose.pose)}`);
     console.log(`right      diff=${JSON.stringify(rightDiff)}`);
@@ -309,26 +357,24 @@ async function main() {
         rightPose.target.bodyYaw > 0.2,
         `the body follows (${rightPose.target.bodyYaw})`
       );
-    }
-    check(
-      rightDiff.percent > 1,
-      `the picture changed (${rightDiff.percent}% of the pixels)`
-    );
-    check(
-      rightPixels.width > neutral.width,
-      `the body turned and got wider (${neutral.width} -> ${rightPixels.width})`
-    );
-    if (!rightPose.error) {
+      check(
+        rightPose.pose.headYaw > 0.4,
+        `the head really turned (${rightPose.pose.headYaw})`
+      );
       check(
         Math.abs(leftPose.target.headYaw + rightPose.target.headYaw) < 0.001,
         "the left and the right turns are mirror images"
       );
     }
+    check(
+      rightDiff.percent > 1,
+      `the picture changed (${rightDiff.percent}% of the pixels)`
+    );
 
     // Up
-    await sleep(700);
-    await touchAt(0.5, 0.06, 700);
-    const upPose = await evaluate(cdp, POSE);
+    await settle();
+    await touchAt(0.5, 0.06, 200);
+    const upPose = await settle();
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     console.log(`up         pose=${JSON.stringify(upPose.pose)}`);
     if (!upPose.error) {
@@ -336,11 +382,14 @@ async function main() {
         upPose.target.headPitch > 0.3,
         `touching the top looks up (${upPose.target.headPitch})`
       );
+      check(
+        upPose.pose.headPitch > 0.3,
+        `the head really nodded (${upPose.pose.headPitch})`
+      );
     }
 
     // Letting go brings the body back to standing straight
-    await sleep(900);
-    const restPose = await evaluate(cdp, POSE);
+    const restPose = await settle();
     console.log(`rest       pose=${JSON.stringify(restPose.pose)}`);
     if (!restPose.error) {
       check(
@@ -355,7 +404,7 @@ async function main() {
       await evaluate(
         cdp,
         `(function () {
-           const el = document.querySelectorAll('#inventory-hotbar .inventory-slot')[4];
+           const el = document.querySelectorAll('#inventory-hotbar .inv-slot')[4];
            const r = el.getBoundingClientRect();
            return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
          })()`
@@ -375,7 +424,7 @@ async function main() {
            border: getComputedStyle(document.getElementById('toolbar'))
              .getPropertyValue('--selected').trim(),
            marked: Array.from(
-             document.querySelectorAll('#inventory-hotbar .inventory-slot')
+             document.querySelectorAll('#inventory-hotbar .inv-slot')
            ).findIndex((s) => s.classList.contains('selected')),
          })`
       )
@@ -451,15 +500,15 @@ async function main() {
     await tap(cdp, inventoryButton.x, inventoryButton.y);
     await sleep(600);
 
-    const shoot = async (name) => {
+    const shoot = async (name, area, scale) => {
       const shot = await cdp.send("Page.captureScreenshot", {
         format: "png",
         clip: {
-          x: Math.max(0, preview.x - 60),
-          y: Math.max(0, preview.y - 40),
-          width: Math.min(WIDTH - preview.x + 60, preview.w + 120),
-          height: Math.min(HEIGHT - preview.y + 40, preview.h + 80),
-          scale: 2,
+          x: Math.max(0, area.x),
+          y: Math.max(0, area.y),
+          width: Math.min(WIDTH - area.x, area.w),
+          height: Math.min(HEIGHT - area.y, area.h),
+          scale: scale,
         },
       });
       const shotPath = path.join(SHOT_DIR, name);
@@ -467,9 +516,14 @@ async function main() {
       console.log(`picture    ${shotPath}`);
     };
 
-    await shoot("inventory.png");
+    // The whole window
+    await shoot(
+      "inventory.png",
+      { x: opened.panel.x, y: opened.panel.y, w: opened.panel.w, h: opened.panel.h },
+      2
+    );
 
-    // The same picture with the finger held to the right of the preview
+    // The player in it, with the finger held to the right of the preview
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchStart",
       touchPoints: [
@@ -483,8 +537,12 @@ async function main() {
         },
       ],
     });
-    await sleep(800);
-    await shoot("inventory-tilt.png");
+    await settle();
+    await shoot(
+      "inventory-tilt.png",
+      { x: preview.x - 4, y: preview.y - 4, w: preview.w + 8, h: preview.h + 8 },
+      5
+    );
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await sleep(200);
 

@@ -36,8 +36,8 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        versionCode = 10
-        versionName = "1.5"
+        versionCode = 11
+        versionName = "1.6"
     }
 
     signingConfigs {
