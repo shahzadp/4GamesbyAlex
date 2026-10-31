@@ -33,10 +33,25 @@ if js:
     print('alexcraft old world moved over:', 'migrateLegacyWorld' in t)
     print('alexcraft quit to title:', 'quit-to-title' in t)
     print('alexcraft skins:', 'minicraft.skin' in t and 'skin-item' in t)
+    # The inventory tab: the Fly button made way for it, and the state of the
+    # flight is shown by a badge now that the button is gone
+    print('touch overlay has an inventory button:', '"touch-inventory"' in t)
+    print('the fly button is gone:', '"touch-fly"' not in t)
+    print('the flight badge is there:', '"touch-fly-badge"' in t)
+    print('alexcraft inventory tab:', '"inventory-preview"' in t
+          and '"inventory-canvas"' in t and '"inventory-hotbar"' in t)
+    print('alexcraft inventory closes:', '"inventory-close"' in t)
+    print('alexcraft inventory on the E key:', '"KeyE"' in t)
 if css:
     print('alexcraft start page styled:', 'mc-screen' in c)
     print('alexcraft world list styled:', 'world-list' in c)
     print('alexcraft skin list styled:', 'skin-list' in c)
+    # The crosshair is small and half transparent, so it stays out of the way
+    print('crosshair is small:', '#cursor{' in c and 'opacity:.55' in c)
+    print('alexcraft inventory styled:', '#inventory-panel' in c
+          and '#inventory-preview' in c and '.inventory-slot' in c)
+    print('alexcraft touch inventory styled:', '#touch-inventory' in c
+          and '#touch-fly-badge' in c)
 
 # The labels of the start page live in the page itself, not in the bundle
 page = [n for n in z.namelist() if n == 'assets/alexcraft/index.html']
@@ -50,6 +65,13 @@ if page:
           and 'id="music-volume-slider"' not in h)
     print('pause menu has one way out:', 'change-world' not in h
           and 'exit-game' not in h)
+    # The crosshair is a smaller cross now
+    print('crosshair is 16 wide:', 'id="cursor"' in h and 'width="16"' in h
+          and 'height="16"' in h)
+    # The inventory tab and the window it lives in
+    print('inventory tab is on the page:', 'id="inventory"' in h
+          and 'id="inventory-preview"' in h and 'id="inventory-canvas"' in h
+          and 'id="inventory-hotbar"' in h and 'id="inventory-close"' in h)
 else:
     print('assets/alexcraft/index.html: MISSING')
 
