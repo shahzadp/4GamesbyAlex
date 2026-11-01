@@ -1240,86 +1240,17 @@ const flappyGame = {
 };
 
 // =======================================================
-// BOLD OUTLINE VECTOR CHESS PIECES
+// CHESS PIECES
 // =======================================================
 //
-// One silhouette per piece, drawn in a 48x60 box: a heavy outline with a flat
-// fill. White pieces are paper-white with a dark line and dark engraved
-// details; black pieces are solid ink and use light engravings, so both colours
-// read the same way on the light and dark squares. No gradients or filters
-// inside the SVG, which keeps 32 inline pieces cheap to paint.
-
-// The flared foot shared by the king and queen, so those two stand on exactly
-// the same plinth.
-const PIECE_BASE = `M17 40 C17 45 15 48.5 12 51 V52.5 A3.5 3.5 0 0 0 15.5 56
-  H48.5 A3.5 3.5 0 0 0 52 52.5 V51 C49 48.5 47 45 47 40 Z`;
-
-const PIECE_ART = {
-  p: {
-    body: `<path d="M32 9.5a8 8 0 0 1 8 8c0 4-1.4 7-4 9.4Q37 35 45 42H51V52a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V42h6q8-7 8-15.6Q25 22 24 17.5a8 8 0 0 1 8-8Z"/>`,
-    detail: () => `<path d="M15 47h34"/>`,
-  },
-  r: {
-    body: `<path d="M12.5 22V8h6v5h5V8h6v5h5V8h6v5h5V8h6v14H45V43h5v9a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4v-9h5V22H12.5Z"/>`,
-    detail: () => `<path d="M19 22h26M15 47h34"/>`,
-  },
-  b: {
-    body: `<path d="M32 3a5.2 5.2 0 0 1 2.6 9.7C39 17.5 43 23 43 29.5c0 3.6-2 6.2-5 8 3.5 2.1 7 4.4 9.5 6.5h2.5v8a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V44h2.5c2.5-2.1 6-4.4 9.5-6.5-3-1.8-5-4.4-5-8 0-6.5 4-12 8.4-16.8A5.2 5.2 0 0 1 32 3Z"/>`,
-    detail: () => `<path d="M32 17v11M26.5 22.5h11"/><path d="M26.5 38h11M13 44h38"/>`,
-  },
-  n: {
-    body: `<path d="M14 30.5c-1-3 0-6 2.5-8.5 2.5-2.5 4.5-5.5 7.5-8l1.5-7.5 5 7 5.5-7.5c3 4.5 5.5 6 7.5 10 2.5 4.5 3 13.5 3 26.5H51V52a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V41.5h8.5c0-4-1-7-3.5-8.5-1.5-1-3-1-4-2.5Z"/>`,
-    detail: (d) => `<circle cx="30" cy="19.5" r="2.2" fill="${d}" stroke="none"/><circle cx="17.5" cy="26" r="1.3" fill="${d}" stroke="none"/><path d="M14 30.5c3 0 5.5 1.5 7 3.5M40.5 17c3 7 3.5 15 3.5 24.5"/>`,
-  },
-  q: {
-    body: `<path d="M14 17 19.5 32 24 14 28.5 32 32 12 35.5 32 40 14 44.5 32 50 17 50 32 14 32Z"/>
-      <circle cx="14" cy="13.8" r="4.2"/><circle cx="24" cy="10.5" r="4"/><circle cx="32" cy="8.5" r="4.2"/><circle cx="40" cy="10.5" r="4"/><circle cx="50" cy="13.8" r="4.2"/>
-      <rect x="10.5" y="32" width="43" height="8" rx="3"/>
-      <path d="${PIECE_BASE}"/>`,
-    detail: () => `<path d="M11 32h42M11 40h42M16 46h32"/>`,
-  },
-  k: {
-    body: `<path d="M29 17V12h-5V6.5h5V1h6v5.5h5V12h-5v5"/>
-      <path d="M15 32c-2.5-2.8-2.5-7.7 0-10 1.5-1.4 4-1.2 5.4.6.9 1.1 1.2 2.8 2.6 3.9 1.2-7 4-12.5 9-12.5s7.8 5.5 9 12.5c1.4-1.1 1.7-2.8 2.6-3.9 1.4-1.8 3.9-2 5.4-.6 2.5 2.3 2.5 7.2 0 10Z"/>
-      <rect x="11" y="32" width="42" height="8" rx="3"/>
-      <path d="${PIECE_BASE}"/>`,
-    detail: () => `<path d="M11 32h42M11 40h42M16 46h32"/>`,
-  },
-};
+// The artwork itself lives in chess-pieces.js: the Cburnett set, the same
+// pieces chess.com and lichess draw, kept there with its licence note. This
+// accessor is the only way the board, the captured trays and the promotion
+// picker reach it, so the three cannot drift apart.
 
 function getPieceSvg(type, color) {
-  // Twelve possible outputs. The board asks for one per occupied square on
-  // every render, so without this the same multi-line template string is
-  // rebuilt and re-parsed hundreds of times a second during a match. The SVG is
-  // a pure function of these two values, so caching it is free of any risk
-  // beyond the memory for twelve strings.
-  const cacheKey = type + color;
-  const cached = getPieceSvg.cache.get(cacheKey);
-  if (cached !== undefined) return cached;
-
-  const svg = buildPieceSvg(type, color);
-  getPieceSvg.cache.set(cacheKey, svg);
-  return svg;
-}
-
-getPieceSvg.cache = new Map();
-
-function buildPieceSvg(type, color) {
-  const isWhite = color === 'w';
-  // Paper-white pieces get dark ink; black pieces are solid ink with light
-  // engraving so the cross, band and mane still show up inside the silhouette.
-  const fill = isWhite ? '#fbfaf3' : '#171610';
-  const line = '#14130e';
-  const detail = isWhite ? '#14130e' : '#f4f1e5';
-  const art = PIECE_ART[type];
-  if (!art) return '';
-
-  // One shared box keeps every piece on the same baseline and at the same
-  // scale, so the king never looks taller than the pawn on the board.
-  return `<svg viewBox="8 -1 48 61" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-    <g fill="${fill}" stroke="${line}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${art.body}</g>
-    <g fill="none" stroke="${detail}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">${art.detail(detail)}</g>
-  </svg>`;
+  const set = CHESS_PIECE_SVG[color === 'b' ? 'b' : 'w'];
+  return (set && set[type]) || '';
 }
 
 // =======================================================

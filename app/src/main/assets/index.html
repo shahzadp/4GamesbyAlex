@@ -48,17 +48,12 @@
         <!-- Card 2: Chess -->
         <button class="app-launch-card chess-card" data-target="chess">
           <div class="card-thumb chess-thumb">
-            <!-- The same bold outline pawn the board draws (buildPieceSvg in
-                 app.js), inlined so the card matches the pieces in play and
-                 stays crisp at any density. -->
-            <svg class="chess-card-pawn" viewBox="8 -1 48 61" aria-hidden="true" focusable="false">
-              <g fill="#fbfaf3" stroke="#14130e" stroke-width="3"
-                 stroke-linejoin="round" stroke-linecap="round">
-                <path d="M32 9.5a8 8 0 0 1 8 8c0 4-1.4 7-4 9.4Q37 35 45 42H51V52a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V42h6q8-7 8-15.6Q25 22 24 17.5a8 8 0 0 1 8-8Z"/>
-              </g>
-              <g fill="none" stroke="#14130e" stroke-width="2.6" stroke-linecap="round">
-                <path d="M15 47h34"/>
-              </g>
+            <!-- The Cburnett white pawn, the same piece the board draws
+                 (chess-pieces.js), inlined so the card matches the set in play
+                 and stays crisp at any density. -->
+            <svg class="chess-card-pawn" viewBox="0 0 45 45" aria-hidden="true" focusable="false">
+              <path fill="#fff" stroke="#000" stroke-linecap="round" stroke-width="1.5"
+                    d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"/>
             </svg>
           </div>
           <div class="card-meta">
@@ -750,6 +745,7 @@
   <script defer src="chess-openings.js"></script>
   <script defer src="chess-engine.js"></script>
   <script defer src="chess-quiz.js"></script>
+  <script defer src="chess-pieces.js"></script>
   <!--
     pet3d/pet3d.js (~550 KB of three.js) is deliberately NOT loaded here.
     It used to be a blocking script on every launch, so every player paid to

@@ -15,34 +15,37 @@ The chess game's visual design has been significantly enhanced to make it easier
 - **Blunders**: More visible red markers with enhanced contrast
 - **Clear visual distinction**: Different styles for valid vs. invalid moves
 
-#### 4. **Bold Outline Piece Design**
-- **One silhouette per piece**: king, queen, bishop, knight, rook and pawn are drawn from their own single outline path, so each reads at board size
-- **Ink and paper**: white pieces are paper-white with a dark outline, black pieces are solid ink with light engraving, so both colours read on the light and dark squares
-- **Shared box**: all twelve drawings use the same 48x60 box and baseline, so no piece looks taller than another
-- **No gradients**: the pieces are flat vector art, which also keeps 32 inline squares cheap to paint
+#### 3. **Cburnett Piece Set**
+- **The set chess.com and lichess ship**: the twelve pieces are Colin M.L. Burnett's Cburnett set, not hand-drawn lookalikes
+- **One shared 45x45 box**: every piece is drawn in the same box, so the set keeps its intended proportions on every square
 - **Legible off the board**: captured pieces and promotion choices sit on a light square chip so black pieces stay visible against the dark panels
+- **Attribution and licence**: `chess-pieces.js` carries the Cburnett credit (CC BY-SA 3.0 / GFDL) alongside the artwork, and that file ships inside the APK
 
-#### 5. **Overall Visual Clarity**
+#### 4. **Overall Visual Clarity**
 - Better color contrast throughout the interface
 - Improved visual hierarchy for important elements
 - Maintained all existing functionality while enhancing clarity
 
 ### ✅ Files Modified
+- `app/src/main/assets/chess-pieces.js`:
+  - The twelve Cburnett SVGs in one map, with the licence and attribution note
+  - `CHESS_PIECE_SVG[colour][type]` is the single source of piece art
+
 - `app/src/main/assets/app.js`:
-  - `PIECE_ART` holds the six outline silhouettes and their engraving
-  - `buildPieceSvg` picks the paper-white or solid-ink palette and wraps the art in the shared box
-  - The start page card pawn is the same path the board draws
+  - `getPieceSvg` reads the shared Cburnett map, so the board, captured trays and promotion picker draw identical art
 
 - `app/src/main/assets/index.html`:
-  - Chess card shows the outline pawn
+  - Loads `chess-pieces.js` before `app.js`
+  - The chess card shows the same Cburnett white pawn the board draws
 
 - `app/src/main/assets/styles.css`:
+  - Board tracks use `minmax(0, 1fr)` and zero-minimum squares, so all 64 cells stay exactly equal
   - Captured-piece chips and promotion squares keep both colours legible on dark panels
 
 ### ✅ Result
 The chess game now shows:
 - ✅ **8+ clearly visible legal moves** for White (instead of just 2)
-- ✅ **Professional-looking chess pieces** with a bold outline style
+- ✅ **Professional-looking chess pieces** drawn with the Cburnett set chess.com and lichess use
 - ✅ **Clear visual feedback** for all game states
 - ✅ **Improved accessibility** with better color contrast and visibility
 
