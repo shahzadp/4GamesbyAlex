@@ -141,9 +141,13 @@ async function evaluate(cdp, expression) {
     awaitPromise: true,
   });
   if (result.exceptionDetails) {
-    throw new Error(
-      `evaluate failed: ${result.exceptionDetails.text ?? "unknown"}`
-    );
+    const details = result.exceptionDetails;
+    const why =
+      details.exception?.description ??
+      details.exception?.value ??
+      details.text ??
+      "unknown";
+    throw new Error(`evaluate failed: ${why}`);
   }
   return result.result.value;
 }

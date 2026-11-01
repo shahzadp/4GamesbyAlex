@@ -43,6 +43,15 @@ if js:
           and '"inventory-grid"' in t)
     print('alexcraft inventory closes:', '"inventory-close"' in t)
     print('alexcraft inventory on the E key:', '"KeyE"' in t)
+    # The sneak button is a crouch button now, and the crouch leans the body
+    # forwards: the body faces -Z, so a lean forwards is a negative turn
+    # about X, and the head keeps its level on top of the bent torso.
+    print('touch overlay has a crouch button:', '"touch-crouch"' in t)
+    print('the sneak button is gone:', '"touch-sneak"' not in t)
+    print('the crouch button is labelled:', '>Crouch<' in t
+          and 'Toggle crouch' in t)
+    print('the body leans forwards when crouching:', 'torso.rotation.x=-' in t)
+    print('the head keeps its level when crouching:', 'head.rotation.x=' in t)
 if css:
     print('alexcraft start page styled:', 'mc-screen' in c)
     print('alexcraft world list styled:', 'world-list' in c)
