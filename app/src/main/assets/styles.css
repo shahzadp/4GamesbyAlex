@@ -629,7 +629,7 @@ body.android-fullscreen .page.active {
   font-weight: bold;
 }
 
-/* ================= CHESS STYLING (FILLED SOLID PIECES) ================= */
+/* ================= CHESS STYLING (BOLD OUTLINE PIECES) ================= */
 
 .mobile-chess-header {
   width: 100%;
@@ -826,7 +826,7 @@ body.android-fullscreen .page.active {
   z-index: 3;
 }
 
-/* Solid Filled Vector Chess Piece - full square footprint with a soft shadow */
+/* Bold outline chess piece - full square footprint with a soft shadow */
 .chess-piece {
   width: 100%;
   height: 100%;
@@ -872,6 +872,20 @@ body.android-fullscreen .page.active {
 .captured-tray svg {
   width: 22px;
   height: 22px;
+}
+
+/* Captured pieces sit on a light square. The trays are nearly black, so a
+ * solid-ink black piece would otherwise vanish into them; the cream chip keeps
+ * both colours readable the same way they read on the board. */
+.captured-icon {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: #ebecd0;
 }
 
 .mobile-hint-box {
@@ -1857,15 +1871,21 @@ body.android-fullscreen .page.active {
   background: rgba(255, 209, 102, 0.25);
 }
 
+/* The picker is a dark panel, so each choice is shown on a light square, the
+ * same way the piece would sit on the board. */
 .promo-piece {
-  width: 30px;
-  height: 30px;
-  display: block;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #ebecd0;
 }
 
 .promo-piece svg {
-  width: 100%;
-  height: 100%;
+  width: 30px;
+  height: 30px;
   display: block;
 }
 

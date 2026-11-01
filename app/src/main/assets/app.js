@@ -1240,8 +1240,52 @@ const flappyGame = {
 };
 
 // =======================================================
-// SOLID FILLED VECTOR CHESS PIECES (Not Hollow!)
+// BOLD OUTLINE VECTOR CHESS PIECES
 // =======================================================
+//
+// One silhouette per piece, drawn in a 48x60 box: a heavy outline with a flat
+// fill. White pieces are paper-white with a dark line and dark engraved
+// details; black pieces are solid ink and use light engravings, so both colours
+// read the same way on the light and dark squares. No gradients or filters
+// inside the SVG, which keeps 32 inline pieces cheap to paint.
+
+// The flared foot shared by the king and queen, so those two stand on exactly
+// the same plinth.
+const PIECE_BASE = `M17 40 C17 45 15 48.5 12 51 V52.5 A3.5 3.5 0 0 0 15.5 56
+  H48.5 A3.5 3.5 0 0 0 52 52.5 V51 C49 48.5 47 45 47 40 Z`;
+
+const PIECE_ART = {
+  p: {
+    body: `<path d="M32 9.5a8 8 0 0 1 8 8c0 4-1.4 7-4 9.4Q37 35 45 42H51V52a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V42h6q8-7 8-15.6Q25 22 24 17.5a8 8 0 0 1 8-8Z"/>`,
+    detail: () => `<path d="M15 47h34"/>`,
+  },
+  r: {
+    body: `<path d="M12.5 22V8h6v5h5V8h6v5h5V8h6v5h5V8h6v14H45V43h5v9a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4v-9h5V22H12.5Z"/>`,
+    detail: () => `<path d="M19 22h26M15 47h34"/>`,
+  },
+  b: {
+    body: `<path d="M32 3a5.2 5.2 0 0 1 2.6 9.7C39 17.5 43 23 43 29.5c0 3.6-2 6.2-5 8 3.5 2.1 7 4.4 9.5 6.5h2.5v8a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V44h2.5c2.5-2.1 6-4.4 9.5-6.5-3-1.8-5-4.4-5-8 0-6.5 4-12 8.4-16.8A5.2 5.2 0 0 1 32 3Z"/>`,
+    detail: () => `<path d="M32 17v11M26.5 22.5h11"/><path d="M26.5 38h11M13 44h38"/>`,
+  },
+  n: {
+    body: `<path d="M14 30.5c-1-3 0-6 2.5-8.5 2.5-2.5 4.5-5.5 7.5-8l1.5-7.5 5 7 5.5-7.5c3 4.5 5.5 6 7.5 10 2.5 4.5 3 13.5 3 26.5H51V52a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V41.5h8.5c0-4-1-7-3.5-8.5-1.5-1-3-1-4-2.5Z"/>`,
+    detail: (d) => `<circle cx="30" cy="19.5" r="2.2" fill="${d}" stroke="none"/><circle cx="17.5" cy="26" r="1.3" fill="${d}" stroke="none"/><path d="M14 30.5c3 0 5.5 1.5 7 3.5M40.5 17c3 7 3.5 15 3.5 24.5"/>`,
+  },
+  q: {
+    body: `<path d="M14 17 19.5 32 24 14 28.5 32 32 12 35.5 32 40 14 44.5 32 50 17 50 32 14 32Z"/>
+      <circle cx="14" cy="13.8" r="4.2"/><circle cx="24" cy="10.5" r="4"/><circle cx="32" cy="8.5" r="4.2"/><circle cx="40" cy="10.5" r="4"/><circle cx="50" cy="13.8" r="4.2"/>
+      <rect x="10.5" y="32" width="43" height="8" rx="3"/>
+      <path d="${PIECE_BASE}"/>`,
+    detail: () => `<path d="M11 32h42M11 40h42M16 46h32"/>`,
+  },
+  k: {
+    body: `<path d="M29 17V12h-5V6.5h5V1h6v5.5h5V12h-5v5"/>
+      <path d="M15 32c-2.5-2.8-2.5-7.7 0-10 1.5-1.4 4-1.2 5.4.6.9 1.1 1.2 2.8 2.6 3.9 1.2-7 4-12.5 9-12.5s7.8 5.5 9 12.5c1.4-1.1 1.7-2.8 2.6-3.9 1.4-1.8 3.9-2 5.4-.6 2.5 2.3 2.5 7.2 0 10Z"/>
+      <rect x="11" y="32" width="42" height="8" rx="3"/>
+      <path d="${PIECE_BASE}"/>`,
+    detail: () => `<path d="M11 32h42M11 40h42M16 46h32"/>`,
+  },
+};
 
 function getPieceSvg(type, color) {
   // Twelve possible outputs. The board asks for one per occupied square on
@@ -1262,95 +1306,20 @@ getPieceSvg.cache = new Map();
 
 function buildPieceSvg(type, color) {
   const isWhite = color === 'w';
-  // Solid, Staunton-style pieces in the spirit of the classic cburnett set:
-  // clean silhouettes, dark outlines on both colours, and a soft vertical
-  // shade instead of the glossy gradient that made the old set read like
-  // stickers. White pieces are warm off-white; black pieces are charcoal.
-  const fillMain = isWhite ? 'url(#pc-fill-w)' : 'url(#pc-fill-b)';
-  const line = isWhite ? '#2a2a26' : '#0d0d0b';
-  // Engraved detail lines need to be lighter than the body on black pieces,
-  // otherwise the cross, bands and tier lines disappear into the silhouette.
-  const detail = isWhite ? '#2a2a26' : '#a5a198';
+  // Paper-white pieces get dark ink; black pieces are solid ink with light
+  // engraving so the cross, band and mane still show up inside the silhouette.
+  const fill = isWhite ? '#fbfaf3' : '#171610';
+  const line = '#14130e';
+  const detail = isWhite ? '#14130e' : '#f4f1e5';
+  const art = PIECE_ART[type];
+  if (!art) return '';
 
-  const gradDefs = `<defs>
-    <linearGradient id="pc-fill-w" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="55%" stop-color="#f7f5ee"/>
-      <stop offset="100%" stop-color="#d9d5c7"/>
-    </linearGradient>
-    <linearGradient id="pc-fill-b" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#565450"/>
-      <stop offset="50%" stop-color="#383632"/>
-      <stop offset="100%" stop-color="#1a1917"/>
-    </linearGradient>
-  </defs>`;
-
-  // The source artwork lives in a 45x45 box with generous margins. Cropping the
-  // viewBox to the actual ink bounds lets the pieces fill their squares the way
-  // they do on chess.com, without changing any of the path coordinates.
-  const open = `<svg viewBox="3.5 4.5 38 36" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${gradDefs}
-    <g fill="${fillMain}" stroke="${line}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">`;
-
-  if (type === 'p') {
-    return `${open}
-      <path d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"/>
-    </g>
+  // One shared box keeps every piece on the same baseline and at the same
+  // scale, so the king never looks taller than the pawn on the board.
+  return `<svg viewBox="8 -1 48 61" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+    <g fill="${fill}" stroke="${line}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${art.body}</g>
+    <g fill="none" stroke="${detail}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">${art.detail(detail)}</g>
   </svg>`;
-  }
-
-  if (type === 'n') {
-    return `${open}
-      <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/>
-      <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.04-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.99-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.99 2.5-3c1 0 1 3 1 3"/>
-      <circle cx="15.5" cy="14" r="1.5" fill="${detail}" stroke="none"/>
-      <circle cx="10" cy="24.5" r="1" fill="${detail}" stroke="none"/>
-    </g>
-  </svg>`;
-  }
-
-  if (type === 'b') {
-    return `${open}
-      <path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.94 3-2 3-2z" stroke-linecap="butt"/>
-      <path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z" stroke-linecap="butt"/>
-      <circle cx="22.5" cy="8" r="2.5"/>
-      <path d="M17.5 26h10M15 30h15M22.5 15.5v5M20 18h5" fill="none" stroke="${detail}" stroke-width="1.2" stroke-linejoin="miter"/>
-    </g>
-  </svg>`;
-  }
-
-  if (type === 'r') {
-    return `${open}
-      <path d="M9 39h27v-3H9v3zM12 36v-4h21v4H12zM11 14V9h4v2h5V9h5v2h5V9h4v5" stroke-linecap="butt"/>
-      <path d="M34 14l-3 3H14l-3-3"/>
-      <path d="M31 17v12.5H14V17" stroke-linecap="butt" stroke-linejoin="miter"/>
-      <path d="M31 29.5l1.5 2.5h-20l1.5-2.5"/>
-      <path d="M11 14h23" fill="none" stroke-linejoin="miter"/>
-      <path d="M12 32h21M12 36h21M14 17h17" fill="none" stroke="${detail}" stroke-width="1.1" stroke-linecap="butt"/>
-    </g>
-  </svg>`;
-  }
-
-  if (type === 'q') {
-    return `${open}
-      <path d="M8 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM24.5 7.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM41 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM16 8.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM33 9a2 2 0 1 1-4 0 2 2 0 1 1 4 0z"/>
-      <path d="M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14l2 12z" stroke-linecap="butt"/>
-      <path d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z" stroke-linecap="butt"/>
-      <path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0" fill="none" stroke="${detail}" stroke-width="1.2"/>
-    </g>
-  </svg>`;
-  }
-
-  if (type === 'k') {
-    return `${open}
-      <path d="M22.5 11.63V6M20 8h5" fill="none" stroke-linejoin="miter"/>
-      <path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5" stroke-linecap="butt" stroke-linejoin="miter"/>
-      <path d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-1-1 8-6 4-3-2.5-6 1-10 1s-7-3.5-10-1c-5 4-2-5-6-4-3 6 6 10.5 6 10.5v7z"/>
-      <path d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0" fill="none" stroke="${detail}" stroke-width="1.2"/>
-    </g>
-  </svg>`;
-  }
-
-  return '';
 }
 
 // =======================================================
