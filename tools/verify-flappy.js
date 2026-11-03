@@ -1,9 +1,9 @@
-/* Checks the Flappy Bird loop and the Alexcraft suspend.
+/* Checks the Flappy Bird loop.
  *
  * Usage:
  *   node tools/verify-flappy.js [url]
  *
- * Three things are checked:
+ * Two things are checked:
  *
  *   1. The simulation runs at the same speed whatever the frame rate is. The
  *      loop used to move one step per animation frame, so a phone that could
@@ -12,9 +12,9 @@
  *      number of simulation steps per second has to stay put.
  *   2. The difficulty ramps with the score, and the day-night cycle moves on
  *      as the run goes.
- *   3. The Alexcraft in the launcher stops drawing when it is paused, and
- *      starts again when it comes back.
- */
+ *
+ * (The Alexcraft suspend check is gone with Alexcraft: game 4 is Horizon, a
+ * native activity that is not part of this document.) */
 const { evaluate, launchEdge, sleep } = require("./cdp-harness");
 
 const URL_UNDER_TEST = process.argv[2] || "http://127.0.0.1:8099/index.html";
@@ -206,77 +206,11 @@ async function main() {
       failures.push("scoring a point does not move the day on");
     }
 
-    // Alexcraft in its frame has to stop drawing while it is paused
-    await evaluate(cdp, `switchPage('alexcraft')`);
-    await sleep(2500);
-    const alexcraft = JSON.parse(
-      await evaluate(
-        cdp,
-        `JSON.stringify((function () {
-           const frame = document.getElementById('alexcraft-frame');
-           const w = frame && frame.contentWindow;
-           if (!w) return { error: 'no frame' };
-           w.__frames = 0;
-           if (!w.__counted) {
-             w.__counted = true;
-             const original = w.requestAnimationFrame.bind(w);
-             w.requestAnimationFrame = function (cb) {
-               w.__frames++;
-               return original(cb);
-             };
-           }
-           return { ok: true };
-         })())`
-      )
-    );
-    if (alexcraft.error) {
-      failures.push(`the alexcraft frame is not reachable (${alexcraft.error})`);
-    } else {
-      const frames = async (label) => {
-        await evaluate(
-          cdp,
-          `(function () {
-             const w = document.getElementById('alexcraft-frame').contentWindow;
-             w.__frames = 0;
-           })()`
-        );
-        await sleep(1000);
-        const count = JSON.parse(
-          await evaluate(
-            cdp,
-            `JSON.stringify(document.getElementById('alexcraft-frame').contentWindow.__frames)`
-          )
-        );
-        console.log(`${label.padEnd(22)} ${count} frames`);
-        return count;
-      };
-      const running = await frames("alexcraft running");
-      await evaluate(
-        cdp,
-        `(function () {
-           const w = document.getElementById('alexcraft-frame').contentWindow;
-           if (typeof w.__alexcraftPause === 'function') w.__alexcraftPause();
-         })()`
-      );
-      const paused = await frames("alexcraft paused");
-      await evaluate(
-        cdp,
-        `(function () {
-           const w = document.getElementById('alexcraft-frame').contentWindow;
-           if (typeof w.__alexcraftResume === 'function') w.__alexcraftResume();
-         })()`
-      );
-      const resumed = await frames("alexcraft resumed");
-      if (running <= 0) failures.push("the game never drew a frame");
-      if (paused > 0) failures.push("the game kept drawing while it was paused");
-      if (resumed <= 0) failures.push("the game did not start drawing again");
-    }
-
     if (failures.length) {
       console.log(`\nFAIL (${failures.length})`);
       failures.forEach((line) => console.log(`  - ${line}`));
     } else {
-      console.log("\nPASS: the game keeps its speed, the ramp and the day work, and alexcraft stops drawing");
+      console.log("\nPASS: the game keeps its speed, the ramp works, and the day moves on");
     }
     exitCode = failures.length ? 1 : 0;
   } finally {

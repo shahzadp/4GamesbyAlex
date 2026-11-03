@@ -5,4 +5,17 @@
         <item name="android:windowBackground">@color/splash_background</item>
         <item name="android:colorBackground">@color/splash_background</item>
     </style>
+
+    <!-- Horizon renders its own UI on a NativeActivity surface, so this theme
+         only has to remove the system chrome and start dark. It mirrors
+         Horizon's own HorizonGameTheme so the game looks the same here as it
+         does in its standalone app. -->
+    <style name="Theme.ArtGallery.Horizon" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:colorAccent">#9a86ff</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:colorBackground">@color/splash_background</item>
+    </style>
 </resources>

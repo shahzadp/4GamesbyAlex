@@ -26,86 +26,133 @@
     <!-- ================= MAIN PAGE (HOME SCREEN) ================= -->
     <section id="page-main" class="page active" data-page="main">
       <header class="app-home-header">
-        <div class="app-brand">
-          <div class="app-logo">🎮</div>
-          <h1 class="app-title">4 Games by Alex</h1>
+        <div class="app-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="30" height="30" focusable="false">
+            <rect x="4" y="4" width="17" height="17" rx="5.5" fill="#f4b942"/>
+            <rect x="27" y="4" width="17" height="17" rx="5.5" fill="#dbe3f0" fill-opacity=".82"/>
+            <rect x="4" y="27" width="17" height="17" rx="5.5" fill="#e9b48c" fill-opacity=".82"/>
+            <rect x="27" y="27" width="17" height="17" rx="5.5" fill="#7cbd4a" fill-opacity=".82"/>
+          </svg>
         </div>
+        <p class="app-eyebrow">Touch &amp; Play</p>
+        <h1 class="app-title">4 Games by Alex</h1>
+        <p class="app-tagline">Four little worlds, one tap away.</p>
       </header>
 
       <!-- 2x2 Mobile App Grid -->
       <div class="app-grid-2x2">
         <!-- Card 1: Flappy Bird -->
         <button class="app-launch-card flappy-card" data-target="flappy">
-          <div class="card-thumb flappy-thumb">
-            <span class="flappy-card-emoji" aria-hidden="true">🐦</span>
+          <div class="card-thumb">
+            <!-- Traced 1:1 from the bird the game draws on its canvas
+                 (app.js, drawBird): same body, belly, eye, beak and wing at the
+                 same radius-14 coordinates, so the card shows the exact creature
+                 that flies in the game rather than a look-alike. -->
+            <span class="card-art">
+              <svg class="bird-card-art" viewBox="-16 -16 36 32" aria-hidden="true" focusable="false">
+                <circle cx="0" cy="0" r="14" fill="#facc15" stroke="#ca8a04" stroke-width="2.5"/>
+                <circle cx="-2" cy="3" r="9" fill="#fef08a"/>
+                <circle cx="6" cy="-5" r="5" fill="#fff"/>
+                <circle cx="7" cy="-5" r="2.5" fill="#000"/>
+                <path d="M10 -2 L19 2 L10 6 Z" fill="#f97316" stroke="#c2410c"
+                      stroke-width="1.5" stroke-linejoin="round"/>
+                <g transform="translate(-5 0) rotate(-17)">
+                  <ellipse rx="7" ry="5" fill="#fff" stroke="#ca8a04" stroke-width="2"/>
+                </g>
+              </svg>
+            </span>
           </div>
           <div class="card-meta">
-            <span class="card-badge">01</span>
+            <span class="card-index" aria-hidden="true">01</span>
             <h2>Flappy Bird</h2>
+            <span class="card-go" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                   stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </span>
           </div>
         </button>
 
         <!-- Card 2: Chess -->
         <button class="app-launch-card chess-card" data-target="chess">
-          <div class="card-thumb chess-thumb">
+          <div class="card-thumb">
             <!-- The Cburnett white pawn, the same piece the board draws
                  (chess-pieces.js), inlined so the card matches the set in play
                  and stays crisp at any density. -->
-            <svg class="chess-card-pawn" viewBox="0 0 45 45" aria-hidden="true" focusable="false">
-              <path fill="#fff" stroke="#000" stroke-linecap="round" stroke-width="1.5"
-                    d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"/>
-            </svg>
+            <span class="card-art">
+              <svg class="chess-card-pawn" viewBox="0 0 45 45" aria-hidden="true" focusable="false">
+                <path fill="#fff" stroke="#000" stroke-linecap="round" stroke-width="1.5"
+                      d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"/>
+              </svg>
+            </span>
           </div>
           <div class="card-meta">
-            <span class="card-badge">02</span>
+            <span class="card-index" aria-hidden="true">02</span>
             <h2>Chess</h2>
+            <span class="card-go" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                   stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </span>
           </div>
         </button>
 
         <!-- Card 3: Virtual Pet -->
         <button class="app-launch-card pet-card" data-target="pet">
           <div class="card-thumb">
-            <span class="pet-card-emoji" aria-hidden="true">🐶</span>
+            <!-- The companion's head. Same drawing as the pet page (same
+                 paths, same palette), inlined here without ids so the two
+                 copies cannot collide. -->
+            <span class="card-art">
+              <svg class="pet-card-art" viewBox="58 110 284 246" aria-hidden="true" focusable="false">
+                <g stroke="#4a2a14" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+                  <path d="M130 150 C100 136 70 160 68 202 C66 242 90 264 114 254 C134 246 144 202 144 166Z" fill="#a87240"/>
+                  <path d="M270 150 C300 136 330 160 332 202 C334 242 310 264 286 254 C266 246 256 202 256 166Z" fill="#a87240"/>
+                  <path d="M200 128 C262 128 302 170 302 218 C302 268 258 304 200 304 C142 304 98 268 98 218 C98 170 138 128 200 128Z" fill="#eab77d"/>
+                  <path d="M184 132 C186 112 198 110 201 126 C205 110 219 112 217 132" fill="#eab77d" stroke-width="3.5"/>
+                </g>
+                <circle cx="132" cy="254" r="12" fill="#ff8fa3" opacity=".35"/>
+                <circle cx="268" cy="254" r="12" fill="#ff8fa3" opacity=".35"/>
+                <g fill="none" stroke="#3a2010" stroke-width="4.5" stroke-linecap="round">
+                  <path d="M142 168 Q160 158 182 167"/><path d="M218 167 Q240 158 258 168"/>
+                </g>
+                <g stroke="#4a2a14" stroke-width="3.5">
+                  <ellipse cx="162" cy="202" rx="21" ry="24" fill="#fff"/>
+                  <ellipse cx="238" cy="202" rx="21" ry="24" fill="#fff"/>
+                </g>
+                <circle cx="165" cy="206" r="12" fill="#2b1b17"/><circle cx="170" cy="200" r="4.5" fill="#fff"/><circle cx="161" cy="211" r="2" fill="#fff"/>
+                <circle cx="235" cy="206" r="12" fill="#2b1b17"/><circle cx="240" cy="200" r="4.5" fill="#fff"/><circle cx="231" cy="211" r="2" fill="#fff"/>
+                <ellipse cx="200" cy="258" rx="54" ry="40" fill="#fbebd2" stroke="#c99a64" stroke-width="2.5"/>
+                <g fill="#c99a64">
+                  <circle cx="176" cy="250" r="1.8"/><circle cx="184" cy="254" r="1.8"/><circle cx="178" cy="259" r="1.8"/>
+                  <circle cx="224" cy="250" r="1.8"/><circle cx="216" cy="254" r="1.8"/><circle cx="222" cy="259" r="1.8"/>
+                </g>
+                <path d="M200 248 V259 M200 259 C192 273 174 273 168 261 M200 259 C208 273 226 273 232 261"
+                      stroke="#3a2010" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                <path d="M179 228 C179 219 221 219 221 228 C221 241 209 249 200 249 C191 249 179 241 179 228Z" fill="#2b1b17"/>
+                <ellipse cx="192" cy="228" rx="6" ry="3" fill="#fff" opacity=".55"/>
+                <path d="M128 300 Q200 342 272 300" fill="none" stroke="#4a2a14" stroke-width="22" stroke-linecap="round"/>
+                <path d="M128 300 Q200 342 272 300" fill="none" stroke="#e0453a" stroke-width="15" stroke-linecap="round"/>
+                <circle cx="200" cy="338" r="11" fill="#ffc83d" stroke="#4a2a14" stroke-width="3"/>
+                <circle cx="196" cy="334" r="3" fill="#fff" opacity=".7"/>
+              </svg>
+            </span>
           </div>
           <div class="card-meta">
-            <span class="card-badge">03</span>
+            <span class="card-index" aria-hidden="true">03</span>
             <h2 id="landing-pet-name">Virtual Pet</h2>
+            <span class="card-go" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                   stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </span>
           </div>
         </button>
 
-        <!-- Card 4: Alexcraft -->
-        <button class="app-launch-card alexcraft-card" data-target="alexcraft">
-          <div class="card-thumb alexcraft-thumb">
-            <!-- An isometric grass block: three faces, one texture colour each,
-                 shaded the way the game's own block light falls. Inline SVG so
-                 the card stays crisp at every density and needs no extra file. -->
-            <svg class="alexcraft-thumb-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-              <rect width="64" height="64" fill="#0b1220"/>
-              <g stroke="#0b1220" stroke-width="1.2" stroke-linejoin="round">
-                <!-- top face (grass) -->
-                <path d="M32 8 56 21 32 34 8 21z" fill="#7cbd4a"/>
-                <!-- left face (dirt) -->
-                <path d="M8 21 32 34v22L8 43z" fill="#8a5a34"/>
-                <!-- right face (dirt, in shade) -->
-                <path d="M56 21 32 34v22l24-13z" fill="#6f4527"/>
-              </g>
-              <!-- grass fringe hanging over the dirt -->
-              <path d="M8 21 32 34l7-3.8-8-4.4z" fill="#5f9a34"/>
-              <path d="M56 21 32 34l-7-3.8 8-4.4z" fill="#54882e"/>
-              <!-- a few blocky highlights on the top face -->
-              <path d="M26 15.5 30 17.5 26 19.5 22 17.5z" fill="#8fd257" opacity=".7"/>
-              <path d="M38 22.5 41 24 38 25.5 35 24z" fill="#8fd257" opacity=".5"/>
-            </svg>
-          </div>
-          <div class="card-meta">
-            <span class="card-badge">04</span>
-            <h2>Alexcraft</h2>
-          </div>
-        </button>
+        <!-- Card 4 (Horizon) is native and lives in the Compose launcher, not
+             here. This page is still the web games' own launcher, reachable
+             only from inside a game. -->
       </div>
 
       <footer class="app-footer-bar">
-        <span>4 Games by Alex &bull; Touch & Play</span>
+        <span>Four Games &bull; One Tap</span>
       </footer>
     </section>
 
@@ -133,7 +180,6 @@
           <!-- Start Screen Overlay -->
           <div id="flappy-start-screen" class="flappy-overlay active">
             <div class="retro-title">FLAPPY BIRD</div>
-            <div class="bird-avatar-anim">🐦</div>
             <p class="instructions-pill">Tap screen to flap</p>
             <button id="btn-start-flappy" class="arcade-btn">TAP TO FLY</button>
           </div>
@@ -473,7 +519,7 @@
           <span class="bar-subtitle">Your companion</span>
           <h2 class="bar-title" id="bar-pet-name">Virtual Pet</h2>
         </div>
-        <button class="icon-btn-round nav-quick-btn" data-target="alexcraft" title="Next: Alexcraft">
+        <button class="icon-btn-round nav-quick-btn" data-target="flappy" title="Next: Flappy Bird">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </header>
@@ -725,19 +771,6 @@
           </details>
         </section>
       </div>
-    </section>
-    <!-- ================= PAGE 4: ALEXCRAFT ================= -->
-    <!-- Alexcraft, the voxel sandbox. In the browser it runs as a same-origin
-         iframe so it keeps its own document, module scope and 100dvh layout.
-         On Android the card opens AlexcraftActivity instead and this frame is
-         never used; see switchPage() in app.js.
-
-         No src in the markup: app.js attaches it on first entry, so the game
-         (about 1.3 MB including its textures and sounds) is not fetched by a
-         player who only ever opens the other three games. -->
-    <section id="page-alexcraft" class="page" data-page="alexcraft">
-      <iframe class="alexcraft-frame" id="alexcraft-frame" title="Alexcraft"
-              allow="autoplay; fullscreen; pointer-lock"></iframe>
     </section>
   </div>
 

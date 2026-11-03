@@ -3,6 +3,24 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Horizon drives the phone vibrator for in-game events. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Horizon's save/export path on API 28 only; 29+ uses MediaStore/scoped
+         storage and needs no permission at all. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+
+    <!-- Horizon can fall back between Vulkan and GLES, so neither is required.
+         Marking GLES 3.0 as required here would hide the whole app - chess,
+         flappy, the pet - from devices that cannot run one of the four games.
+         The Horizon activity checks what it needs at runtime instead. -->
+    <uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="false" />
+    <uses-feature android:glEsVersion="0x00030000" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- Horizon's activity is sensorLandscape, which makes the store imply a
+         required landscape screen for the whole package. Marking it optional
+         keeps a portrait-only device from being refused the three games that
+         do not need it. -->
+    <uses-feature android:name="android.hardware.screen.landscape" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -13,6 +31,8 @@
         android:hardwareAccelerated="true"
         android:windowSoftInputMode="adjustResize"
         android:theme="@style/Theme.ArtGallery">
+
+        <!-- The Compose launcher. Portrait, scrollable, no WebView. -->
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
@@ -22,15 +42,55 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- Alexcraft is a full-screen landscape game, so it gets its own
-             activity: the launcher stays portrait and keeps its own WebView
-             state while the game runs. -->
+
+        <!-- One browser game at a time, opened at its URL hash. The WebView and
+             its JavaScript bridge live in this activity rather than in the
+             launcher, so leaving a game disposes of it completely. -->
         <activity
-            android:name=".AlexcraftActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode"
+            android:name=".GameWebViewActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
             android:exported="false"
-            android:screenOrientation="sensorLandscape"
             android:theme="@style/Theme.ArtGallery" />
+
+        <!-- Horizon: a native Rust client, not a WebView.
+
+             It runs in its own :horizon process for two reasons:
+               1. Horizon ends its event loop with std::process::exit(0). In the
+                  launcher's process that would kill the app instead of
+                  returning to the Compose home screen.
+               2. A native client failure (driver, OOM) then takes down only the
+                  game, leaving the other three playable.
+
+             The class name is dev.horizon.android.HorizonActivity on purpose:
+             the Rust library exports its SAF callback under that exact JNI
+             name. See the class comment. -->
+        <activity
+            android:name="dev.horizon.android.HorizonActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|density|uiMode"
+            android:exported="false"
+            android:process=":horizon"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.ArtGallery.Horizon"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data android:name="android.app.lib_name" android:value="horizon_android" />
+        </activity>
+
+        <!-- Lets the Files app browse Horizon's saves. The authority is
+             ${applicationId}.documents, which is the string Horizon derives at
+             runtime from getPackageName(), so it keeps working under this app's
+             id. Pinned to :horizon so the native library never loads into the
+             launcher process. -->
+        <provider
+            android:name="dev.horizon.android.HorizonDocumentsProvider"
+            android:authorities="${applicationId}.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS"
+            android:process=":horizon">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
     </application>
 
 </manifest>

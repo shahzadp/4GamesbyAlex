@@ -217,8 +217,7 @@ function playChime(theme) {
     main: [261.63, 329.63, 392.00],
     flappy: [523.25, 659.25, 783.99],
     chess: [349.23, 440.00, 523.25],
-    pet: [392.00, 493.88, 587.33],
-    alexcraft: [196.00, 246.94, 293.66]
+    pet: [392.00, 493.88, 587.33]
   };
   const freqs = notes[theme] || notes.main;
   freqs.forEach((freq, idx) => {
@@ -305,20 +304,6 @@ function leaveFullscreen() {
 function switchPage(targetPageId) {
   if (state.currentPage === targetPageId) return;
 
-  /* Alexcraft is a full-screen landscape game with its own WebView and input
-     handling. On Android it gets its own activity rather than an iframe: the
-     launcher's portrait shell would squeeze it, and a nested WebView cannot
-     go fullscreen or hide the system bars the way the game needs. The iframe
-     below stays for the browser build. */
-  if (targetPageId === 'alexcraft' && window.AndroidBridge
-      && typeof window.AndroidBridge.openAlexcraft === 'function') {
-    // The game has its own activity and its own full screen, so the launcher
-    // gives the screen back before it goes behind it.
-    leaveFullscreen();
-    window.AndroidBridge.openAlexcraft();
-    return;
-  }
-
   // Captured before state.currentPage is reassigned below. Testing it after
   // that assignment is a silent no-op: it has already become the target page,
   // so "are we leaving chess?" never evaluates true and the cleanup never
@@ -345,10 +330,6 @@ function switchPage(targetPageId) {
   }
 
   playChime(targetPageId);
-
-  /* Game 4 is Alexcraft in an iframe (browser build only): mount it on first
-     entry and re-measure when the page comes back. See mountAlexcraftFrame. */
-  mountAlexcraftFrame(targetPageId);
 
   if (targetPageId === 'flappy') {
     flappyGame.resume();
@@ -388,10 +369,6 @@ function switchPage(targetPageId) {
     // middle of a search when the player navigates away.
     chessGame.releaseBotEngine(true);
   }
-
-  /* Alexcraft keeps rendering and playing music while it is hidden, and its
-     own pause path is the only thing that stops both. */
-  if (leavingPage === 'alexcraft') pauseAlexcraftFrame();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -789,7 +766,28 @@ const flappyGame = {
     const minGap = Math.max(56, Math.round(wanted * this.MIN_GAP_RATIO));
     const gap = Math.max(minGap, wanted);
     const maxHeight = this.height - this.groundHeight - gap - minHeight;
-    const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+    let topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+
+    /* A window over a screen away from the previous one cannot be flown to.
+     *
+     * The gap used to be placed with a uniform random number with no
+     * reference to where the last window was, so two pipes in a row could
+     * ask the bird to climb or dive the full height of the play field in the
+     * time between spawns. That is not a difficult jump, it is an
+     * impossible one: the bird cannot teleport. Keep the new window within
+     * REACH of the last one: its centre may only shift by a fraction of the
+     * field, softened by the gap itself so a wide window buys a little
+     * slack and a narrow one demands precision. */
+    const last = this.pipes[this.pipes.length - 1];
+    if (last) {
+      const lastGap = last.bottomY - last.topHeight;
+      const lastCenter = last.topHeight + lastGap / 2;
+      const maxDelta = Math.max(130, this.currentGap() * 1.6);
+      const lo = Math.max(minHeight, lastCenter - maxDelta - gap / 2);
+      const hi = Math.min(maxHeight, lastCenter + maxDelta - gap / 2);
+      topHeight = Math.max(lo, Math.min(hi, topHeight));
+    }
+
     const bottomY = topHeight + gap;
 
     this.pipes.push({
@@ -4933,17 +4931,15 @@ document.addEventListener('DOMContentLoaded', () => {
    * The browser stops the animation frames of a hidden tab on its own, but
    * the loop is still scheduled, and every other page of the launcher keeps
    * its game paused through switchPage(). The one that does not is the game
-   * itself: it lives in its own WebView on Android, and in an iframe in the
-   * browser, and neither of them is told when the launcher goes away. */
+   * itself: it lives in its own WebView on Android, and its own document in
+   * the browser, and neither of them is told when the launcher goes away. */
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       flappyGame.pause();
-      pauseAlexcraftFrame();
     } else if (state.currentPage === 'flappy') {
       flappyGame.resume();
       // The game takes the whole screen, so it has to take it again when the
-      // launcher comes back: it may have been away to play Alexcraft, which
-      // has its own activity and its own full screen.
+      // launcher comes back.
       enterFullscreen(fullscreenStageFor('flappy'));
     }
   });
@@ -5034,12 +5030,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 8. URL Hash Navigation
+  //
+  // `main` is the web build's own launcher page. The Android shell no longer
+  // shows it: GameWebViewActivity injects a listener that leaves the activity
+  // when the hash becomes `main`, so the native Compose launcher is the only
+  // home screen. The branch stays for the browser build.
   function handleHash() {
     const hash = window.location.hash.replace('#', '');
-    if (['flappy', 'chess', 'pet', 'alexcraft'].includes(hash)) {
+    if (['flappy', 'chess', 'pet'].includes(hash)) {
       switchPage(hash);
-    } else if (hash === 'fire') {
-      switchPage('alexcraft');
     } else {
       switchPage('main');
     }
@@ -5069,71 +5068,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// =======================================================
-// ALEXCRAFT (GAME 4) — IFRAME MOUNT
-// =======================================================
-
-/* Lazily attach the iframe, once.
- *
- * The src is deliberately absent from the markup. Alexcraft is a whole game
- * (about 1.3 MB with its textures and sounds) and three of the four games in
- * this launcher have nothing to do with it — so it is not fetched until the
- * player actually opens game 4. Setting it more than once would restart the
- * world, hence the guard.
- *
- * A second case is easy to miss, and is why the reflow below is unconditional:
- * this launcher hides pages with `display: none`, and an iframe at zero size
- * gets no animation frames and never receives a resize event when it is shown
- * again. The game sizes its canvas and its WebGL viewport from the window, so
- * without the nudge it would keep the 0x0 drawing buffer it built while
- * hidden — a black screen, and no error anywhere to say why. Same-origin, so
- * the child window is directly reachable.
- *
- * On Android this never runs: switchPage() hands the card to
- * AlexcraftActivity, which loads the same build in its own landscape WebView.
- */
-let alexcraftFrameMounted = false;
-
-function mountAlexcraftFrame(pageId) {
-  const frame = document.getElementById('alexcraft-frame');
-  if (!frame) return;
-
-  const wantsGame = pageId === 'alexcraft';
-
-  if (wantsGame && !alexcraftFrameMounted && !frame.getAttribute('src')) {
-    frame.setAttribute('src', 'alexcraft/index.html');
-    alexcraftFrameMounted = true;
-  }
-
-  if (!wantsGame) return;
-
-  /* Re-measure once the page is actually laid out. Two frames: the first runs
-     after the class flip has been styled, the second after the iframe has been
-     given a size by that layout.
-     The game stops its render loop while it is paused, so coming back to it
-     has to start it again. Without this the page comes back to a frozen
-     world. */
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    try {
-      const w = frame.contentWindow;
-      if (!w) return;
-      if (typeof w.__alexcraftResume === 'function') w.__alexcraftResume();
-      w.dispatchEvent(new w.Event('resize'));
-    } catch (e) {
-      /* Child not reachable yet; its own resize handler will catch up. */
-    }
-  }));
-}
-
-/* Hiding the page stops the animation frames but not the music, and the game
-   only mutes itself when its own pause menu opens. */
-function pauseAlexcraftFrame() {
-  const frame = document.getElementById('alexcraft-frame');
-  if (!frame || !frame.getAttribute('src')) return;
-  try {
-    const w = frame.contentWindow;
-    if (w && typeof w.__alexcraftPause === 'function') w.__alexcraftPause();
-  } catch (e) {
-    /* Not reachable: nothing to pause. */
-  }
-}
+// Horizon (game 4) is not part of this bundle. It is a native Rust client that
+// the Compose launcher starts as its own activity, so there is no iframe, no
+// mount step and no pause hook here.

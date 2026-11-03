@@ -51,6 +51,15 @@ obj/
 out/
 release/
 
+# --- Horizon native payload ------------------------------------------------
+# Staged by tools/fetch-horizon.ps1 from a hash-verified Horizon release, or
+# built by tools/build-horizon.ps1. Both files are large and reproducible, so
+# they stay out of git. A checkout without them still builds; the launcher
+# shows Horizon as "not staged" instead of starting an activity that would
+# fail on System.loadLibrary.
+/app/src/main/jniLibs/
+/app/src/main/assets/engine-data.zip
+
 # --- Editors and OS --------------------------------------------------------
 *.log
 *.tmp

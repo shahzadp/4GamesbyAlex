@@ -90,7 +90,6 @@ body.theme-main { background: radial-gradient(circle at 50% 10%, #151a2d 0%, #05
 body.theme-flappy { background: radial-gradient(circle at 50% 10%, #1c2738 0%, #05070c 85%); }
 body.theme-chess { background: radial-gradient(circle at 50% 10%, #10261f 0%, #05070c 85%); }
 body.theme-pet { background: radial-gradient(circle at 50% 10%, #272a2f 0%, #05070c 85%); }
-body.theme-alexcraft { background: radial-gradient(circle at 50% 10%, #142b24 0%, #05070c 85%); }
 
 * {
   box-sizing: border-box;
@@ -188,179 +187,276 @@ body.theme-pet .bar-subtitle { color: #c3c8ce; }
 /* ================= MAIN HOME SCREEN ================= */
 
 .app-home-header {
-  text-align: center;
-  padding: 1.5rem 0 1.25rem;
-}
-
-.app-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
+  text-align: center;
+  padding: 1rem 0 1.5rem;
+  /* A soft spotlight behind the brand so the top of the screen is not a flat
+     black field. Purely decorative, and it fades out well before the cards. */
+  background: radial-gradient(78% 92% at 50% 6%, rgba(255, 255, 255, 0.05), transparent 72%);
 }
 
-.app-logo {
-  font-size: 2.4rem;
-  width: 64px;
-  height: 64px;
+/* Four tiles, one per game, in the same order and colours as the cards below. */
+.app-mark {
   display: flex;
+  width: 58px;
+  height: 58px;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(16, 185, 129, 0.25));
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  margin-bottom: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.015) 58%),
+    linear-gradient(180deg, #171d2b, #0c1018);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.app-eyebrow {
+  margin: 0 0 0.4rem;
+  color: rgba(244, 185, 66, 0.7);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
 }
 
 .app-title {
-  font-size: 1.85rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
   margin: 0;
-  background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
+  font-size: 1.72rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: #fff;
+  background: linear-gradient(180deg, #ffffff 25%, #b7c0ce 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.app-tagline {
+  margin: 0.5rem 0 0;
+  color: rgba(148, 163, 184, 0.8);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.005em;
 }
 
 /* 2x2 App Grid */
 .app-grid-2x2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.9rem;
-  margin: 0.5rem 0 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 0 0 1.35rem;
 }
 
+/* Each card is one accent hue on a shared dark tile. The hue lives in
+   --accent (the number and focus ring) and --glow (the light behind the
+   artwork), so the four tiles read as a set rather than four unrelated
+   thumbnails. */
 .app-launch-card {
+  --accent: #ffffff;
+  --glow: rgba(255, 255, 255, 0.15);
   appearance: none;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  padding: 0.65rem;
+  -webkit-appearance: none;
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.6rem 0.6rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012) 45%, rgba(255, 255, 255, 0) 100%),
+    #0f131c;
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-  animation: spring-bounce 0.6s ease-out;
+  font-family: var(--font-main);
+  text-align: left;
+  overflow: hidden;
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0, 0, 1),
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-@keyframes spring-bounce {
-  0% { transform: scale(1) translateY(0); }
-  30% { transform: scale(1.06) translateY(-6px); }
-  50% { transform: scale(0.98) translateY(0); }
-  70% { transform: scale(1.02) translateY(-2px); }
-  100% { transform: scale(1) translateY(0); }
-}
+.flappy-card    { --accent: #f4b942; --glow: rgba(244, 185, 66, 0.22); }
+.chess-card     { --accent: #dbe3f0; --glow: rgba(219, 227, 240, 0.15); }
+.pet-card       { --accent: #e9b48c; --glow: rgba(233, 180, 140, 0.18); }
 
 .app-launch-card:active {
   transform: var(--touch-scale);
-  background: var(--bg-card-active);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px var(--glow),
+    0 0 26px var(--glow);
 }
 
-.flappy-card { border-bottom: 3px solid var(--accent-gold); }
-.chess-card { border-bottom: 3px solid var(--accent-green); }
-.pet-card { border-bottom: 3px solid #a9afb6; }
-/* Same green as the grass on the card's block, so the accent and the artwork
-   cannot drift apart. */
-.alexcraft-card { border-bottom: 3px solid #7cbd4a; }
-
-.alexcraft-thumb {
-  overflow: hidden;
-  border: 1px solid rgba(124, 189, 74, 0.28);
-  background: #0b1220;
+.app-launch-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.pet-card .card-thumb {
-  background: radial-gradient(circle at 50% 40%, #f7f4ef, #d2d5d9 78%);
+@media (hover: hover) {
+  .app-launch-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 20px 34px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 0 30px -8px var(--glow);
+  }
+
+  .app-launch-card:hover .card-go {
+    transform: translateX(2px);
+    color: var(--accent);
+  }
 }
 
-.pet-card-emoji {
-  font-size: 4.25rem;
-  line-height: 1;
-  filter: drop-shadow(0 7px 5px rgba(24, 28, 33, 0.25));
-  animation: tileBob 2.4s ease-in-out infinite;
+/* Staggered entrance. Fill mode is `backwards`, not `both`: a filled
+   `transform` keyframe would keep winning over the :active press. */
+.page.active .app-launch-card {
+  animation: cardRise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
-@keyframes tileBob {
-  0%, 100% { transform: translateY(1px) rotate(-2deg); }
-  50% { transform: translateY(-4px) rotate(2deg); }
+.page.active .app-launch-card:nth-child(1) { animation-delay: 0.02s; }
+.page.active .app-launch-card:nth-child(2) { animation-delay: 0.07s; }
+.page.active .app-launch-card:nth-child(3) { animation-delay: 0.12s; }
+.page.active .app-launch-card:nth-child(4) { animation-delay: 0.17s; }
+
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
 }
 
 .card-thumb {
-  width: 100%;
-  aspect-ratio: 1/1;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: #000;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.6rem;
-}
-
-.card-thumb img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  aspect-ratio: 1/1;
+  border-radius: 15px;
+  overflow: hidden;
+  background:
+    radial-gradient(90% 72% at 50% 6%, var(--glow), transparent 68%),
+    linear-gradient(180deg, #151b28 0%, #0a0e16 100%);
 }
 
-/* Flappy thumbnail inside card: the bird alone on its sky. */
-.flappy-thumb {
-  background: linear-gradient(to bottom, #1a2a3a 0%, #2d4a6e 55%, #4a6fa5 100%);
+/* Rim light plus a bottom vignette: the tile reads as a lit surface rather
+   than a flat black square. */
+.card-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 34%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 -22px 28px -20px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
 }
 
-.flappy-card-emoji {
-  font-size: 4.25rem;
-  line-height: 1;
-  filter: drop-shadow(0 7px 5px rgba(24, 28, 33, 0.25));
-  animation: tileBob 2.4s ease-in-out infinite;
-}
-
-/* Chess thumbnail inside card: one white pawn, as large as the thumb allows. */
-.chess-thumb {
-  background: #1e293b;
-}
-
-.chess-card-pawn {
-  width: 86%;
-  height: 86%;
-  display: block;
-  filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.35));
-}
-
-.card-meta {
-  width: 100%;
+.card-art {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  width: 64%;
+  aspect-ratio: 1/1;
+  line-height: 1;
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.45));
 }
 
-.card-badge {
-  font-size: 0.65rem;
+/* The pawn is a tall, solid white shape; at the shared 64% it carried more
+   visual weight than the other three, so it gets a little less. */
+.chess-card .card-art {
+  width: 60%;
+}
+
+.card-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0 0.15rem 0.1rem;
+}
+
+.card-index {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 0.56rem;
   font-weight: 800;
-  padding: 0.15rem 0.4rem;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-muted);
+  letter-spacing: 0.14em;
+  opacity: 0.62;
+  font-variant-numeric: tabular-nums;
 }
 
 .card-meta h2 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #fff;
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
+  color: #f2f5f9;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-go {
+  flex: 0 0 auto;
+  display: flex;
+  color: rgba(255, 255, 255, 0.24);
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+/* On a very narrow phone the tile is ~120px wide inside its padding. The index
+   and the chevron then leave too little for the title ("Flappy Bi…"), so the
+   chevron steps aside and the type tightens a notch. At 360px there is still
+   room for the full row. */
+@media (max-width: 340px) {
+  .app-grid-2x2 { gap: 0.65rem; }
+
+  .card-meta { gap: 0.32rem; }
+
+  .card-index {
+    font-size: 0.52rem;
+    letter-spacing: 0.1em;
+  }
+
+  .card-meta h2 { font-size: 0.86rem; }
+
+  .card-go { display: none; }
 }
 
 .app-footer-bar {
   margin-top: auto;
+  padding: 1.05rem 0 0.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   text-align: center;
-  padding: 1rem 0 0.5rem;
-  font-size: 0.78rem;
-  color: var(--text-dim);
+  color: rgba(148, 163, 184, 0.5);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 /* ================= GAME STAGE & FULLSCREEN BUTTONS ================= */
@@ -553,17 +649,6 @@ body.android-fullscreen .page.active {
   color: #facc15;
   text-shadow: 2px 2px #b45309, 0 0 12px rgba(245, 158, 11, 0.8);
   margin-bottom: 1.2rem;
-}
-
-.bird-avatar-anim {
-  font-size: 3rem;
-  margin-bottom: 1.2rem;
-  animation: birdBounce 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes birdBounce {
-  from { transform: translateY(-4px); }
-  to { transform: translateY(6px); }
 }
 
 .instructions-pill {
@@ -1271,8 +1356,8 @@ body.android-fullscreen .page.active {
    has asked the system for less motion, a dog that breathes on its own forever is
    exactly the thing they asked not to see. A tap still gets a bark. */
 @media (prefers-reduced-motion: reduce) {
-  .pet-avatar #touch-dog-svg, .pet-spark, .pet-card-emoji,
-  .flappy-card-emoji { animation: none !important; }
+  .pet-avatar #touch-dog-svg, .pet-spark,
+  .page.active .app-launch-card { animation: none !important; }
   #eyes { animation: none !important; }
 }
 
@@ -3119,57 +3204,7 @@ body.android-fullscreen .page.active {
   position: relative;
 }
 
-/* ================= ALEXCRAFT (GAME 4) LAYOUT =================
- * Alexcraft is a self-contained document with its own canvas, hotbar and touch
- * overlay, so it gets the whole page: no host chrome. On Android the card opens
- * AlexcraftActivity instead of this frame; the iframe is the browser fallback.
- */
+/* ================= END OF GAMES ================= */
 
-/* The frame fills the page box. `.page.active` is a flex column, so flex:1 gives
-   the frame the full height between the status bar and the system nav bar. */
-.alexcraft-frame {
-  flex: 1 1 auto;
-  width: 100%;
-  min-height: 0;
-  display: block;
-  border: 0;            /* the UA 2px inset border would shrink clientWidth by 4px */
-  background: #0a0c13;
-  color-scheme: dark;
-}
-
-/* The game owns its own scrolling and draws edge to edge, so the host document
-   must not scroll behind it and the shell's padding would show as a dead
-   border around the world. */
-body.theme-alexcraft {
-  display: block;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 0;
-  overflow: hidden;
-}
-
-body.theme-alexcraft .mobile-app-shell {
-  height: 100%;
-  min-height: 0;
-  padding: 0;
-}
-
-/* The host's page-fade animation translates the page; on a WebGL canvas that
-   reads as a smear every time the game is entered, and it also creates a
-   compositing layer that makes the frame repaint on the wrong cadence. */
-body.theme-alexcraft #page-alexcraft.active {
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 0;
-  animation: none;
-}
-
-/* ---- launcher card artwork ---- */
-
-/* The icon is an inline SVG block, so it just fills the 1:1 thumb and lets the
-   thumb's own overflow:hidden + border-radius crop it to the card shape. */
-.alexcraft-thumb-icon {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
+/* Horizon (game 4) has no web layout: it is a native activity, not a page in
+   this document. */

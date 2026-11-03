@@ -1,50 +1,44 @@
 package com.example.artgallery.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(primary = Purple80, secondary = PurpleGrey80, tertiary = Pink80)
+/**
+ * The launcher's palette, taken from the web build's `--bg-*` and `--text-*`
+ * custom properties so the Compose home screen and the pages it opens do not
+ * look like two different apps.
+ *
+ * It is deliberately fixed rather than derived from the wallpaper: the games
+ * themselves are dark and drawn with their own colours, and a Material You
+ * pastel surface behind a dark card grid reads as a bug.
+ */
+object LauncherPalette {
+  val Background = Color(0xFF090B10)
+  val Surface = Color(0xFF131722)
+  val TextMain = Color(0xFFF8FAFC)
+  val TextMuted = Color(0xFF94A3B8)
+  val TextDim = Color(0xFF64748B)
 
-private val LightColorScheme =
-  lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40,
+  /** The 10% white hairline the web cards use for their border. */
+  val Hairline = Color(0x1AFFFFFF)
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+  /** The `--accent-gold` cue colour, used for the "PICK A GAME" eyebrow. */
+  val Accent = Color(0xFFF59E0B)
+}
+
+private val LauncherColorScheme =
+  darkColorScheme(
+    primary = LauncherPalette.Accent,
+    onPrimary = Color(0xFF1A1200),
+    background = LauncherPalette.Background,
+    onBackground = LauncherPalette.TextMain,
+    surface = LauncherPalette.Surface,
+    onSurface = LauncherPalette.TextMain,
   )
 
 @Composable
-fun ArtGalleryTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
-  // Dynamic color is available on Android 12+
-  dynamicColor: Boolean = true,
-  content: @Composable () -> Unit,
-) {
-  val colorScheme =
-    when {
-      dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-        val context = LocalContext.current
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-      }
-      darkTheme -> DarkColorScheme
-      else -> LightColorScheme
-    }
-
-  MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+fun LauncherTheme(content: @Composable () -> Unit) {
+  MaterialTheme(colorScheme = LauncherColorScheme, content = content)
 }

@@ -3,7 +3,6 @@ import java.util.Properties
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
-  alias(libs.plugins.kotlin.serialization)
 }
 
 // Release signing credentials live in keystore.properties at the repo root,
@@ -31,13 +30,21 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "com.example.artgallery"
-        minSdk = 24
+        // Android 9 / API 28 is the floor. Raising it from 24 drops Android
+        // 7.x-8.1, which we no longer support: it matches the native Horizon
+        // toolchain's floor, lifts the WebView baseline to a modern Chromium,
+        // and removes the legacy-storage and background-execution branches
+        // those releases needed. Nothing in this module targets API 24-27
+        // specifically, so the bump needs no runtime shims.
+        minSdk = 28
         targetSdk = 36
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        versionCode = 14
-        versionName = "1.9"
+        // 18 / 1.13 = flappy pipe generator now keeps every window within
+        // reach of the previous one; launcher icon polish.
+        versionCode = 18
+        versionName = "1.13"
     }
 
     signingConfigs {
@@ -99,6 +106,17 @@ android {
       resources {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
       }
+      jniLibs {
+        // Horizon ships as a prebuilt Rust .so. Legacy packaging extracts
+        // native libraries to the filesystem at install time, which is what
+        // android:extractNativeLibs="true" in the manifest requires and what
+        // NativeActivity needs when it loads libhorizon_android.so.
+        //
+        // It also keeps HorizonNative.isAvailable() honest: that check looks
+        // for the file in applicationInfo.nativeLibraryDir, which is only
+        // populated when the libraries are extracted.
+        useLegacyPackaging = true
+      }
     }
 }
 
@@ -138,9 +156,4 @@ dependencies {
   androidTestImplementation(libs.androidx.test.ext.junit)
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.espresso.core)
-
-  // Navigation
-  implementation(libs.androidx.navigation3.ui)
-  implementation(libs.androidx.navigation3.runtime)
-  implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 }
