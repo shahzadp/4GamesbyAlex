@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">4 Games by Alex</string>
+    <string name="game_interrupted">That game stopped because the phone was busy. Tap it again to play!</string>
 </resources>

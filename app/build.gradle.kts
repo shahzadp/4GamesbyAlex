@@ -41,10 +41,10 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 18 / 1.13 = flappy pipe generator now keeps every window within
-        // reach of the previous one; launcher icon polish.
-        versionCode = 18
-        versionName = "1.13"
+        // 21 / 1.16 = centered rename field; default pet chat model is now a
+        // newer free model (Gemma 4 31B) instead of GPT-4o-mini.
+        versionCode = 21
+        versionName = "1.16"
     }
 
     signingConfigs {

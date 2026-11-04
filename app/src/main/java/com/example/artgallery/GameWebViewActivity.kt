@@ -35,6 +35,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
+import android.widget.Toast
+import android.webkit.RenderProcessGoneDetail
+import androidx.annotation.RequiresApi
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -368,6 +371,33 @@ class GameWebViewActivity : ComponentActivity() {
                                 (url.toString()) + "</p>").toByteArray()
                         )
                     )
+                }
+
+                /**
+                 * The Chromium renderer died. On a memory-tight phone this is
+                 * usually the system OOM-killing the WebView's renderer rather
+                 * than a code bug: heavy first-time work (the chess engine
+                 * booting Stockfish, for instance) can tip a device that was
+                 * already low on memory. Left unhandled this takes the whole
+                 * app down with the renderer — the symptom is a one-time
+                 * "opened Chess and the app died" that never reproduces after
+                 * a restart. Returning true says the app dealt with it, so
+                 * the launcher survives; the activity finishes with a message
+                 * instead of pretending nothing happened.
+                 *
+                 * The platform method only exists on API 29+; on API 28 it is
+                 * never invoked and the minSdk baseline is unaffected.
+                 */
+                @RequiresApi(Build.VERSION_CODES.Q)
+                override fun onRenderProcessGone(
+                    view: WebView,
+                    detail: RenderProcessGoneDetail
+                ): Boolean {
+                    runCatching {
+                        Toast.makeText(this@GameWebViewActivity, R.string.game_interrupted, Toast.LENGTH_LONG).show()
+                    }
+                    finish()
+                    return true
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {

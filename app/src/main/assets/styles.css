@@ -184,6 +184,52 @@ body.theme-pet .bar-subtitle { color: #c3c8ce; }
   line-height: 1.2;
 }
 
+/* The rename row: the companion's name field is the bar-title-looking thing,
+   with a pencil as the affordance. Tapping straight into the field is the
+   rename — no settings detour, no extra button. Centered as its own unit,
+   independent of text-align quirks. */
+.bar-rename-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 2px auto 0;
+  width: fit-content;
+  cursor: text;
+}
+
+.bar-rename-field {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px dashed rgba(255, 255, 255, 0.28);
+  border-radius: 6px 6px 0 0;
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  padding: 1px 2px 3px;
+  min-width: 9ch;
+  max-width: 62vw;
+  outline: none;
+  text-align: center;
+}
+
+.bar-rename-field::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.bar-rename-field:focus {
+  border-bottom: 1.5px solid var(--accent-gold);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bar-rename-pencil {
+  color: rgba(255, 255, 255, 0.65);
+  pointer-events: none;
+}
+
 /* ================= MAIN HOME SCREEN ================= */
 
 .app-home-header {

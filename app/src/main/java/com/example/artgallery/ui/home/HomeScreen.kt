@@ -350,15 +350,6 @@ private fun DrawScope.drawGameGlyph(gameId: String, s: Float, enabled: Boolean) 
         color = if (enabled) Color(0xFFFF5A36) else GlyphDim,
       )
       drawCircle(detail, radius = s * 0.047f, center = Offset(s * 0.594f, s * 0.411f))
-      // legs with toes
-      val legStroke = s * 0.047f
-      val toeStroke = s * 0.039f
-      drawLine(w, Offset(s * 0.438f, s * 0.711f), Offset(s * 0.400f, s * 0.856f), legStroke, StrokeCap.Round)
-      drawLine(w, Offset(s * 0.588f, s * 0.711f), Offset(s * 0.627f, s * 0.856f), legStroke, StrokeCap.Round)
-      drawLine(w, Offset(s * 0.400f, s * 0.856f), Offset(s * 0.324f, s * 0.894f), toeStroke, StrokeCap.Round)
-      drawLine(w, Offset(s * 0.400f, s * 0.856f), Offset(s * 0.475f, s * 0.894f), toeStroke, StrokeCap.Round)
-      drawLine(w, Offset(s * 0.627f, s * 0.856f), Offset(s * 0.552f, s * 0.894f), toeStroke, StrokeCap.Round)
-      drawLine(w, Offset(s * 0.627f, s * 0.856f), Offset(s * 0.702f, s * 0.894f), toeStroke, StrokeCap.Round)
     }
 
     "chess" -> {

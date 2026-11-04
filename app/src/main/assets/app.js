@@ -304,10 +304,24 @@ function leaveFullscreen() {
 function switchPage(targetPageId) {
   if (state.currentPage === targetPageId) return;
 
+  // The web launcher is no longer the app's home: when something inside a
+  // game asks for '#main' (the Escape key, an in-game back button), hand
+  // control back to the Compose launcher instead of painting the old
+  // launcher for a frame. In the browser this branch does not apply.
+  if (targetPageId === 'main' && window.AndroidBridge && typeof window.AndroidBridge.exitToLauncher === 'function') {
+    window.AndroidBridge.exitToLauncher();
+    return;
+  }
+
   // Captured before state.currentPage is reassigned below. Testing it after
   // that assignment is a silent no-op: it has already become the target page,
   // so "are we leaving chess?" never evaluates true and the cleanup never
   // runs.
+  // The inline <head> boot hid page-main so it never painted first; once a
+  // page switch happens for real, the rule is obsolete. Without this the
+  // hidden class would pin the launcher invisible forever.
+  document.documentElement.classList.remove('boot-game');
+
   const leavingPage = state.currentPage;
 
   const currentEl = document.getElementById(`page-${state.currentPage}`);
@@ -4802,9 +4816,14 @@ function setupVirtualPet() {
       localStorage.setItem('pet_companion_name', petNameEl.value.trim() || 'Doggo');
       const name = petNameEl.value.trim() || 'Doggo';
       const landingName = document.getElementById('landing-pet-name');
-      const barName = document.getElementById('bar-pet-name');
       if (landingName) landingName.textContent = name;
-      if (barName) barName.textContent = name;
+    });
+    // Enter finishes the edit, like tapping away.
+    petNameEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        petNameEl.blur();
+      }
     });
   }
 

@@ -19,6 +19,22 @@
   -->
   <link rel="preload" href="fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
+  <script>
+    /* The bundle is shared with the browser. In the app, GameWebViewActivity
+     * always boots with a game hash (#flappy, #chess, #pet); painting the
+     * launcher first and switching after app.js runs showed the old launcher
+     * for a frame or two on the way into every game. Marking the document
+     * here lets CSS hide page-main before the first paint instead. */
+    (function () {
+      var hash = (window.location.hash || '').replace('#', '');
+      if (hash === 'flappy' || hash === 'chess' || hash === 'pet') {
+        document.documentElement.classList.add('boot-game');
+      }
+    })();
+  </script>
+  <style>
+    html.boot-game #page-main { display: none !important; }
+  </style>
 </head>
 <body class="theme-main">
 
@@ -516,8 +532,18 @@
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div class="bar-title-box">
+          <!-- The companion's name is shown here, so this is where it gets
+               renamed: one tap into the field. It used to live inside the
+               voice-and-AI settings panel, which is not where a player
+               looks for a name. -->
           <span class="bar-subtitle">Your companion</span>
-          <h2 class="bar-title" id="bar-pet-name">Virtual Pet</h2>
+          <label class="bar-rename-row" for="pet-name">
+            <input class="bar-rename-field" id="pet-name" type="text" value="Doggo" autocomplete="off" spellcheck="false" maxlength="24" size="9" placeholder="Name your pet" aria-label="Companion name">
+            <svg class="bar-rename-pencil" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L9 17l-4 1 1-4L16.5 3.5Z"/>
+            </svg>
+          </label>
         </div>
         <button class="icon-btn-round nav-quick-btn" data-target="flappy" title="Next: Flappy Bird">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
@@ -761,12 +787,10 @@
               <label for="pet-api-key">OpenRouter API key</label>
               <input id="pet-api-key" type="password" autocomplete="off" placeholder="sk-or-v1-...">
               <label for="pet-model">Chat model</label>
-              <input id="pet-model" type="text" value="openai/gpt-4o-mini" autocapitalize="off" spellcheck="false">
+              <input id="pet-model" type="text" value="google/gemma-4-31b-it:free" autocapitalize="off" spellcheck="false">
               <button id="pet-connect" class="mobile-btn" type="button">Save key securely</button>
               <button id="pet-forget-key" class="pet-forget-key" type="button" hidden>Forget saved key</button>
               <p id="pet-connection-status" class="pet-connection-status" role="status">On Android, saved API keys are encrypted on this device.</p>
-              <label for="pet-name">Companion name</label>
-              <input id="pet-name" type="text" value="Doggo" autocomplete="off" spellcheck="false" placeholder="Name your pet...">
             </div>
           </details>
         </section>
