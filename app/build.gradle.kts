@@ -41,10 +41,10 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 21 / 1.16 = centered rename field; default pet chat model is now a
-        // newer free model (Gemma 4 31B) instead of GPT-4o-mini.
-        versionCode = 21
-        versionName = "1.16"
+        // 22 / 1.17 = branded Horizon splash for the native-load gap:
+        // window background shows the app splash artwork even on pre-12.
+        versionCode = 22
+        versionName = "1.17"
     }
 
     signingConfigs {

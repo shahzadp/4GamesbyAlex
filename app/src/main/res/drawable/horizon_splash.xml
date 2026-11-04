@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Horizon's launch splash for pre-Android-12 devices, and the layered
+    window background used underneath the Android 12+ system splash.
+
+    Horizon loads a ~61 MB native library before its first frame renders, so
+    the window needs to show something finished, not a bare black rectangle:
+    the app's four quadrant boxes on the same splash_background colour the
+    whole app uses, centred. No mask, no backing grid — the icon alone.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+    <item android:gravity="center"
+          android:width="108dp"
+          android:height="108dp"
+          android:drawable="@drawable/ic_splash_icon" />
+</layer-list>

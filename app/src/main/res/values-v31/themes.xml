@@ -20,4 +20,23 @@
         <item name="android:windowBackground">@color/splash_background</item>
         <item name="android:colorBackground">@color/splash_background</item>
     </style>
+
+    <!-- Android 12+ splash for Horizon, matching the launcher's. The system
+         splash dismisses when the native surface first draws, showing this
+         icon on splash_background the whole time the .so loads - so the
+         journey from Compose card to the game world is one continuous
+         branded moment instead of black → splash → black. The window
+         beneath is the same colour, so the seam between splash dismiss and
+         the first frame is invisible. -->
+    <style name="Theme.ArtGallery.Horizon" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:colorAccent">#9a86ff</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:colorBackground">@color/splash_background</item>
+    </style>
 </resources>
