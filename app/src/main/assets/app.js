@@ -41,7 +41,11 @@ function initGameNow(name) {
 }
 
 function ensureGameReady(name) {
-  if (gameBoot[name]) initGameNow(name);
+  // The pet settings page lives under the pet's own setup: arriving on it
+  // directly (a deep link or a restored hash) must still build the pet page's
+  // wiring, or the gear, memories and language picker would all be inert.
+  const bootName = name === 'pet-settings' ? 'pet' : name;
+  if (gameBoot[bootName]) initGameNow(bootName);
 }
 
 /* The saved companion name is shown on the home card, so it is applied at boot
@@ -383,6 +387,19 @@ function switchPage(targetPageId) {
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+/* The Android shell asks this before it handles a hardware back press (see
+ * GameWebViewActivity.WEB_BACK_SCRIPT). Returning true claims the press.
+ * Settings step back to the pet; every other page returns false, which lets
+ * the activity close and show the Compose launcher — the same job the header
+ * arrow used to do. */
+window.__onAndroidBack = () => {
+  if (state.currentPage === 'pet-settings') {
+    switchPage('pet');
+    return true;
+  }
+  return false;
+};
 
 // =======================================================
 // FLAPPY BIRD GAME ENGINE
@@ -4326,7 +4343,6 @@ function setupVirtualPet() {
   const chatForm = document.getElementById('pet-chat-form');
   const messageInput = document.getElementById('pet-message');
   const chatLog = document.getElementById('pet-chat-log');
-  const settings = document.querySelector('.pet-settings');
   const apiKeyInput = document.getElementById('pet-api-key');
   const status = document.getElementById('pet-connection-status');
   const mood = document.getElementById('pet-mood');
@@ -4345,6 +4361,20 @@ function setupVirtualPet() {
       if (world) world.classList.toggle('is-chat-expanded', open);
       chatToggle.setAttribute('aria-pressed', open ? 'true' : 'false');
     });
+  }
+
+  /* Settings live on their own page, reached from the gear in the header. */
+  const settingsOpen = document.getElementById('pet-settings-open');
+  if (settingsOpen) {
+    settingsOpen.addEventListener('click', () => switchPage('pet-settings'));
+  }
+  const settingsBack = document.getElementById('pet-settings-back');
+  if (settingsBack) {
+    settingsBack.addEventListener('click', () => switchPage('pet'));
+  }
+  const settingsHome = document.getElementById('pet-settings-home');
+  if (settingsHome) {
+    settingsHome.addEventListener('click', () => switchPage('main'));
   }
   const nativeBridge = window.AndroidBridge;
   let apiKey = '';
@@ -4375,6 +4405,19 @@ function setupVirtualPet() {
       greeting: 'Hi! Pet me or ask me anything.',
       level: n => `Friendship · Level ${n}`,
       settingsTitle: 'Voice and AI settings',
+      settingsKicker: 'Your companion',
+      settingsHeading: 'Settings',
+      memoriesTitle: 'Things I remember',
+      memoriesHelp: 'Anything saved here is given to your pet in every chat. You can also just say "remember this" in a message.',
+      memoryPlaceholder: 'Something to remember...',
+      memoryAdd: 'Add',
+      memoriesEmpty: 'Nothing saved yet.',
+      memoryEdit: 'Edit',
+      memorySave: 'Save',
+      memoryCancel: 'Cancel',
+      memoryDelete: 'Delete',
+      memoryNote: 'Saved to memories',
+      backToGames: 'Back to the games',
       apiKeyLabel: 'OpenRouter API key',
       petLanguage: 'Pet language',
       saveKey: 'Save key securely',
@@ -4397,6 +4440,19 @@ function setupVirtualPet() {
       greeting: 'سلام! مجھے پیار کریں یا کوئی سوال پوچھیں۔',
       level: n => `دوستی · سطح ${n}`,
       settingsTitle: 'آواز اور اے آئی سیٹنگز',
+      settingsKicker: 'آپ کا ساتھی',
+      settingsHeading: 'سیٹنگز',
+      memoriesTitle: 'وہ باتیں جو مجھے یاد ہیں',
+      memoriesHelp: 'یہاں محفوظ کی گئی باتیں ہر بات چیت میں آپ کے پالتو کو بتائی جاتی ہیں۔ آپ چیٹ میں "یاد رکھنا" بھی لکھ سکتے ہیں۔',
+      memoryPlaceholder: 'یاد رکھنے کے لیے کچھ لکھیں...',
+      memoryAdd: 'شامل کریں',
+      memoriesEmpty: 'ابھی کچھ محفوظ نہیں ہے۔',
+      memoryEdit: 'تبدیل کریں',
+      memorySave: 'محفوظ کریں',
+      memoryCancel: 'منسوخ',
+      memoryDelete: 'حذف کریں',
+      memoryNote: 'یادوں میں محفوظ کر لیا',
+      backToGames: 'کھیلوں پر واپس',
       apiKeyLabel: 'OpenRouter API کلید',
       petLanguage: 'پالتو کی زبان',
       saveKey: 'کلید محفوظ کریں',
@@ -4408,6 +4464,199 @@ function setupVirtualPet() {
   };
 
   const petText = () => PET_TEXT[petLanguage()];
+
+  /* ---- Saved memories --------------------------------------------------
+     Small facts the player asked the pet to keep: a birthday, a favourite
+     colour, a friend's name. They are plain text, stored on this device,
+     listed in Settings where they can be edited or deleted, and handed to
+     the model with every request. This is memory only — scheduled
+     reminders are a separate feature and are not built here. */
+  const MEMORY_KEY = 'pet_memories_v1';
+  let memories = [];
+  try {
+    const storedMemories = JSON.parse(localStorage.getItem(MEMORY_KEY) || '[]');
+    if (Array.isArray(storedMemories)) {
+      memories = storedMemories
+        .filter(item => item && typeof item.text === 'string' && item.text.trim())
+        .map(item => ({
+          id: String(item.id || `m-${Math.random().toString(36).slice(2, 10)}`),
+          text: item.text.replace(/\s+/g, ' ').trim().slice(0, 280),
+          createdAt: Number(item.createdAt) || Date.now()
+        }));
+    }
+  } catch (error) {
+    memories = [];
+  }
+
+  function persistMemories() {
+    try { localStorage.setItem(MEMORY_KEY, JSON.stringify(memories)); } catch (error) { /* private mode */ }
+  }
+
+  function addMemory(text) {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+    if (!clean) return null;
+    const existing = memories.find(item => item.text.toLowerCase() === clean.toLowerCase());
+    if (existing) return existing;
+    const entry = {
+      id: `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      text: clean,
+      createdAt: Date.now()
+    };
+    memories.push(entry);
+    persistMemories();
+    renderMemories();
+    return entry;
+  }
+
+  function updateMemory(id, text) {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+    const memory = memories.find(item => item.id === id);
+    if (!memory) return;
+    if (!clean) {
+      deleteMemory(id);
+      return;
+    }
+    memory.text = clean;
+    persistMemories();
+    renderMemories();
+  }
+
+  function deleteMemory(id) {
+    memories = memories.filter(item => item.id !== id);
+    persistMemories();
+    renderMemories();
+  }
+
+  /* Recognises the two ways a player asks the pet to remember something:
+     an English command at the start of the sentence ("remember my birthday
+     is 5 May", "please remember that I like blue"), and the Urdu command at
+     the end ("میری سالگرہ 5 مئی ہے، یاد رکھنا" or "mera birthday 5 may hai
+     yaad rakhna"). Returns the fact itself, or an empty string. */
+  function extractMemory(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return '';
+    let match = text.match(/^(?:please\s+)?remember(?:\s+(?:this|that|it))?\s*[:,]?\s+([\s\S]+)$/i);
+    if (match && match[1].trim()) return match[1].trim();
+    const urduCommand = /(?:یاد\s*رکھنا|یاد\s*رکھو|یاد\s*رکھیں|یاد\s*رکھ)[\s:،,!.۔]*$/;
+    if (urduCommand.test(text)) {
+      const body = text.replace(urduCommand, '').replace(/[\s،,:]+$/, '').trim();
+      if (body) return body;
+    }
+    match = text.match(/^(.*?)[,،]?\s*(?:please\s+)?yaad\s*(?:rakhna|rakho|rakhein|rakh)\s*[.!]?$/i);
+    if (match && match[1].trim()) return match[1].trim();
+    return '';
+  }
+
+  function appendMemoryNote(text) {
+    const note = document.createElement('p');
+    note.className = 'pet-memory-note';
+    note.textContent = `${petText().memoryNote}: ${text}`;
+    note.lang = /[\u0600-\u06FF]/.test(note.textContent) ? 'ur' : 'en';
+    chatLog.appendChild(note);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  /* The saved list on the settings page. Rows are rebuilt on every change so
+     editing, deleting and switching language all end in the same state. */
+  function renderMemories() {
+    const list = document.getElementById('pet-memory-list');
+    const empty = document.getElementById('pet-memory-empty');
+    if (!list) return;
+    const T = petText();
+    list.innerHTML = '';
+
+    memories.forEach(memory => {
+      const row = document.createElement('li');
+      row.className = 'pet-memory-item';
+      row.dataset.id = memory.id;
+      row.lang = /[\u0600-\u06FF]/.test(memory.text) ? 'ur' : 'en';
+
+      const text = document.createElement('p');
+      text.className = 'pet-memory-text';
+      text.textContent = memory.text;
+
+      const actions = document.createElement('div');
+      actions.className = 'pet-memory-actions';
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = '✏️';
+      edit.title = T.memoryEdit;
+      edit.setAttribute('aria-label', T.memoryEdit);
+      edit.addEventListener('click', () => startMemoryEdit(row, memory));
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = '🗑️';
+      remove.title = T.memoryDelete;
+      remove.setAttribute('aria-label', T.memoryDelete);
+      remove.addEventListener('click', () => deleteMemory(memory.id));
+
+      actions.append(edit, remove);
+      row.append(text, actions);
+      list.appendChild(row);
+    });
+
+    if (empty) empty.hidden = memories.length > 0;
+  }
+
+  function startMemoryEdit(row, memory) {
+    const T = petText();
+    row.innerHTML = '';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'pet-memory-edit-input';
+    input.maxLength = 280;
+    input.value = memory.text;
+    input.setAttribute('aria-label', T.memoryEdit);
+
+    const actions = document.createElement('div');
+    actions.className = 'pet-memory-actions';
+
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.textContent = '✓';
+    save.title = T.memorySave;
+    save.setAttribute('aria-label', T.memorySave);
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = '✕';
+    cancel.title = T.memoryCancel;
+    cancel.setAttribute('aria-label', T.memoryCancel);
+
+    const commit = () => updateMemory(memory.id, input.value);
+    save.addEventListener('click', commit);
+    cancel.addEventListener('click', () => renderMemories());
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commit();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        renderMemories();
+      }
+    });
+
+    actions.append(save, cancel);
+    row.append(input, actions);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+
+  const memoryForm = document.getElementById('pet-memory-form');
+  const memoryInput = document.getElementById('pet-memory-input');
+  if (memoryForm && memoryInput) {
+    memoryForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const saved = addMemory(memoryInput.value);
+      if (!saved) return;
+      memoryInput.value = '';
+      memoryInput.blur();
+    });
+  }
+
   let petCare = {
     fullness: 72,
     energy: 78,
@@ -4991,8 +5240,14 @@ function setupVirtualPet() {
         el.setAttribute('lang', lang);
       }
     });
-    const ph = document.querySelector('#page-pet [data-i18n-ph]');
-    if (ph) ph.setAttribute('placeholder', T.askPlaceholder);
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+      const value = T[el.dataset.i18nPh];
+      if (typeof value === 'string') {
+        el.setAttribute('placeholder', value);
+        el.setAttribute('lang', lang);
+      }
+    });
+    renderMemories();
     renderPetCare();
   }
 
@@ -5047,17 +5302,27 @@ function setupVirtualPet() {
     event.preventDefault();
     const question = messageInput.value.trim();
     if (!question) return;
-    if (!apiKey && !hasSavedApiKey) {
-      settings.open = true;
-      status.textContent = 'Add your OpenRouter API key to start a conversation.';
-      apiKeyInput.focus();
-      return;
-    }
 
     const userMessage = { role: 'user', content: question };
     conversation.push(userMessage);
     appendMessage(question, 'user');
     messageInput.value = '';
+
+    /* "remember this" / "yaad rakhna" saves the fact before the request goes
+       out, so it is part of the system prompt for the very next answer. */
+    const memoryText = extractMemory(question);
+    if (memoryText) {
+      const saved = addMemory(memoryText);
+      if (saved) appendMemoryNote(saved.text);
+    }
+
+    if (!apiKey && !hasSavedApiKey) {
+      status.textContent = 'Add your OpenRouter API key to start a conversation.';
+      switchPage('pet-settings');
+      setTimeout(() => apiKeyInput.focus(), 200);
+      return;
+    }
+
     mood.textContent = 'Thinking about it';
 
     askPet(question);
@@ -5077,10 +5342,16 @@ function setupVirtualPet() {
       ur: 'آپ ایک موبائل گیم کے دوستانہ اور شوخ ورچوئل پالتو کتے ہیں۔ سادہ اور پُرجوش انداز میں بات کریں۔ اگر کھلاڑی کہانی مانگے تو پوری کہانی لکھیں۔ اگر کھلاڑی اردو میں لکھے تو اردو میں جواب دیں۔'
     };
 
+    /* Facts the player saved. They ride along with every request so the pet
+       never has to be reminded, and the model is told not to invent any. */
+    const memoryBlock = memories.length
+      ? `\n\nThings your player asked you to remember:\n${memories.map(item => `- ${item.text}`).join('\n')}\nUse them naturally when they matter. Do not invent memories beyond this list. If the player asks you to remember something, confirm it in one short sentence.`
+      : '';
+
     const messages = [
       {
         role: 'system',
-        content: PET_PROMPTS[petLanguage()]
+        content: PET_PROMPTS[petLanguage()] + memoryBlock
       },
       ...conversation.slice(-12)
     ];
@@ -5250,7 +5521,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // home screen. The branch stays for the browser build.
   function handleHash() {
     const hash = window.location.hash.replace('#', '');
-    if (['flappy', 'chess', 'pet'].includes(hash)) {
+    if (['flappy', 'chess', 'pet', 'pet-settings'].includes(hash)) {
       switchPage(hash);
     } else {
       switchPage('main');

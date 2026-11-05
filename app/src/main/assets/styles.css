@@ -90,6 +90,7 @@ body.theme-main { background: radial-gradient(circle at 50% 10%, #151a2d 0%, #05
 body.theme-flappy { background: radial-gradient(circle at 50% 10%, #1c2738 0%, #05070c 85%); }
 body.theme-chess { background: radial-gradient(circle at 50% 10%, #10261f 0%, #05070c 85%); }
 body.theme-pet { background: radial-gradient(circle at 50% 10%, #272a2f 0%, #05070c 85%); }
+body.theme-pet-settings { background: radial-gradient(circle at 50% 10%, #24272c 0%, #05070c 85%); }
 
 * {
   box-sizing: border-box;
@@ -175,6 +176,7 @@ body.theme-pet { background: radial-gradient(circle at 50% 10%, #272a2f 0%, #050
 
 body.theme-chess .bar-subtitle { color: var(--accent-green); }
 body.theme-pet .bar-subtitle { color: #c3c8ce; }
+body.theme-pet-settings .bar-subtitle { color: #c3c8ce; }
 
 .bar-title {
   font-size: 1.25rem;
@@ -1660,6 +1662,24 @@ body.android-fullscreen .page.active {
 
 .pet-message-thinking { color: #b7bcc1; }
 
+/* Confirmation that a "remember this" message was stored. It is a note, not
+   a chat bubble: it has no copy button and is not part of the conversation. */
+.pet-memory-note {
+  align-self: center;
+  max-width: 92%;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  border: 1px dashed rgba(226, 231, 236, 0.18);
+  border-radius: 999px;
+  color: #a9aeb3;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.pet-memory-note[lang="ur"] { direction: rtl; }
+
 .pet-chat-form {
   display: flex;
   align-items: center;
@@ -1703,16 +1723,164 @@ body.android-fullscreen .page.active {
 .pet-send-btn { border-color: #c9ced4; background: #c9ced4; color: #191b1e; }
 .pet-send-btn:disabled { opacity: 0.5; cursor: wait; }
 
-.pet-settings {
-  color: var(--text-muted);
-  font-size: 0.78rem;
+.top-bar-spacer {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
 }
 
-.pet-settings summary {
-  width: fit-content;
-  padding: 0.25rem 0;
+/* ---- Pet settings page ---- */
+.pet-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-bottom: 0.5rem;
+}
+
+.pet-settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: #1c1f22;
+}
+
+.pet-settings-heading {
+  margin: 0;
+  color: #f2f4f6;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.pet-settings-note {
+  margin: 0;
+  color: #9ba0a6;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.pet-memory-form {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.pet-memory-form input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xs);
+  background: #131518;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.pet-memory-add {
+  flex: 0 0 auto;
+  min-width: 64px;
+  height: 40px;
+  padding: 0 0.9rem;
+  border: 1px solid rgba(226, 231, 236, 0.16);
+  border-radius: var(--radius-xs);
+  background: #c9ced4;
+  color: #191b1e;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
   cursor: pointer;
 }
+
+.pet-memory-add:active { transform: scale(0.97); }
+
+.pet-memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pet-memory-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid rgba(226, 231, 236, 0.1);
+  border-radius: 10px;
+  background: #131518;
+}
+
+.pet-memory-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: #e4e7ea;
+  font-size: 0.83rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.pet-memory-item[lang="ur"] .pet-memory-text {
+  direction: rtl;
+  text-align: right;
+}
+
+.pet-memory-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+}
+
+.pet-memory-actions button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(226, 231, 236, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d7dade;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pet-memory-actions button:active { transform: scale(0.92); }
+
+.pet-memory-edit-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 0.5rem;
+  border: 1px solid rgba(226, 231, 236, 0.2);
+  border-radius: 8px;
+  background: #0e1013;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.83rem;
+}
+
+.pet-memory-empty[hidden] { display: none; }
+
+.pet-settings-home {
+  min-height: 46px;
+  border: 1px solid rgba(226, 231, 236, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d7dade;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pet-settings-home:active { background: rgba(255, 255, 255, 0.12); }
 
 .pet-settings-fields {
   display: grid;

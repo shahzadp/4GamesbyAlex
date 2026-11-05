@@ -440,8 +440,13 @@ class GameWebViewActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 // The web build is a single page with no history to walk back
-                // through: leaving the game means leaving this activity.
-                finish()
+                // through, so it gets the first say: it steps out of the pet's
+                // settings page and claims the press with '1'. Anything it
+                // does not claim means leaving the game, which finishes the
+                // one activity that game lives in.
+                webView.evaluateJavascript(WEB_BACK_SCRIPT) { result ->
+                    if (result != "\"1\"") finish()
+                }
             }
         })
     }
@@ -683,6 +688,14 @@ class GameWebViewActivity : ComponentActivity() {
                 "};" +
                 "window.addEventListener('hashchange',leave);" +
                 "})();"
+
+        // Asked on every back press. The web build returns '1' when it handled
+        // the press itself (leaving the pet settings page); '0' leaves the
+        // decision with the activity, which finishes.
+        const val WEB_BACK_SCRIPT =
+            "(function(){try{" +
+                "return (window.__onAndroidBack && window.__onAndroidBack()) ? '1' : '0';" +
+                "}catch(e){return '0';}})()"
 
         // Copies pet_companion_name out of the WebView's localStorage into the
         // launcher's preferences. The web build renames the companion on a

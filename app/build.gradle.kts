@@ -41,10 +41,11 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 36 / 1.31 = pet page back to full size; the chat chevron now shrinks
-        // the dog panel (and hides the needs readout) to grow the chat log.
-        versionCode = 36
-        versionName = "1.31"
+        // 37 / 1.32 = pet header is a settings gear (game arrows removed);
+        // settings page holds saved memories (add/edit/delete, "remember
+        // this" from chat) plus the API key and language.
+        versionCode = 37
+        versionName = "1.32"
     }
 
     signingConfigs {
