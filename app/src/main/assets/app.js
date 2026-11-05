@@ -356,9 +356,6 @@ function switchPage(targetPageId) {
     leaveFullscreen();
   }
 
-  /* The pet's 3D stage is built the first time the pet page opens, then
-     stopped whenever it is left. Both calls are no-ops until setupVirtualPet
-     has run, and it has by the time any navigation can happen. */
   if (targetPageId === 'pet') {
     if (typeof window.ensurePet3D === 'function') window.ensurePet3D();
     if (typeof window.setPet3DActive === 'function') window.setPet3DActive(true);
@@ -4331,17 +4328,86 @@ function setupVirtualPet() {
   const chatLog = document.getElementById('pet-chat-log');
   const settings = document.querySelector('.pet-settings');
   const apiKeyInput = document.getElementById('pet-api-key');
-  const modelInput = document.getElementById('pet-model');
   const status = document.getElementById('pet-connection-status');
   const mood = document.getElementById('pet-mood');
   const affectionDisplay = document.getElementById('pet-affection');
   const pendingReplies = new Map();
   const conversation = [];
+
+  /* The chat can be lifted into a big block via the chevron arrow at the
+     top of the conversation panel; the rest of the page stays half size. */
+  const chatToggle = document.getElementById('pet-chat-toggle');
+  const conversationSection = document.getElementById('pet-conversation');
+  if (chatToggle && conversationSection) {
+    chatToggle.addEventListener('click', () => {
+      const world = document.querySelector('.pet-world');
+      const open = conversationSection.classList.toggle('is-open');
+      if (world) world.classList.toggle('is-chat-expanded', open);
+      chatToggle.setAttribute('aria-pressed', open ? 'true' : 'false');
+    });
+  }
   const nativeBridge = window.AndroidBridge;
   let apiKey = '';
   let hasSavedApiKey = Boolean(nativeBridge && typeof nativeBridge.hasPetApiKey === 'function' && nativeBridge.hasPetApiKey());
-  let model = localStorage.getItem('pet_model') || 'openai/gpt-4o-mini';
+  // The user's account works fine with this one.
+  const model = 'openai/gpt-4o-mini';
   const clampNeed = value => Math.max(0, Math.min(100, Number(value) || 0));
+
+  // The pet page's own i18n table. English by default; Urdu selectable in
+  // Voice and AI settings.
+  const petLanguage = () => {
+    try { return localStorage.getItem('pet_language') === 'ur' ? 'ur' : 'en'; }
+    catch (e) { return 'en'; }
+  };
+
+  const PET_TEXT = {
+    en: {
+      moodHappy: 'Happy and energetic',
+      moodTired: 'A little tired',
+      moodHungry: 'I am hungry',
+      moodPlayful: 'Let us play!',
+      feed: 'Feed',
+      energy: 'Energy',
+      joy: 'Joy',
+      play: 'Play',
+      rest: 'Rest',
+      askPlaceholder: 'Ask your pet something...',
+      greeting: 'Hi! Pet me or ask me anything.',
+      level: n => `Friendship · Level ${n}`,
+      settingsTitle: 'Voice and AI settings',
+      apiKeyLabel: 'OpenRouter API key',
+      petLanguage: 'Pet language',
+      saveKey: 'Save key securely',
+      forgetKey: 'Forget saved key',
+      statusAndroid: 'On Android, saved API keys are encrypted on this device.',
+      playReply: 'Yay! Zoomies time! Playing with you is the best!',
+      moodChat: 'Nice to hear from you!',
+    },
+    ur: {
+      moodHappy: 'خوش اور پُرجوش',
+      moodTired: 'تھوڑا تھک گیا ہوں',
+      moodHungry: 'مجھے بھوک لگی ہے',
+      moodPlayful: 'آپ کے ساتھ کھیلنا ہے',
+      feed: 'پیٹ',
+      energy: 'توانائی',
+      joy: 'خوشی',
+      play: 'کھیل',
+      rest: 'آرام',
+      askPlaceholder: 'اپنے پالتو سے کچھ پوچھیں...',
+      greeting: 'سلام! مجھے پیار کریں یا کوئی سوال پوچھیں۔',
+      level: n => `دوستی · سطح ${n}`,
+      settingsTitle: 'آواز اور اے آئی سیٹنگز',
+      apiKeyLabel: 'OpenRouter API کلید',
+      petLanguage: 'پالتو کی زبان',
+      saveKey: 'کلید محفوظ کریں',
+      forgetKey: 'محفوظ کلید بھول جائیں',
+      statusAndroid: 'Android پر محفوظ کیز اس آلے پر خفیہ رہتی ہیں۔',
+      playReply: 'واہ! زومیز کا وقت! آپ کے ساتھ کھیلنا مزے کا ہے!',
+      moodChat: 'آپ سے بات کر کے خوشی ہوئی',
+    },
+  };
+
+  const petText = () => PET_TEXT[petLanguage()];
   let petCare = {
     fullness: 72,
     energy: 78,
@@ -4353,7 +4419,6 @@ function setupVirtualPet() {
   let lastTouchSpeech = 0;
   let animationTimeout = 0;
 
-  modelInput.value = model;
   try {
     const savedCare = JSON.parse(localStorage.getItem('pet_care_state') || 'null');
     if (savedCare) {
@@ -4379,14 +4444,15 @@ function setupVirtualPet() {
 
     const level = Math.floor(petCare.bond / 10) + 1;
     const levelProgress = petCare.bond % 10;
-    document.getElementById('pet-level').textContent = `دوستی · سطح ${level}`;
+    document.getElementById('pet-level').textContent = petText().level(level);
     document.getElementById('pet-bond-meter').value = levelProgress;
     document.getElementById('pet-bond-next').textContent = `${levelProgress}/10`;
 
-    if (petCare.energy < 22) mood.textContent = 'تھوڑا تھک گیا ہوں';
-    else if (petCare.fullness < 22) mood.textContent = 'مجھے بھوک لگی ہے';
-    else if (petCare.joy < 28) mood.textContent = 'آپ کے ساتھ کھیلنا ہے';
-    else mood.textContent = 'خوش اور پُرجوش';
+    const T = petText();
+    if (petCare.energy < 22) mood.textContent = T.moodTired;
+    else if (petCare.fullness < 22) mood.textContent = T.moodHungry;
+    else if (petCare.joy < 28) mood.textContent = T.moodPlayful;
+    else mood.textContent = T.moodHappy;
   }
 
   /* Touch-dog: five reactions, each bound to its own region in the SVG.
@@ -4524,14 +4590,33 @@ function setupVirtualPet() {
     }
 
     try {
+      /* The 3D dog cannot be allowed to strand the player on a spinner when
+       * the model stalls or WebGL dies silently mid-load. If the stage is
+       * not ready eight seconds after creation, fall back to the SVG dog. */
+      let loadWatchdog = null;
+      const armWatchdog = () => {
+        if (loadWatchdog) clearTimeout(loadWatchdog);
+        loadWatchdog = setTimeout(() => {
+          if (petStage && petStage.ready) return;
+          pet3dUnavailable = true;
+          petStage = null;
+          petWorld.classList.remove('pet-3d-loading', 'pet-3d-active');
+          petCanvas.classList.remove('is-live');
+        }, 8000);
+      };
+      armWatchdog();
+
       const stage = new window.PetStage(petCanvas, {
         onReady: () => {
+          if (loadWatchdog) clearTimeout(loadWatchdog);
           petWorld.classList.add('pet-3d-active');
           petWorld.classList.remove('pet-3d-loading');
           petCanvas.classList.add('is-live');
           showPetHintOnce();
         },
-        onFailure: () => {
+        onFailure: (err) => {
+          if (loadWatchdog) clearTimeout(loadWatchdog);
+          console.error('[pet3d] stage failed:', err && (err.message || err), err && err.target ? err.target.src : '');
           pet3dUnavailable = true;
           petStage = null;
           petWorld.classList.remove('pet-3d-loading', 'pet-3d-active');
@@ -4606,16 +4691,74 @@ function setupVirtualPet() {
   renderPetCare();
 
   function appendMessage(text, role, id) {
-    const message = document.createElement('p');
+    const message = document.createElement('div');
     message.className = `pet-message pet-message-${role}`;
-    message.textContent = text;
     message.lang = /[\u0600-\u06FF]/.test(text) ? 'ur' : 'en';
-    message.dir = 'auto';
+    message.dir = message.lang === 'ur' ? 'rtl' : 'ltr';
+    message.dataset.role = role;
     if (id) message.dataset.requestId = id;
+
+    const body = document.createElement('div');
+    body.className = 'pet-message-text';
+    body.textContent = text;
+    message.appendChild(body);
+
+    // Every concrete message (not the "Thinking..." placeholder) gets a
+    // copy button so the player can share what the dog said or asked.
+    if (role === 'user' || role === 'bot') {
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'pet-message-copy';
+      copy.dataset.copyText = text;
+      copy.setAttribute('aria-label', 'Copy message');
+      copy.title = 'Copy';
+      copy.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+      message.appendChild(copy);
+    }
+
     chatLog.appendChild(message);
     chatLog.scrollTop = chatLog.scrollHeight;
     return message;
   }
+
+  chatLog.addEventListener('click', (event) => {
+    const btn = event.target.closest('.pet-message-copy');
+    if (!btn) return;
+    const text = btn.dataset.copyText || '';
+    const icon = btn.innerHTML;
+    const done = () => {
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>';
+      btn.classList.add('is-copied');
+      setTimeout(() => {
+        btn.innerHTML = icon;
+        btn.classList.remove('is-copied');
+      }, 1400);
+    };
+    const fallbackCopy = () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, done);
+          return;
+        }
+      } catch (_) { /* fall through */ }
+      // Last resort: selection + execCommand (works in older WebViews)
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try { document.execCommand('copy'); } catch (_) { /* nothing else */ }
+      textarea.remove();
+      done();
+    };
+    try {
+      if (window.AndroidBridge && typeof window.AndroidBridge.copyToClipboard === 'function') {
+        if (window.AndroidBridge.copyToClipboard(text)) { done(); return; }
+      }
+    } catch (_) { /* fall back */ }
+    fallbackCopy();
+  });
 
   function speak(text) {
     if (window.AndroidBridge && typeof window.AndroidBridge.speak === 'function') {
@@ -4666,7 +4809,7 @@ function setupVirtualPet() {
       petCare.energy = clampNeed(petCare.energy - 7);
       petCare.fullness = clampNeed(petCare.fullness - 3);
       petCare.bond += 2;
-      reply = 'واہ! زومیز کا وقت! آپ کے ساتھ کھیلنا مزے کا ہے!';
+      reply = petText().playReply;
       animatePet('play');
       showPetReaction('ZOOMIES TIME! PLAY!');
     } else {
@@ -4764,20 +4907,12 @@ function setupVirtualPet() {
 
   document.getElementById('pet-connect').addEventListener('click', () => {
     const enteredKey = apiKeyInput.value.trim();
-    const enteredModel = modelInput.value.trim();
     if (!enteredKey) {
       status.textContent = 'Enter your OpenRouter API key first.';
       apiKeyInput.focus();
       return;
     }
-    if (!enteredModel) {
-      status.textContent = 'Enter a model ID supported by OpenRouter.';
-      modelInput.focus();
-      return;
-    }
-    model = enteredModel;
     apiKeyInput.value = '';
-    localStorage.setItem('pet_model', model);
     if (nativeBridge && typeof nativeBridge.savePetApiKey === 'function') {
       if (!nativeBridge.savePetApiKey(enteredKey)) {
         status.textContent = 'Could not encrypt and save the key on this device.';
@@ -4827,12 +4962,56 @@ function setupVirtualPet() {
     });
   }
 
+  // Pet language. English by default, Urdu selectable — the choice is
+  // mirrored to the native side for text-to-speech and the speech recogniser.
+  const languageSelect = document.getElementById('pet-language');
+  if (languageSelect) {
+    const applyLanguage = (lang, notify) => {
+      languageSelect.value = lang;
+      try { localStorage.setItem('pet_language', lang); } catch (e) { /* private mode */ }
+      if (notify && window.AndroidBridge && typeof window.AndroidBridge.setPetLanguage === 'function') {
+        window.AndroidBridge.setPetLanguage(lang);
+      }
+      applyPetLanguage();
+    };
+    languageSelect.addEventListener('change', () => {
+      applyLanguage(languageSelect.value === 'ur' ? 'ur' : 'en', true);
+    });
+  }
+
+
+  // Swap every string in the pet page to the chosen language.
+  function applyPetLanguage() {
+    const lang = petLanguage();
+    const T = PET_TEXT[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const value = T[el.dataset.i18n];
+      if (typeof value === 'string') {
+        el.textContent = value;
+        el.setAttribute('lang', lang);
+      }
+    });
+    const ph = document.querySelector('#page-pet [data-i18n-ph]');
+    if (ph) ph.setAttribute('placeholder', T.askPlaceholder);
+    renderPetCare();
+  }
+
+  // Initial language for the native side (for voice and TTS) and the page.
+  if (languageSelect) {
+    if (window.AndroidBridge && typeof window.AndroidBridge.setPetLanguage === 'function') {
+      window.AndroidBridge.setPetLanguage(petLanguage());
+    }
+    languageSelect.value = petLanguage();
+    applyPetLanguage();
+  }
+
   // Load saved pet name into landing card and bar title on init
   applySavedPetName();
 
   function receiveReply(requestId, text, isError) {
     const pendingMessage = pendingReplies.get(requestId);
     if (!pendingMessage) return;
+
     pendingMessage.remove();
     pendingReplies.delete(requestId);
     document.getElementById('pet-send').disabled = pendingReplies.size > 0;
@@ -4844,8 +5023,11 @@ function setupVirtualPet() {
       return;
     }
 
-    const reply = text.trim() || 'I am here with you. What else would you like to know?';
-    mood.textContent = 'آپ سے بات کر کے خوشی ہوئی';
+    let reply = (text || '').trim();
+    if (!reply || reply.toLowerCase() === 'null' || reply.toLowerCase() === 'undefined') {
+      reply = 'I am here with you. What else would you like to know?';
+    }
+    mood.textContent = petText().moodChat;
     conversation.push({ role: 'assistant', content: reply });
     appendMessage(reply, 'bot');
     speak(reply);
@@ -4878,15 +5060,27 @@ function setupVirtualPet() {
     messageInput.value = '';
     mood.textContent = 'Thinking about it';
 
+    askPet(question);
+  });
+
+  // Builds the request, shows the "thinking" placeholder and fires it at
+  // OpenRouter. Split out so the error path in receiveReply can retry with
+  // a different model without duplicating the plumbing.
+  async function askPet(question) {
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const thinking = appendMessage('Thinking...', 'thinking', requestId);
     pendingReplies.set(requestId, thinking);
     document.getElementById('pet-send').disabled = true;
 
+    const PET_PROMPTS = {
+      en: 'You are a friendly, playful virtual pet dog in a mobile game. Speak simply and warmly. If the player asks you to write a story, write a full story — never give a one-line reply. If the player writes in Urdu, reply in Urdu.',
+      ur: 'آپ ایک موبائل گیم کے دوستانہ اور شوخ ورچوئل پالتو کتے ہیں۔ سادہ اور پُرجوش انداز میں بات کریں۔ اگر کھلاڑی کہانی مانگے تو پوری کہانی لکھیں۔ اگر کھلاڑی اردو میں لکھے تو اردو میں جواب دیں۔'
+    };
+
     const messages = [
       {
         role: 'system',
-        content: 'آپ ایک موبائل گیم کے دوستانہ اور شوخ ورچوئل پالتو کتے ہیں۔ ہمیشہ سادہ، قدرتی پاکستانی اردو اور اردو رسم الخط میں مختصر جواب دیں، چاہے کھلاڑی انگریزی میں لکھے۔ اگر کھلاڑی واضح طور پر کسی دوسری زبان میں جواب مانگے تو اسی زبان میں جواب دیں۔ جواب بولنے کے لیے موزوں رکھیں، اپنے کردار میں رہیں، اور یہ دعویٰ نہ کریں کہ آپ حقیقی جانور یا انسان ہیں۔'
+        content: PET_PROMPTS[petLanguage()]
       },
       ...conversation.slice(-12)
     ];
@@ -4901,7 +5095,7 @@ function setupVirtualPet() {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ model, messages, max_tokens: 180 })
+          body: JSON.stringify({ model, messages, max_tokens: 1500 })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error?.message || 'OpenRouter could not answer. Check your key and model.');
@@ -4910,7 +5104,7 @@ function setupVirtualPet() {
     } catch (error) {
       receiveReply(requestId, error.message || 'Could not connect to OpenRouter.', true);
     }
-  });
+  }
 
   document.getElementById('pet-voice').addEventListener('click', () => {
     if (window.AndroidBridge && typeof window.AndroidBridge.listenForPet === 'function') {

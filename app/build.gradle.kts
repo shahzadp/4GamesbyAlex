@@ -41,10 +41,10 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 22 / 1.17 = branded Horizon splash for the native-load gap:
-        // window background shows the app splash artwork even on pre-12.
-        versionCode = 22
-        versionName = "1.17"
+        // 36 / 1.31 = pet page back to full size; the chat chevron now shrinks
+        // the dog panel (and hides the needs readout) to grow the chat log.
+        versionCode = 36
+        versionName = "1.31"
     }
 
     signingConfigs {

@@ -120,6 +120,20 @@ class GameWebViewActivity : ComponentActivity() {
         }
 
         /**
+         * Pet language is used by the native side for text-to-speech and the
+         * speech recogniser. Only two values exist; anything unexpected maps
+         * to English, the default.
+         */
+        @JavascriptInterface
+        fun setPetLanguage(language: String) {
+            val normalized = if (language == "ur") "ur" else "en"
+            getSharedPreferences(PET_PREFERENCES, MODE_PRIVATE)
+                .edit()
+                .putString(PET_LANGUAGE_KEY, normalized)
+                .apply()
+        }
+
+        /**
          * Mirrors the companion name into app-private preferences so the Compose
          * launcher can print it on the pet card when the player comes back.
          */
@@ -504,9 +518,20 @@ class GameWebViewActivity : ComponentActivity() {
      * that cost instead; a request that arrives before the engine is ready is
      * held in pendingSpeech rather than dropped.
      */
+    private fun petLanguage(): String =
+        getSharedPreferences(PET_PREFERENCES, MODE_PRIVATE)
+            .getString(PET_LANGUAGE_KEY, "en")
+            .orEmpty()
+            .let { if (it == "ur") "ur" else "en" }
+
+    private fun petTtsLocale(): Locale =
+        if (petLanguage() == "ur") Locale.forLanguageTag("ur-PK") else Locale.US
+
     private fun speakWithTts(text: String) {
         val trimmed = text.take(1200)
+        val language = petTtsLocale()
         textToSpeech?.let {
+            it.language = language
             it.speak(trimmed, TextToSpeech.QUEUE_FLUSH, null, "virtual-pet")
             return
         }
@@ -516,7 +541,7 @@ class GameWebViewActivity : ComponentActivity() {
         textToSpeech = TextToSpeech(this) { result ->
             ttsInitializing = false
             if (result == TextToSpeech.SUCCESS) {
-                textToSpeech?.language = Locale.forLanguageTag("ur-PK")
+                textToSpeech?.language = petTtsLocale()
             }
             pendingSpeech?.let { pending ->
                 if (result == TextToSpeech.SUCCESS) {
@@ -535,10 +560,14 @@ class GameWebViewActivity : ComponentActivity() {
     }
 
     private fun launchPetSpeechRecognition() {
+        val isUrdu = petLanguage() == "ur"
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.forLanguageTag("ur-PK").toLanguageTag())
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "اپنے پالتو دوست سے اردو میں بات کریں")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isUrdu) "ur-PK" else "en-US")
+            putExtra(
+                RecognizerIntent.EXTRA_PROMPT,
+                if (isUrdu) "اپنے پالتو دوست سے اردو میں بات کریں" else "Talk to your pet"
+            )
         }
         try {
             petSpeechLauncher.launch(intent)
@@ -628,6 +657,11 @@ class GameWebViewActivity : ComponentActivity() {
         const val PET_KEY_PREFERENCES = "pet_secure_store"
         const val PET_KEY_IV = "openrouter_key_iv"
         const val PET_KEY_VALUE = "openrouter_key_encrypted"
+
+        // App-private prefs for the pet's own settings (language). Mirrors
+        // the web bundle's localStorage keys so both sides agree.
+        const val PET_PREFERENCES = "pet_preferences"
+        const val PET_LANGUAGE_KEY = "pet_language"
 
         // The registered MIME type for PGN. Chess sites and desktop GUIs use
         // this to offer "open with", which is why it is set rather than

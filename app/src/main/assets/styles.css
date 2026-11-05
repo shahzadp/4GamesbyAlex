@@ -184,15 +184,13 @@ body.theme-pet .bar-subtitle { color: #c3c8ce; }
   line-height: 1.2;
 }
 
-/* The rename row: the companion's name field is the bar-title-looking thing,
-   with a pencil as the affordance. Tapping straight into the field is the
-   rename — no settings detour, no extra button. Centered as its own unit,
-   independent of text-align quirks. */
+/* The rename row: a plain centered name field under the subtitle. No pencil —
+   the trailing glyph skewed the row off-centre next to the centred subtitle;
+   the dashed underline alone carries the affordance. */
 .bar-rename-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   margin: 2px auto 0;
   width: fit-content;
   cursor: text;
@@ -223,11 +221,6 @@ body.theme-pet .bar-subtitle { color: #c3c8ce; }
 .bar-rename-field:focus {
   border-bottom: 1.5px solid var(--accent-gold);
   background: rgba(255, 255, 255, 0.04);
-}
-
-.bar-rename-pencil {
-  color: rgba(255, 255, 255, 0.65);
-  pointer-events: none;
 }
 
 /* ================= MAIN HOME SCREEN ================= */
@@ -1167,10 +1160,10 @@ body.android-fullscreen .page.active {
 .pet-image-wrap {
   position: relative;
   display: grid;
-  flex: 1;
+  flex: 0 0 auto;
   place-items: center;
   width: 100%;
-  min-height: 150px;
+  min-height: 310px;
   max-height: 310px;
   z-index: 1;
   perspective: 900px;
@@ -1275,28 +1268,6 @@ body.android-fullscreen .page.active {
   cursor: grabbing;
 }
 
-/* While the 3D pet is up, the flat artwork steps aside. It stays in the
-   DOM so a device without WebGL still gets the original SVG dog. */
-.pet-world.pet-3d-active .pet-avatar #touch-dog-svg {
-  display: none;
-}
-
-/* While the 3D model is loading, the flat artwork is hidden completely. It
-   used to be dimmed to 35%, which still read as "the 2D dog" and then swapped
-   visibly to the model once the ~1 MB GLB arrived. If 3D cannot start (no
-   WebGL, script or model failure) app.js removes this class, and the SVG dog
-   returns as the fallback. */
-.pet-world.pet-3d-loading .pet-avatar #touch-dog-svg {
-  visibility: hidden;
-}
-
-/* The avatar is an invisible box while the model loads, so it must not swallow
-   taps or show the petting cursor for content that is not on screen yet. */
-.pet-world.pet-3d-loading .pet-avatar {
-  pointer-events: none;
-  cursor: default;
-}
-
 /* Quiet loading indicator in the space the model will occupy. */
 .pet-world.pet-3d-loading .pet-image-wrap::after {
   content: '';
@@ -1375,34 +1346,11 @@ body.android-fullscreen .page.active {
   transform: translate(-50%, 0);
 }
 
-/* Touch-dog renders inline and carries its own shading, so there is no shadow here —
-   which is what the comment above this rule always said. The rule had re-added a
-   13px/12px drop-shadow, and because a transform animation inside the SVG repaints
-   its raster, that blur was re-rasterised on every frame of every idle loop. Worth
-   ~15% of a core on its own.
-
-   The one animation here is deliberately on the SVG ELEMENT and not on one of its
-   parts: an HTML box transform is compositor-accelerated, an SVG child transform is
-   not. See tools/fix-pet-perf.js for the measurements. */
-.pet-avatar #touch-dog-svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  animation: petIdle 5.5s ease-in-out infinite;
-  will-change: transform;
-  transform-origin: 50% 78%;
-}
-
-@keyframes petIdle {
-  0%, 100% { transform: translateY(0) scaleY(1); }
-  50%      { transform: translateY(-1.5px) scaleY(1.018); }
-}
-
 /* Honoured for the idle loops, not for the player-triggered reactions: if someone
    has asked the system for less motion, a dog that breathes on its own forever is
    exactly the thing they asked not to see. A tap still gets a bark. */
 @media (prefers-reduced-motion: reduce) {
-  .pet-avatar #touch-dog-svg, .pet-spark,
+  .pet-spark,
   .page.active .app-launch-card { animation: none !important; }
   #eyes { animation: none !important; }
 }
@@ -1584,6 +1532,67 @@ body.android-fullscreen .page.active {
   width: 100%;
 }
 
+/* ============================ PET PAGE — CHAT EXPAND ==================
+   The resting page is the size the dog always was: max-height 310px for
+   the stage, everything else normal. Tapping the chevron at the top of
+   the conversation panel shrinks the stage and grows the chat instead. */
+
+.pet-chat-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.pet-chat-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(218, 224, 230, 0.14);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #b8bcc2;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 120ms ease, color 120ms ease;
+}
+.pet-chat-toggle:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.pet-chat-toggle:active { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.pet-chat-toggle svg { transition: transform 180ms ease; transform: rotate(0deg); }
+.pet-conversation.is-open .pet-chat-toggle svg { transform: rotate(180deg); }
+
+/* Expanded state: the chevron shrinks the stage panel and the chat takes
+   the freed height. Toggled by putting .is-chat-expanded on .pet-world.
+   The needs readout steps aside so the panel reads as a compact pet strip
+   instead of a half-cropped dog, and the 3D renderer refits the model to
+   the shorter canvas (camera pulls back on narrow aspects), so the dog is
+   smaller but whole — never clipped. */
+.pet-world.is-chat-expanded {
+  min-height: 0;
+  padding-bottom: 0.5rem;
+}
+
+.pet-world.is-chat-expanded .pet-status-row,
+.pet-world.is-chat-expanded .pet-needs,
+.pet-world.is-chat-expanded .pet-bond-progress,
+.pet-world.is-chat-expanded .pet-hint {
+  display: none;
+}
+
+.pet-world.is-chat-expanded .pet-image-wrap {
+  flex: 0 0 auto;
+  height: 200px;
+  min-height: 200px;
+  max-height: 200px;
+}
+
+.pet-conversation.is-open .pet-chat-log {
+  height: clamp(200px, 36vh, 288px);
+}
+
 .pet-chat-log {
   display: flex;
   flex-direction: column;
@@ -1598,15 +1607,43 @@ body.android-fullscreen .page.active {
 }
 
 .pet-message {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   max-width: 88%;
   margin: 0;
-  padding: 0.45rem 0.65rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.65rem;
   border-radius: 10px;
   color: #e9ebee;
   font-size: 0.82rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
+
+.pet-message-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pet-message-copy {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #a2a8b0;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+.pet-message-copy:hover { background: rgba(255, 255, 255, 0.08); color: #fff; opacity: 1; }
+.pet-message-copy:active { background: rgba(255, 255, 255, 0.14); }
+.pet-message-copy.is-copied { color: #7ef0d0; opacity: 1; }
 
 .pet-message-bot, .pet-message-thinking {
   align-self: flex-start;
@@ -1619,7 +1656,7 @@ body.android-fullscreen .page.active {
   background: #343a41;
 }
 
-.pet-message[lang="ur"] { direction: rtl; text-align: right; }
+.pet-message[lang="ur"] .pet-message-text { direction: rtl; text-align: right; }
 
 .pet-message-thinking { color: #b7bcc1; }
 
@@ -1688,7 +1725,8 @@ body.android-fullscreen .page.active {
 
 .pet-settings-fields label { color: #cdd1d5; }
 
-.pet-settings-fields input {
+.pet-settings-fields input,
+.pet-settings-fields select {
   min-width: 0;
   width: 100%;
   height: 40px;
