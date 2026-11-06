@@ -87,6 +87,18 @@ class GameWebViewActivity : ComponentActivity() {
         if (granted) launchPetSpeechRecognition() else deliverPetSpeechResult("")
     }
 
+    /* Asked when the player saves their first reminder. A denial is not fatal:
+       the vibration still rings, and the settings page says notifications are
+       off, so the reminder's title is not silently swallowed. */
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (::webView.isInitialized) {
+            webView.evaluateJavascript(
+                "window.onReminderPermissionResult && window.onReminderPermissionResult($granted)",
+                null,
+            )
+        }
+    }
+
     /** JavaScript bridge — exposes Android fullscreen control to the WebView */
     inner class AndroidBridge {
         @JavascriptInterface
@@ -163,6 +175,56 @@ class GameWebViewActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun hasPetApiKey(): Boolean = loadEncryptedPetApiKey() != null
+
+        /* --- Reminders -------------------------------------------------
+         * The list is owned by the native side because the alarm has to ring
+         * with the app closed, and the web page only reaches it through these
+         * calls. Times travel as epoch milliseconds parsed by the date and
+         * time pickers on the page, so no locale parsing happens natively.
+         */
+
+        /** Every saved reminder, oldest first, as the JSON the page renders. */
+        @JavascriptInterface
+        fun getReminders(): String = ReminderStore.toJson(this@GameWebViewActivity)
+
+        /**
+         * Saves and schedules a reminder. Returns false for a blank title or a
+         * time that has already passed, which the page reports to the player.
+         */
+        @JavascriptInterface
+        fun createReminder(id: String, title: String, description: String, triggerAt: Long): Boolean =
+            ReminderStore.add(
+                this@GameWebViewActivity,
+                Reminder(
+                    id = id,
+                    title = title.trim(),
+                    description = description.trim(),
+                    triggerAt = triggerAt,
+                ),
+            )
+
+        @JavascriptInterface
+        fun deleteReminder(id: String): Boolean =
+            ReminderStore.remove(this@GameWebViewActivity, id)
+
+        @JavascriptInterface
+        fun notificationsEnabled(): Boolean =
+            ReminderStore.notificationsEnabled(this@GameWebViewActivity)
+
+        /** Opens the system permission dialog on Android 13 and newer. */
+        @JavascriptInterface
+        fun requestNotificationPermission() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+            runOnUiThread {
+                if (ContextCompat.checkSelfPermission(
+                        this@GameWebViewActivity,
+                        Manifest.permission.POST_NOTIFICATIONS,
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
 
         @JavascriptInterface
         fun removePetApiKey(): Boolean = getSharedPreferences(PET_KEY_PREFERENCES, MODE_PRIVATE)

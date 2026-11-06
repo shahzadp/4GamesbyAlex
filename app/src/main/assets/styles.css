@@ -1868,19 +1868,130 @@ body.android-fullscreen .page.active {
 
 .pet-memory-empty[hidden] { display: none; }
 
-.pet-settings-home {
-  min-height: 46px;
-  border: 1px solid rgba(226, 231, 236, 0.14);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.05);
-  color: #d7dade;
+/* ---- Reminders ---- */
+.pet-reminder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pet-reminder-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: #b9bec4;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.pet-reminder-field input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xs);
+  background: #131518;
+  color: var(--text-main);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
+  /* Makes the native date and time pickers dark instead of a white sheet. */
+  color-scheme: dark;
+}
+
+.pet-reminder-when {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.pet-reminder-add {
+  min-height: 42px;
+  border: 1px solid rgba(226, 231, 236, 0.16);
+  border-radius: var(--radius-xs);
+  background: #c9ced4;
+  color: #191b1e;
+  font: inherit;
+  font-size: 0.84rem;
   font-weight: 700;
   cursor: pointer;
 }
 
-.pet-settings-home:active { background: rgba(255, 255, 255, 0.12); }
+.pet-reminder-add:active { transform: scale(0.98); }
+
+.pet-reminder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pet-reminder-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid rgba(226, 231, 236, 0.1);
+  border-radius: 10px;
+  background: #131518;
+}
+
+.pet-reminder-info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pet-reminder-item-title {
+  margin: 0;
+  color: #f0f2f4;
+  font-size: 0.85rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.pet-reminder-item-when {
+  margin: 0;
+  color: #8fb6d8;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.pet-reminder-item-note {
+  margin: 0;
+  color: #a9aeb3;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.pet-reminder-item[lang="ur"] .pet-reminder-info {
+  direction: rtl;
+  text-align: right;
+}
+
+.pet-reminder-delete {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(226, 231, 236, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d7dade;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pet-reminder-delete:active { transform: scale(0.92); }
+
+.pet-reminder-empty[hidden] { display: none; }
 
 .pet-settings-fields {
   display: grid;

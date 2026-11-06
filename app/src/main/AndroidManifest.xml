@@ -5,6 +5,11 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Horizon drives the phone vibrator for in-game events. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Pet reminders post a notification on API 33+; the vibration itself
+         does not need it, so a denied permission still rings. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Alarms are cleared by a reboot and have to be put back. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Horizon's save/export path on API 28 only; 29+ uses MediaStore/scoped
          storage and needs no permission at all. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
@@ -91,6 +96,28 @@
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>
         </provider>
+
+        <!-- Pet reminders. The alarm fires this receiver even when the app was
+             never opened since boot, so it reads the reminder from preferences
+             itself instead of expecting a live process. -->
+        <receiver
+            android:name=".ReminderAlarmReceiver"
+            android:exported="false" />
+
+        <!-- The notification's Stop action: cancels the vibration, dismisses the
+             notification and forgets the reminder. -->
+        <receiver
+            android:name=".ReminderStopReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".ReminderBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

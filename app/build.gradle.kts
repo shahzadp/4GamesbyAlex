@@ -41,11 +41,12 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 37 / 1.32 = pet header is a settings gear (game arrows removed);
-        // settings page holds saved memories (add/edit/delete, "remember
-        // this" from chat) plus the API key and language.
-        versionCode = 37
-        versionName = "1.32"
+        // 38 / 1.33 = reminders: exact-time alarm, silent repeating vibration,
+        // ongoing notification whose Stop action ends it; "remind me" /
+        // "yaad dilana" in chat opens the prefilled form. Settings lost the
+        // "Back to the games" button.
+        versionCode = 38
+        versionName = "1.33"
     }
 
     signingConfigs {

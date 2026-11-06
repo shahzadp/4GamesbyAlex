@@ -4372,10 +4372,6 @@ function setupVirtualPet() {
   if (settingsBack) {
     settingsBack.addEventListener('click', () => switchPage('pet'));
   }
-  const settingsHome = document.getElementById('pet-settings-home');
-  if (settingsHome) {
-    settingsHome.addEventListener('click', () => switchPage('main'));
-  }
   const nativeBridge = window.AndroidBridge;
   let apiKey = '';
   let hasSavedApiKey = Boolean(nativeBridge && typeof nativeBridge.hasPetApiKey === 'function' && nativeBridge.hasPetApiKey());
@@ -4418,6 +4414,25 @@ function setupVirtualPet() {
       memoryDelete: 'Delete',
       memoryNote: 'Saved to memories',
       backToGames: 'Back to the games',
+      remindersTitle: 'Reminders',
+      remindersHelp: 'A reminder buzzes at the exact time you pick and keeps buzzing until you tap Stop on its notification. It makes no sound.',
+      reminderTitleLabel: 'Title',
+      reminderTitlePlaceholder: 'What should I remind you about?',
+      reminderDescriptionLabel: 'Description',
+      reminderDescriptionPlaceholder: 'Details (optional)',
+      reminderDateLabel: 'Date',
+      reminderTimeLabel: 'Time',
+      reminderAdd: 'Set reminder',
+      remindersEmpty: 'No reminders yet.',
+      reminderDelete: 'Delete reminder',
+      reminderNeedTitle: 'Give the reminder a title first.',
+      reminderNeedTime: 'Pick a date and a time.',
+      reminderMustBeFuture: 'Pick a time in the future.',
+      reminderSaved: 'Reminder set.',
+      reminderSaveFailed: 'Could not save that reminder.',
+      reminderFromChat: 'Choose a date and time for this reminder.',
+      reminderNoPermission: 'Notifications are off, so only the vibration will ring.',
+      reminderBrowser: 'Reminders ring in the Android app.',
       apiKeyLabel: 'OpenRouter API key',
       petLanguage: 'Pet language',
       saveKey: 'Save key securely',
@@ -4453,6 +4468,25 @@ function setupVirtualPet() {
       memoryDelete: 'حذف کریں',
       memoryNote: 'یادوں میں محفوظ کر لیا',
       backToGames: 'کھیلوں پر واپس',
+      remindersTitle: 'یاد دہانیاں',
+      remindersHelp: 'یاد دہانی آپ کے منتخب کردہ وقت پر کمپن کرے گی اور اس وقت تک جاری رہے گی جب تک آپ اس کی اطلاع پر "سٹاپ" نہ دبائیں۔ اس میں کوئی آواز نہیں ہوگی۔',
+      reminderTitleLabel: 'عنوان',
+      reminderTitlePlaceholder: 'کس بات کی یاد دہانی؟',
+      reminderDescriptionLabel: 'تفصیل',
+      reminderDescriptionPlaceholder: 'تفصیل (اختیاری)',
+      reminderDateLabel: 'تاریخ',
+      reminderTimeLabel: 'وقت',
+      reminderAdd: 'یاد دہانی رکھیں',
+      remindersEmpty: 'ابھی کوئی یاد دہانی نہیں ہے۔',
+      reminderDelete: 'یاد دہانی حذف کریں',
+      reminderNeedTitle: 'پہلے یاد دہانی کا عنوان لکھیں۔',
+      reminderNeedTime: 'تاریخ اور وقت منتخب کریں۔',
+      reminderMustBeFuture: 'آئندہ کا وقت منتخب کریں۔',
+      reminderSaved: 'یاد دہانی رکھ دی گئی۔',
+      reminderSaveFailed: 'یاد دہانی محفوظ نہیں ہو سکی۔',
+      reminderFromChat: 'اس یاد دہانی کے لیے تاریخ اور وقت منتخب کریں۔',
+      reminderNoPermission: 'اطلاعات بند ہیں، صرف کمپن ہوگی۔',
+      reminderBrowser: 'یاد دہانیاں Android ایپ میں بجتی ہیں۔',
       apiKeyLabel: 'OpenRouter API کلید',
       petLanguage: 'پالتو کی زبان',
       saveKey: 'کلید محفوظ کریں',
@@ -4655,6 +4689,280 @@ function setupVirtualPet() {
       memoryInput.value = '';
       memoryInput.blur();
     });
+  }
+
+  /* ---- Reminders -------------------------------------------------------
+     A reminder's time has to survive the app being closed, so the alarm and
+     the stored list live on the Android side (ReminderStore.kt) and this page
+     only talks to them through the bridge. In a plain browser there is no
+     alarm to set: the list is cached in localStorage so the form still makes
+     sense, and the status line says where the ringing happens. */
+  const REMINDER_CACHE_KEY = 'pet_reminders_browser';
+  const reminderBridge = nativeBridge && typeof nativeBridge.getReminders === 'function' ? nativeBridge : null;
+  let reminders = [];
+
+  const reminderForm = document.getElementById('pet-reminder-form');
+  const reminderTitleInput = document.getElementById('pet-reminder-title');
+  const reminderDescriptionInput = document.getElementById('pet-reminder-description');
+  const reminderDateInput = document.getElementById('pet-reminder-date');
+  const reminderTimeInput = document.getElementById('pet-reminder-time');
+  const reminderStatus = document.getElementById('pet-reminder-status');
+
+  function setReminderStatus(message) {
+    if (reminderStatus) reminderStatus.textContent = message || '';
+  }
+
+  function readReminders() {
+    if (reminderBridge) {
+      try {
+        const data = JSON.parse(reminderBridge.getReminders() || '[]');
+        if (!Array.isArray(data)) return [];
+        return data
+          .filter(item => item && String(item.id) && typeof item.title === 'string' && Number(item.triggerAt) > 0)
+          .map(item => ({
+            id: String(item.id),
+            title: item.title,
+            description: String(item.description || ''),
+            triggerAt: Number(item.triggerAt)
+          }));
+      } catch (error) {
+        return [];
+      }
+    }
+    try {
+      const data = JSON.parse(localStorage.getItem(REMINDER_CACHE_KEY) || '[]');
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveReminder(reminder) {
+    if (reminderBridge) {
+      return Boolean(reminderBridge.createReminder(
+        reminder.id,
+        reminder.title,
+        reminder.description,
+        reminder.triggerAt
+      ));
+    }
+    const list = readReminders().filter(item => item.id !== reminder.id);
+    list.push(reminder);
+    list.sort((a, b) => a.triggerAt - b.triggerAt);
+    try {
+      localStorage.setItem(REMINDER_CACHE_KEY, JSON.stringify(list));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function deleteReminder(id) {
+    if (reminderBridge) {
+      reminderBridge.deleteReminder(id);
+    } else {
+      const list = readReminders().filter(item => item.id !== id);
+      try { localStorage.setItem(REMINDER_CACHE_KEY, JSON.stringify(list)); } catch (error) { /* private mode */ }
+    }
+    refreshReminders();
+  }
+
+  function refreshReminders() {
+    reminders = readReminders();
+    renderReminders();
+  }
+
+  function reminderUsesUrdu(text) {
+    return /[\u0600-\u06FF]/.test(text || '');
+  }
+
+  function formatReminderTime(triggerAt) {
+    const date = new Date(triggerAt);
+    try {
+      return date.toLocaleString(petLanguage() === 'ur' ? 'ur-PK' : undefined, {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return date.toLocaleString();
+    }
+  }
+
+  function renderReminders() {
+    const list = document.getElementById('pet-reminder-list');
+    const empty = document.getElementById('pet-reminder-empty');
+    if (!list) return;
+    const T = petText();
+    const soonest = Date.now() - 60000;
+    const upcoming = reminders
+      .filter(item => item.triggerAt > soonest)
+      .sort((a, b) => a.triggerAt - b.triggerAt);
+
+    list.innerHTML = '';
+    upcoming.forEach(reminder => {
+      const row = document.createElement('li');
+      row.className = 'pet-reminder-item';
+      row.lang = reminderUsesUrdu(reminder.title) ? 'ur' : 'en';
+
+      const info = document.createElement('div');
+      info.className = 'pet-reminder-info';
+
+      const title = document.createElement('p');
+      title.className = 'pet-reminder-item-title';
+      title.textContent = reminder.title;
+
+      const when = document.createElement('p');
+      when.className = 'pet-reminder-item-when';
+      when.textContent = formatReminderTime(reminder.triggerAt);
+
+      info.append(title, when);
+
+      if (reminder.description) {
+        const description = document.createElement('p');
+        description.className = 'pet-reminder-item-note';
+        description.textContent = reminder.description;
+        info.append(description);
+      }
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'pet-reminder-delete';
+      remove.textContent = '🗑️';
+      remove.title = T.reminderDelete;
+      remove.setAttribute('aria-label', T.reminderDelete);
+      remove.addEventListener('click', () => deleteReminder(reminder.id));
+
+      row.append(info, remove);
+      list.appendChild(row);
+    });
+
+    if (empty) empty.hidden = upcoming.length > 0;
+  }
+
+  function localDateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /* The pickers start an hour ahead on the hour, so a reminder can usually be
+     set with one tap and no keyboard at all. */
+  function prefillReminderDefaults() {
+    if (!reminderDateInput || !reminderTimeInput) return;
+    const soon = new Date(Date.now() + 60 * 60 * 1000);
+    soon.setMinutes(0, 0, 0);
+    reminderDateInput.value = localDateInputValue(soon);
+    reminderTimeInput.value = `${String(soon.getHours()).padStart(2, '0')}:00`;
+  }
+
+  function ensureReminderNotifications() {
+    if (!reminderBridge || typeof reminderBridge.notificationsEnabled !== 'function') return;
+    if (reminderBridge.notificationsEnabled()) return;
+    if (typeof reminderBridge.requestNotificationPermission === 'function') {
+      reminderBridge.requestNotificationPermission();
+    }
+  }
+
+  window.onReminderPermissionResult = granted => {
+    if (!granted) setReminderStatus(petText().reminderNoPermission);
+  };
+
+  if (reminderForm && reminderTitleInput && reminderDateInput && reminderTimeInput) {
+    reminderForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const T = petText();
+      const title = reminderTitleInput.value.trim();
+      if (!title) {
+        setReminderStatus(T.reminderNeedTitle);
+        reminderTitleInput.focus();
+        return;
+      }
+      if (!reminderDateInput.value || !reminderTimeInput.value) {
+        setReminderStatus(T.reminderNeedTime);
+        (reminderDateInput.value ? reminderTimeInput : reminderDateInput).focus();
+        return;
+      }
+      const triggerAt = new Date(`${reminderDateInput.value}T${reminderTimeInput.value}`).getTime();
+      if (!Number.isFinite(triggerAt)) {
+        setReminderStatus(T.reminderNeedTime);
+        return;
+      }
+      if (triggerAt <= Date.now() + 1000) {
+        setReminderStatus(T.reminderMustBeFuture);
+        return;
+      }
+
+      const saved = saveReminder({
+        id: `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        title,
+        description: reminderDescriptionInput ? reminderDescriptionInput.value.trim() : '',
+        triggerAt
+      });
+      if (!saved) {
+        setReminderStatus(T.reminderSaveFailed);
+        return;
+      }
+      setReminderStatus(reminderBridge ? T.reminderSaved : T.reminderBrowser);
+      reminderForm.reset();
+      prefillReminderDefaults();
+      refreshReminders();
+      ensureReminderNotifications();
+    });
+  }
+
+  prefillReminderDefaults();
+
+  /* "remind me to call mum" and "yaad dilana call mum" are not put to the
+     model: the date and the time cannot be guessed reliably, so the command
+     opens the reminder form pre-filled and lets the player pick the exact
+     minute. Nothing is promised to the player before it is actually set. */
+  function extractReminderCommand(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return '';
+
+    let match = text.match(/^(?:please\s+)?remind\s+me(?:\s+(?:to|about|that))?\s*[:,]?\s+([\s\S]+)$/i);
+    if (match && match[1].trim()) return match[1].trim();
+
+    match = text.match(/^(?:mujhe\s+)?yaad\s+dila(?:na|o|do|en|na\s+hai)\s*[:,]?\s+([\s\S]+)$/i);
+    if (match && match[1].trim()) return match[1].trim();
+
+    match = text.match(/^([\s\S]+?)[,،]?\s*(?:mujhe\s+)?yaad\s+dila(?:na|o|do|en|na\s+hai)\s*[.!]?$/i);
+    if (match && match[1].trim()) return match[1].trim();
+
+    const urduCommand = /(?:مجھے\s*)?یاد\s*دلا(?:نا|ئیں|دو|ؤ)/;
+    if (urduCommand.test(text)) {
+      const body = text.replace(new RegExp(`${urduCommand.source}[\\s:،,!.۔]*$`), '').trim();
+      if (body) return body;
+    }
+    return '';
+  }
+
+  function openReminderDraft(text) {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '');
+    if (!clean) return;
+    const title = clean.length > 60 ? `${clean.slice(0, 57).trimEnd()}…` : clean;
+
+    prefillReminderDefaults();
+    if (reminderTitleInput) reminderTitleInput.value = title;
+    if (reminderDescriptionInput) reminderDescriptionInput.value = clean.length > title.length ? clean : '';
+
+    const note = document.createElement('p');
+    note.className = 'pet-memory-note';
+    note.textContent = petText().reminderFromChat;
+    note.lang = reminderUsesUrdu(clean) ? 'ur' : 'en';
+    chatLog.appendChild(note);
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    switchPage('pet-settings');
+    setTimeout(() => {
+      const block = document.getElementById('pet-reminder-block');
+      if (block && block.scrollIntoView) block.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      if (reminderDateInput) reminderDateInput.focus();
+    }, 280);
   }
 
   let petCare = {
@@ -5248,6 +5556,7 @@ function setupVirtualPet() {
       }
     });
     renderMemories();
+    refreshReminders();
     renderPetCare();
   }
 
@@ -5314,6 +5623,16 @@ function setupVirtualPet() {
     if (memoryText) {
       const saved = addMemory(memoryText);
       if (saved) appendMemoryNote(saved.text);
+    }
+
+    /* "remind me" / "yaad dilana": opens the reminder form with the words
+       already in it. This never goes to the model — the exact date and time
+       are the player's to choose, and the pet must not claim a reminder it
+       did not set. */
+    const reminderText = extractReminderCommand(question);
+    if (reminderText) {
+      openReminderDraft(reminderText);
+      return;
     }
 
     if (!apiKey && !hasSavedApiKey) {

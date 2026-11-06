@@ -622,6 +622,35 @@
       </header>
 
       <div class="pet-settings-page">
+        <section class="pet-settings-block" id="pet-reminder-block" aria-labelledby="pet-reminder-heading">
+          <h2 class="pet-settings-heading" id="pet-reminder-heading" data-i18n="remindersTitle">Reminders</h2>
+          <p class="pet-settings-note" data-i18n="remindersHelp">A reminder buzzes at the exact time you pick and keeps buzzing until you tap Stop on its notification. It makes no sound.</p>
+          <form id="pet-reminder-form" class="pet-reminder-form">
+            <label class="pet-reminder-field">
+              <span data-i18n="reminderTitleLabel">Title</span>
+              <input id="pet-reminder-title" type="text" maxlength="80" autocomplete="off" data-i18n-ph="reminderTitlePlaceholder">
+            </label>
+            <label class="pet-reminder-field">
+              <span data-i18n="reminderDescriptionLabel">Description</span>
+              <input id="pet-reminder-description" type="text" maxlength="200" autocomplete="off" data-i18n-ph="reminderDescriptionPlaceholder">
+            </label>
+            <div class="pet-reminder-when">
+              <label class="pet-reminder-field">
+                <span data-i18n="reminderDateLabel">Date</span>
+                <input id="pet-reminder-date" type="date">
+              </label>
+              <label class="pet-reminder-field">
+                <span data-i18n="reminderTimeLabel">Time</span>
+                <input id="pet-reminder-time" type="time">
+              </label>
+            </div>
+            <button type="submit" class="pet-reminder-add" data-i18n="reminderAdd">Set reminder</button>
+          </form>
+          <p id="pet-reminder-status" class="pet-settings-note" role="status"></p>
+          <ul id="pet-reminder-list" class="pet-reminder-list"></ul>
+          <p id="pet-reminder-empty" class="pet-settings-note" data-i18n="remindersEmpty">No reminders yet.</p>
+        </section>
+
         <section class="pet-settings-block" aria-labelledby="pet-memory-heading">
           <h2 class="pet-settings-heading" id="pet-memory-heading" data-i18n="memoriesTitle">Things I remember</h2>
           <p class="pet-settings-note" data-i18n="memoriesHelp">Anything saved here is shared with the pet in every chat. You can also just say "remember this" in a message.</p>
@@ -648,8 +677,6 @@
             </select>
           </div>
         </section>
-
-        <button id="pet-settings-home" class="pet-settings-home" type="button" data-i18n="backToGames">Back to the games</button>
       </div>
     </section>
 
