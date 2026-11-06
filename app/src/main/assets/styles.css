@@ -1905,6 +1905,73 @@ body.android-fullscreen .page.active {
   gap: 0.45rem;
 }
 
+.pet-reminder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 38px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(226, 231, 236, 0.1);
+  border-radius: var(--radius-xs);
+  background: #131518;
+  color: #d5d9dd;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pet-reminder-toggle-nested {
+  margin-top: -0.2rem;
+  margin-inline-start: 0.9rem;
+}
+
+.pet-reminder-toggle input {
+  width: 17px;
+  height: 17px;
+  accent-color: #c9ced4;
+  color-scheme: dark;
+  flex: 0 0 auto;
+}
+
+.pet-reminder-toggle.is-disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pet-reminder-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(240, 196, 120, 0.28);
+  border-radius: 10px;
+  background: rgba(240, 196, 120, 0.08);
+  color: #e8cfaa;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.pet-reminder-warning[hidden] { display: none; }
+
+.pet-reminder-warning span { flex: 1; }
+
+.pet-reminder-fix {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 0.6rem;
+  border: 1px solid rgba(240, 196, 120, 0.45);
+  border-radius: 8px;
+  background: rgba(240, 196, 120, 0.16);
+  color: #f3dab2;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pet-reminder-fix:active { transform: scale(0.96); }
+
 .pet-reminder-add {
   min-height: 42px;
   border: 1px solid rgba(226, 231, 236, 0.16);
@@ -1959,6 +2026,27 @@ body.android-fullscreen .page.active {
   color: #8fb6d8;
   font-size: 0.74rem;
   font-weight: 600;
+}
+
+.pet-reminder-item-repeat {
+  margin: 0;
+  color: #a9c6a0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.pet-reminder-item-missed {
+  border-color: rgba(226, 231, 236, 0.06);
+  background: #101214;
+}
+
+.pet-reminder-item-missed .pet-reminder-item-title {
+  color: #a5abb1;
+}
+
+.pet-reminder-item-missed .pet-reminder-item-when {
+  color: #b58f6a;
 }
 
 .pet-reminder-item-note {

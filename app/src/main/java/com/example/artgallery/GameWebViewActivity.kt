@@ -11,10 +11,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.speech.RecognizerIntent
@@ -190,9 +192,20 @@ class GameWebViewActivity : ComponentActivity() {
         /**
          * Saves and schedules a reminder. Returns false for a blank title or a
          * time that has already passed, which the page reports to the player.
+         *
+         * `repeatDaily` keeps the alarm after it rings and moves it to the same
+         * time the next day; `skipSundays` (only meaningful with repeat) makes
+         * that next day Monday when the next occurrence lands on a Sunday.
          */
         @JavascriptInterface
-        fun createReminder(id: String, title: String, description: String, triggerAt: Long): Boolean =
+        fun createReminder(
+            id: String,
+            title: String,
+            description: String,
+            triggerAt: Long,
+            repeatDaily: Boolean,
+            skipSundays: Boolean,
+        ): Boolean =
             ReminderStore.add(
                 this@GameWebViewActivity,
                 Reminder(
@@ -200,6 +213,8 @@ class GameWebViewActivity : ComponentActivity() {
                     title = title.trim(),
                     description = description.trim(),
                     triggerAt = triggerAt,
+                    repeatDaily = repeatDaily,
+                    skipSundays = skipSundays,
                 ),
             )
 
@@ -210,6 +225,56 @@ class GameWebViewActivity : ComponentActivity() {
         @JavascriptInterface
         fun notificationsEnabled(): Boolean =
             ReminderStore.notificationsEnabled(this@GameWebViewActivity)
+
+        /** True when Android will let the alarm fire on the exact minute. */
+        @JavascriptInterface
+        fun canScheduleExactAlarms(): Boolean =
+            ReminderStore.exactAlarmsAllowed(this@GameWebViewActivity)
+
+        /**
+         * Opens the system screen where exact alarms are allowed. The page
+         * re-reads [canScheduleExactAlarms] when the activity resumes.
+         */
+        @JavascriptInterface
+        fun requestExactAlarmPermission() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+            runOnUiThread {
+                try {
+                    startActivity(
+                        Intent(
+                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            Uri.parse("package:$packageName"),
+                        )
+                    )
+                } catch (error: ActivityNotFoundException) {
+                    // Some manufacturers ship without this screen; the inexact
+                    // fallback still rings, just later.
+                }
+            }
+        }
+
+        /** True when the phone's battery saver may sleep the app. */
+        @JavascriptInterface
+        fun isIgnoringBatteryOptimizations(): Boolean =
+            ReminderStore.batteryOptimisationIgnored(this@GameWebViewActivity)
+
+        @JavascriptInterface
+        fun requestIgnoreBatteryOptimizations() {
+            runOnUiThread {
+                val packageUri = Uri.parse("package:$packageName")
+                try {
+                    startActivity(
+                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri)
+                    )
+                } catch (error: ActivityNotFoundException) {
+                    try {
+                        startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    } catch (nested: ActivityNotFoundException) {
+                        // No battery settings screen at all; nothing to ask for.
+                    }
+                }
+            }
+        }
 
         /** Opens the system permission dialog on Android 13 and newer. */
         @JavascriptInterface
@@ -694,6 +759,23 @@ class GameWebViewActivity : ComponentActivity() {
             webView.evaluateJavascript(
                 "window.onPetReply(${JSONObject.quote(requestId)}, ${JSONObject.quote(text)}, $errorLiteral);",
                 null
+            )
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        /* Re-arm every reminder. Alarms are dropped by a force-stop, a revoked
+           exact-alarm permission and some aggressive battery managers; doing
+           this on every resume means a reminder set last week is still an
+           alarm, not just a row in a list. It is a few JSON rows and a handful
+           of AlarmManager calls, so it costs nothing on a page that is about
+           to draw a 3D dog. */
+        ReminderStore.rescheduleAll(this)
+        if (::webView.isInitialized && !isDestroyed) {
+            webView.evaluateJavascript(
+                "window.__onReminderResume && window.__onReminderResume();",
+                null,
             )
         }
     }

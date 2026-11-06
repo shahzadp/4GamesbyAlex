@@ -7,7 +7,9 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -15,34 +17,45 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Calendar
 
 /**
  * A reminder the player set in the pet game.
  *
- * `triggerAt` is an absolute wall-clock time in epoch milliseconds, so it does
- * not care about time zones changing between being set and firing.
+ * `triggerAt` is always the *next* absolute wall-clock time in epoch
+ * milliseconds. For a reminder that repeats, the alarm receiver moves it
+ * forward one day each time it rings, so the stored value is never in the past
+ * for a live repeating reminder.
  */
 data class Reminder(
     val id: String,
     val title: String,
     val description: String,
     val triggerAt: Long,
+    val repeatDaily: Boolean = false,
+    val skipSundays: Boolean = false,
 )
 
 /**
- * Reminders, and the alarm that makes them ring.
+ * Reminders, and the alarms that make them ring.
  *
  * There is no server and no background service: an [AlarmManager] entry wakes
  * the app's process at the chosen minute, [ReminderAlarmReceiver] posts an
  * ongoing notification and starts a repeating vibration, and the notification's
- * single action stops both. [setAlarmClock] is used rather than
- * `setExactAndAllowWhileIdle` because it is allowed to fire exactly without the
- * `SCHEDULE_EXACT_ALARM` permission, and a reminder that arrives a few minutes
- * late is worthless.
+ * single action stops both.
  *
- * Reminders are stored in plain app preferences as JSON. They are the only
- * record of themselves: stopping one deletes it, so nothing lingers as a ghost
- * alarm after its notification is gone.
+ * **Exact alarms.** `setAlarmClock` is used because it fires on the minute even
+ * when the phone is asleep. It needs the exact-alarm permission on Android 12+;
+ * without it the API throws, and `setAndAllowWhileIdle` is used instead, which
+ * the OS is free to hold back until the device wakes up - the classic symptom
+ * being "the reminder only rings once I open the app". The manifest declares
+ * both `SCHEDULE_EXACT_ALARM` (Android 12/12L) and `USE_EXACT_ALARM` (Android
+ * 13+, granted automatically), and the settings page offers to grant the
+ * permission if a device still has it switched off.
+ *
+ * Reminders are stored in app preferences as JSON and saved with `commit()` so
+ * a receiver whose process is killed the moment it returns cannot lose the
+ * rescheduling it just did.
  */
 object ReminderStore {
 
@@ -50,13 +63,8 @@ object ReminderStore {
     private const val KEY_REMINDERS = "reminders_json"
 
     const val EXTRA_ID = "reminder_id"
-    const val EXTRA_TITLE = "reminder_title"
-    const val EXTRA_DESCRIPTION = "reminder_description"
-    const val EXTRA_TRIGGER_AT = "reminder_trigger_at"
 
     const val CHANNEL_ID = "pet_reminders_alarm"
-
-    private const val STOP_ACTION = "com.example.artgallery.REMINDER_STOP"
 
     /* Must match GameWebViewActivity's own preferences: the pet language is
        written there when the player switches it, and the notification's Stop
@@ -83,12 +91,16 @@ object ReminderStore {
                 val title = item.optString("title")
                 val triggerAt = item.optLong("triggerAt")
                 if (id.isBlank() || title.isBlank() || triggerAt <= 0L) continue
+                val repeatDaily = item.optBoolean("repeatDaily", false)
                 list.add(
                     Reminder(
                         id = id,
                         title = title,
                         description = item.optString("description"),
                         triggerAt = triggerAt,
+                        repeatDaily = repeatDaily,
+                        // A one-off reminder has no weekdays to skip.
+                        skipSundays = repeatDaily && item.optBoolean("skipSundays", false),
                     )
                 )
             }
@@ -100,6 +112,9 @@ object ReminderStore {
         return list
     }
 
+    /* commit(), not apply(): this runs from broadcast receivers whose process
+       may be killed as soon as onReceive returns, and a rescheduling that only
+       exists in memory is a reminder that never rings again. */
     private fun save(context: Context, reminders: List<Reminder>) {
         val array = JSONArray()
         reminders.forEach { reminder ->
@@ -109,9 +124,11 @@ object ReminderStore {
                     .put("title", reminder.title)
                     .put("description", reminder.description)
                     .put("triggerAt", reminder.triggerAt)
+                    .put("repeatDaily", reminder.repeatDaily)
+                    .put("skipSundays", reminder.skipSundays)
             )
         }
-        prefs(context).edit().putString(KEY_REMINDERS, array.toString()).apply()
+        prefs(context).edit().putString(KEY_REMINDERS, array.toString()).commit()
     }
 
     /** The format the settings page reads through the JavaScript bridge. */
@@ -124,6 +141,8 @@ object ReminderStore {
                     .put("title", reminder.title)
                     .put("description", reminder.description)
                     .put("triggerAt", reminder.triggerAt)
+                    .put("repeatDaily", reminder.repeatDaily)
+                    .put("skipSundays", reminder.skipSundays)
             )
         }
         return array.toString()
@@ -132,16 +151,25 @@ object ReminderStore {
     /**
      * Saves a reminder and schedules its alarm. An id that already exists is
      * replaced, so editing from the page needs no separate update call.
+     *
+     * A repeating reminder that would first ring on a skipped Sunday starts on
+     * Monday instead, keeping its time of day.
      */
     fun add(context: Context, reminder: Reminder): Boolean {
-        if (reminder.id.isBlank() || reminder.title.isBlank() || reminder.triggerAt <= System.currentTimeMillis()) {
-            return false
+        if (reminder.id.isBlank() || reminder.title.isBlank()) return false
+        if (reminder.triggerAt <= System.currentTimeMillis()) return false
+
+        var prepared = reminder.copy(
+            skipSundays = reminder.repeatDaily && reminder.skipSundays,
+        )
+        if (prepared.repeatDaily && prepared.skipSundays &&
+            dayOfWeek(prepared.triggerAt) == Calendar.SUNDAY
+        ) {
+            prepared = prepared.copy(triggerAt = addDays(prepared.triggerAt, 1))
         }
-        val reminders = load(context)
-            .filterNot { it.id == reminder.id }
-            .plus(reminder)
-        save(context, reminders)
-        schedule(context, reminder)
+
+        save(context, load(context).filterNot { it.id == prepared.id }.plus(prepared))
+        schedule(context, prepared)
         return true
     }
 
@@ -155,18 +183,91 @@ object ReminderStore {
         return remaining.size != reminders.size
     }
 
-    /** Called after a reboot or an app update: alarms do not survive either. */
+    /**
+     * The notification's Stop action. It always silences the buzz and dismisses
+     * the notification; a one-off reminder is then forgotten, while a repeating
+     * one keeps its next day's alarm.
+     */
+    fun acknowledge(context: Context, id: String) {
+        stopRinging(context, id)
+        val reminder = load(context).firstOrNull { it.id == id } ?: return
+        if (!reminder.repeatDaily) {
+            cancelAlarm(context, id)
+            save(context, load(context).filterNot { it.id == id })
+            return
+        }
+        val now = System.currentTimeMillis()
+        val next = if (reminder.triggerAt > now) reminder.triggerAt else nextTrigger(reminder, now)
+        val updated = reminder.copy(triggerAt = next)
+        save(context, load(context).map { if (it.id == id) updated else it })
+        schedule(context, updated)
+    }
+
+    /**
+     * Called at boot, after an app update, on a clock change, when the
+     * exact-alarm permission is granted, and whenever the app comes to the
+     * foreground. Alarms do not survive a reboot, a force-stop or a revoked
+     * permission, and re-arming on every launch is the cheapest insurance
+     * there is.
+     *
+     * Repeating reminders whose time passed while the app was away roll
+     * forward to their next occurrence. A one-off that was missed is kept (the
+     * page labels it "Missed") rather than silently deleted.
+     */
     fun rescheduleAll(context: Context) {
         val now = System.currentTimeMillis()
-        load(context).filter { it.triggerAt > now }.forEach { schedule(context, it) }
+        val kept = mutableListOf<Reminder>()
+        load(context).forEach { reminder ->
+            when {
+                reminder.triggerAt > now -> {
+                    kept.add(reminder)
+                    schedule(context, reminder)
+                }
+                reminder.repeatDaily -> {
+                    val updated = reminder.copy(triggerAt = nextTrigger(reminder, now))
+                    kept.add(updated)
+                    schedule(context, updated)
+                }
+                else -> kept.add(reminder)
+            }
+        }
+        save(context, kept)
     }
+
+    /** The next time this reminder should ring, strictly after [now]. */
+    private fun nextTrigger(reminder: Reminder, now: Long): Long {
+        val base = Calendar.getInstance().apply { timeInMillis = reminder.triggerAt }
+        val candidate = Calendar.getInstance().apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, base.get(Calendar.HOUR_OF_DAY))
+            set(Calendar.MINUTE, base.get(Calendar.MINUTE))
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        if (candidate.timeInMillis <= now) candidate.add(Calendar.DAY_OF_YEAR, 1)
+        if (reminder.skipSundays) {
+            while (candidate.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                candidate.add(Calendar.DAY_OF_YEAR, 1)
+            }
+        }
+        return candidate.timeInMillis
+    }
+
+    private fun dayOfWeek(millis: Long): Int =
+        Calendar.getInstance().apply { timeInMillis = millis }.get(Calendar.DAY_OF_WEEK)
+
+    private fun addDays(millis: Long, days: Int): Long =
+        Calendar.getInstance().apply {
+            timeInMillis = millis
+            add(Calendar.DAY_OF_YEAR, days)
+        }.timeInMillis
 
     private fun pendingIntent(context: Context, reminder: Reminder): PendingIntent {
         val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
             putExtra(EXTRA_ID, reminder.id)
             // A distinct data URI keeps two reminders from sharing one
             // PendingIntent even if their request codes ever collide.
-            data = android.net.Uri.parse("reminder://${reminder.id}")
+            data = Uri.parse("reminder://${reminder.id}")
         }
         return PendingIntent.getBroadcast(
             context,
@@ -179,28 +280,42 @@ object ReminderStore {
     private fun schedule(context: Context, reminder: Reminder) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val operation = pendingIntent(context, reminder)
-        val showIntent = PendingIntent.getActivity(
-            context,
-            reminder.id.hashCode(),
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+
+        if (exactAlarmsAllowed(context)) {
+            val showIntent = PendingIntent.getActivity(
+                context,
+                reminder.id.hashCode(),
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            try {
+                alarmManager.setAlarmClock(
+                    AlarmManager.AlarmClockInfo(reminder.triggerAt, showIntent),
+                    operation,
+                )
+                return
+            } catch (error: SecurityException) {
+                // Permission revoked between the check and the call.
+            }
+        }
+
+        // Inexact, but still a wakeup alarm, so the reminder is late rather
+        // than lost. The settings page asks for the exact-alarm permission.
         try {
-            alarmManager.setAlarmClock(
-                AlarmManager.AlarmClockInfo(reminder.triggerAt, showIntent),
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                reminder.triggerAt,
                 operation,
             )
         } catch (error: SecurityException) {
-            // Should not happen with setAlarmClock, but a device with a custom
-            // alarm policy must not lose the reminder entirely.
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminder.triggerAt, operation)
+            // Nothing else AlarmManager may do for us.
         }
     }
 
     private fun cancelAlarm(context: Context, id: String) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
-            data = android.net.Uri.parse("reminder://$id")
+            data = Uri.parse("reminder://$id")
         }
         val operation = PendingIntent.getBroadcast(
             context,
@@ -275,24 +390,23 @@ object ReminderStore {
      * receiver while the app may be completely cold, so everything it needs is
      * read from preferences.
      */
-    fun fire(context: Context, id: String) {
-        val reminder = load(context).firstOrNull { it.id == id } ?: return
+    private fun ring(context: Context, reminder: Reminder, firedAt: Long) {
         ensureChannel(context)
 
         val stopIntent = Intent(context, ReminderStopReceiver::class.java).apply {
-            data = android.net.Uri.parse("reminder://stop/$id")
-            putExtra(EXTRA_ID, id)
+            data = Uri.parse("reminder://stop/${reminder.id}")
+            putExtra(EXTRA_ID, reminder.id)
         }
         val stopPendingIntent = PendingIntent.getBroadcast(
             context,
-            notificationId(id),
+            notificationId(reminder.id),
             stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
         val openIntent = PendingIntent.getActivity(
             context,
-            notificationId(id),
+            notificationId(reminder.id),
             Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -312,7 +426,7 @@ object ReminderStore {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setWhen(reminder.triggerAt)
+            .setWhen(firedAt)
             .setShowWhen(true)
             .setOngoing(true)
             .setAutoCancel(false)
@@ -325,7 +439,7 @@ object ReminderStore {
             .build()
 
         try {
-            NotificationManagerCompat.from(context).notify(notificationId(id), notification)
+            NotificationManagerCompat.from(context).notify(notificationId(reminder.id), notification)
         } catch (error: SecurityException) {
             // No notification permission: the vibration below still rings, and
             // the settings page tells the player to allow notifications.
@@ -343,8 +457,54 @@ object ReminderStore {
         }
     }
 
+    /**
+     * The alarm went off. `id` is the only thing the alarm carries, so the
+     * reminder is looked up here; a record that has already been handled makes
+     * this a no-op, which is what keeps a duplicate delivery from ringing twice.
+     */
+    fun fire(context: Context, id: String) {
+        val reminder = load(context).firstOrNull { it.id == id } ?: return
+        val now = System.currentTimeMillis()
+
+        // A repeating reminder whose stored time is already in the future has
+        // been advanced by an earlier delivery of this same alarm.
+        if (reminder.repeatDaily && reminder.triggerAt > now + 60_000L) return
+
+        ring(context, reminder, now)
+
+        if (reminder.repeatDaily) {
+            val updated = reminder.copy(triggerAt = nextTrigger(reminder, now))
+            save(context, load(context).map { if (it.id == id) updated else it })
+            schedule(context, updated)
+        } else {
+            // Delivered once: the record is no longer needed. The Stop action
+            // still works, because it cancels by notification id rather than
+            // by record.
+            save(context, load(context).filterNot { it.id == id })
+        }
+    }
+
     fun notificationsEnabled(context: Context): Boolean =
         NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+    /** Android 12+ gates `setAlarmClock` behind a user-controlled permission. */
+    fun exactAlarmsAllowed(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return false
+        return manager.canScheduleExactAlarms()
+    }
+
+    /**
+     * Some phones (and Android's own battery saver) put an unused app to sleep
+     * and hold every alarm it schedules. Being exempt is not required, but it
+     * is the difference between a reminder that rings and one that waits for
+     * the player to open the app.
+     */
+    fun batteryOptimisationIgnored(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+        val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return true
+        return power.isIgnoringBatteryOptimizations(context.packageName)
+    }
 }
 
 /** Wakes up when a reminder's time arrives. */
@@ -355,15 +515,18 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
     }
 }
 
-/** The notification's single action: silence it and forget the reminder. */
+/** The notification's single action: silence it and move on. */
 class ReminderStopReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getStringExtra(ReminderStore.EXTRA_ID) ?: return
-        ReminderStore.remove(context, id)
+        ReminderStore.acknowledge(context, id)
     }
 }
 
-/** Alarms do not survive a reboot; put them back. */
+/**
+ * Alarms do not survive a reboot, an app update, a clock change or a revoked
+ * exact-alarm permission; each of those events puts them back.
+ */
 class ReminderBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         ReminderStore.rescheduleAll(context)

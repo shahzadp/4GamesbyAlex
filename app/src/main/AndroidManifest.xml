@@ -10,6 +10,19 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Alarms are cleared by a reboot and have to be put back. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Reminders must ring on the minute with the app closed and the phone
+         asleep. Without an exact-alarm permission AlarmManager is free to hold
+         the alarm back until the device wakes, which looks exactly like "the
+         reminder only works when I open the app".
+
+         USE_EXACT_ALARM is granted automatically at install on Android 13+;
+         SCHEDULE_EXACT_ALARM covers Android 12/12L and can be re-granted from
+         the pet's settings page if a device has switched it off. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Offered in settings when a phone's battery saver sleeps the app. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Horizon's save/export path on API 28 only; 29+ uses MediaStore/scoped
          storage and needs no permission at all. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
@@ -116,6 +129,13 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <!-- The clock moved, so the next 9:00 is not the 9:00 the
+                     alarm was set against. -->
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <!-- The exact-alarm permission was granted: the inexact alarms
+                     that were scheduled in its absence can be replaced. -->
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
     </application>

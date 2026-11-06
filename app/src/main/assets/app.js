@@ -4415,7 +4415,7 @@ function setupVirtualPet() {
       memoryNote: 'Saved to memories',
       backToGames: 'Back to the games',
       remindersTitle: 'Reminders',
-      remindersHelp: 'A reminder buzzes at the exact time you pick and keeps buzzing until you tap Stop on its notification. It makes no sound.',
+      remindersHelp: 'A reminder buzzes at the exact time you pick and keeps buzzing until you tap Stop on its notification. It makes no sound. Turn on Repeat to have it come back every day.',
       reminderTitleLabel: 'Title',
       reminderTitlePlaceholder: 'What should I remind you about?',
       reminderDescriptionLabel: 'Description',
@@ -4433,6 +4433,15 @@ function setupVirtualPet() {
       reminderFromChat: 'Choose a date and time for this reminder.',
       reminderNoPermission: 'Notifications are off, so only the vibration will ring.',
       reminderBrowser: 'Reminders ring in the Android app.',
+      reminderRepeat: 'Repeat every day',
+      reminderSkipSunday: 'Skip Sundays',
+      reminderEveryDay: 'Every day',
+      reminderEveryDayNoSunday: 'Every day except Sunday',
+      reminderMissed: 'Missed',
+      reminderRepeatSaved: 'Reminder set. It will ring every day.',
+      reminderExactWarning: 'Android can hold reminders back while the app is closed. Allow exact alarms so they ring on time.',
+      reminderBatteryWarning: 'Your phone may put the app to sleep and delay reminders. Let it run in the background.',
+      reminderAllow: 'Allow',
       apiKeyLabel: 'OpenRouter API key',
       petLanguage: 'Pet language',
       saveKey: 'Save key securely',
@@ -4469,7 +4478,7 @@ function setupVirtualPet() {
       memoryNote: 'یادوں میں محفوظ کر لیا',
       backToGames: 'کھیلوں پر واپس',
       remindersTitle: 'یاد دہانیاں',
-      remindersHelp: 'یاد دہانی آپ کے منتخب کردہ وقت پر کمپن کرے گی اور اس وقت تک جاری رہے گی جب تک آپ اس کی اطلاع پر "سٹاپ" نہ دبائیں۔ اس میں کوئی آواز نہیں ہوگی۔',
+      remindersHelp: 'یاد دہانی آپ کے منتخب کردہ وقت پر کمپن کرے گی اور اس وقت تک جاری رہے گی جب تک آپ اس کی اطلاع پر "سٹاپ" نہ دبائیں۔ اس میں کوئی آواز نہیں ہوگی۔ روزانہ دہرانے کے لیے "ہر روز دہرائیں" آن کریں۔',
       reminderTitleLabel: 'عنوان',
       reminderTitlePlaceholder: 'کس بات کی یاد دہانی؟',
       reminderDescriptionLabel: 'تفصیل',
@@ -4487,6 +4496,15 @@ function setupVirtualPet() {
       reminderFromChat: 'اس یاد دہانی کے لیے تاریخ اور وقت منتخب کریں۔',
       reminderNoPermission: 'اطلاعات بند ہیں، صرف کمپن ہوگی۔',
       reminderBrowser: 'یاد دہانیاں Android ایپ میں بجتی ہیں۔',
+      reminderRepeat: 'ہر روز دہرائیں',
+      reminderSkipSunday: 'اتوار چھوڑ دیں',
+      reminderEveryDay: 'ہر روز',
+      reminderEveryDayNoSunday: 'اتوار کے سوا ہر روز',
+      reminderMissed: 'چھوٹ گئی',
+      reminderRepeatSaved: 'یاد دہانی رکھ دی گئی۔ یہ ہر روز بجے گی۔',
+      reminderExactWarning: 'ایپ بند ہونے پر Android یاد دہانیاں روک سکتا ہے۔ بروقت بجانے کے لیے درست الارم کی اجازت دیں۔',
+      reminderBatteryWarning: 'آپ کا فون ایپ کو سلا سکتا ہے اور یاد دہانیاں دیر سے بجا سکتا ہے۔ اسے پس منظر میں چلنے دیں۔',
+      reminderAllow: 'اجازت دیں',
       apiKeyLabel: 'OpenRouter API کلید',
       petLanguage: 'پالتو کی زبان',
       saveKey: 'کلید محفوظ کریں',
@@ -4706,10 +4724,31 @@ function setupVirtualPet() {
   const reminderDescriptionInput = document.getElementById('pet-reminder-description');
   const reminderDateInput = document.getElementById('pet-reminder-date');
   const reminderTimeInput = document.getElementById('pet-reminder-time');
+  const reminderRepeatInput = document.getElementById('pet-reminder-repeat');
+  const reminderSkipInput = document.getElementById('pet-reminder-skip-sunday');
+  const reminderSkipRow = document.getElementById('pet-reminder-skip-row');
   const reminderStatus = document.getElementById('pet-reminder-status');
+  const reminderExactNote = document.getElementById('pet-reminder-exact');
+  const reminderBatteryNote = document.getElementById('pet-reminder-battery');
 
   function setReminderStatus(message) {
     if (reminderStatus) reminderStatus.textContent = message || '';
+  }
+
+  /* "Skip Sundays" is only a meaningful question once the reminder repeats.
+     The row stays visible (so the option is discoverable) but is disabled and
+     dimmed until the repeat switch is on. */
+  function syncReminderSkipRow() {
+    if (!reminderRepeatInput || !reminderSkipInput) return;
+    const repeating = reminderRepeatInput.checked;
+    reminderSkipInput.disabled = !repeating;
+    if (!repeating) reminderSkipInput.checked = false;
+    if (reminderSkipRow) reminderSkipRow.classList.toggle('is-disabled', !repeating);
+  }
+
+  if (reminderRepeatInput) {
+    reminderRepeatInput.addEventListener('change', syncReminderSkipRow);
+    syncReminderSkipRow();
   }
 
   function readReminders() {
@@ -4723,7 +4762,9 @@ function setupVirtualPet() {
             id: String(item.id),
             title: item.title,
             description: String(item.description || ''),
-            triggerAt: Number(item.triggerAt)
+            triggerAt: Number(item.triggerAt),
+            repeatDaily: Boolean(item.repeatDaily),
+            skipSundays: Boolean(item.repeatDaily && item.skipSundays)
           }));
       } catch (error) {
         return [];
@@ -4743,7 +4784,9 @@ function setupVirtualPet() {
         reminder.id,
         reminder.title,
         reminder.description,
-        reminder.triggerAt
+        reminder.triggerAt,
+        Boolean(reminder.repeatDaily),
+        Boolean(reminder.skipSundays)
       ));
     }
     const list = readReminders().filter(item => item.id !== reminder.id);
@@ -4791,55 +4834,100 @@ function setupVirtualPet() {
     }
   }
 
+  /* Only shown when the phone would otherwise delay the alarm. With the
+     manifest's exact-alarm permission both stay hidden; a device that has the
+     permission switched off gets one tap to fix it. */
+  function refreshReminderReliability() {
+    const exact = document.getElementById('pet-reminder-exact');
+    const battery = document.getElementById('pet-reminder-battery');
+    if (!reminderBridge) {
+      if (exact) exact.hidden = true;
+      if (battery) battery.hidden = true;
+      return;
+    }
+
+    let exactAllowed = true;
+    try {
+      if (typeof reminderBridge.canScheduleExactAlarms === 'function') {
+        exactAllowed = Boolean(reminderBridge.canScheduleExactAlarms());
+      }
+    } catch (error) { /* assume the best */ }
+    if (exact) exact.hidden = exactAllowed;
+
+    let batteryIgnored = true;
+    try {
+      if (typeof reminderBridge.isIgnoringBatteryOptimizations === 'function') {
+        batteryIgnored = Boolean(reminderBridge.isIgnoringBatteryOptimizations());
+      }
+    } catch (error) { /* assume the best */ }
+    if (battery) battery.hidden = batteryIgnored;
+  }
+
+  function buildReminderRow(reminder, missed) {
+    const T = petText();
+    const row = document.createElement('li');
+    row.className = missed ? 'pet-reminder-item pet-reminder-item-missed' : 'pet-reminder-item';
+    row.lang = reminderUsesUrdu(reminder.title) ? 'ur' : 'en';
+
+    const info = document.createElement('div');
+    info.className = 'pet-reminder-info';
+
+    const title = document.createElement('p');
+    title.className = 'pet-reminder-item-title';
+    title.textContent = reminder.title;
+    info.append(title);
+
+    const when = document.createElement('p');
+    when.className = 'pet-reminder-item-when';
+    when.textContent = missed
+      ? `${T.reminderMissed} · ${formatReminderTime(reminder.triggerAt)}`
+      : formatReminderTime(reminder.triggerAt);
+    info.append(when);
+
+    if (reminder.repeatDaily) {
+      const repeat = document.createElement('p');
+      repeat.className = 'pet-reminder-item-repeat';
+      repeat.textContent = reminder.skipSundays ? T.reminderEveryDayNoSunday : T.reminderEveryDay;
+      info.append(repeat);
+    }
+
+    if (reminder.description) {
+      const description = document.createElement('p');
+      description.className = 'pet-reminder-item-note';
+      description.textContent = reminder.description;
+      info.append(description);
+    }
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'pet-reminder-delete';
+    remove.textContent = '🗑️';
+    remove.title = T.reminderDelete;
+    remove.setAttribute('aria-label', T.reminderDelete);
+    remove.addEventListener('click', () => deleteReminder(reminder.id));
+
+    row.append(info, remove);
+    return row;
+  }
+
   function renderReminders() {
     const list = document.getElementById('pet-reminder-list');
     const empty = document.getElementById('pet-reminder-empty');
     if (!list) return;
-    const T = petText();
-    const soonest = Date.now() - 60000;
-    const upcoming = reminders
-      .filter(item => item.triggerAt > soonest)
-      .sort((a, b) => a.triggerAt - b.triggerAt);
+
+    /* A reminder that fired less than a minute ago is still "upcoming" here:
+       the alarm has just rung and the player has not stopped it yet. */
+    const cutoff = Date.now() - 60000;
+    const sorted = reminders.slice().sort((a, b) => a.triggerAt - b.triggerAt);
+    const upcoming = sorted.filter(item => item.triggerAt > cutoff);
+    const missed = sorted.filter(item => item.triggerAt <= cutoff);
 
     list.innerHTML = '';
-    upcoming.forEach(reminder => {
-      const row = document.createElement('li');
-      row.className = 'pet-reminder-item';
-      row.lang = reminderUsesUrdu(reminder.title) ? 'ur' : 'en';
+    upcoming.forEach(reminder => list.appendChild(buildReminderRow(reminder, false)));
+    missed.forEach(reminder => list.appendChild(buildReminderRow(reminder, true)));
 
-      const info = document.createElement('div');
-      info.className = 'pet-reminder-info';
-
-      const title = document.createElement('p');
-      title.className = 'pet-reminder-item-title';
-      title.textContent = reminder.title;
-
-      const when = document.createElement('p');
-      when.className = 'pet-reminder-item-when';
-      when.textContent = formatReminderTime(reminder.triggerAt);
-
-      info.append(title, when);
-
-      if (reminder.description) {
-        const description = document.createElement('p');
-        description.className = 'pet-reminder-item-note';
-        description.textContent = reminder.description;
-        info.append(description);
-      }
-
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'pet-reminder-delete';
-      remove.textContent = '🗑️';
-      remove.title = T.reminderDelete;
-      remove.setAttribute('aria-label', T.reminderDelete);
-      remove.addEventListener('click', () => deleteReminder(reminder.id));
-
-      row.append(info, remove);
-      list.appendChild(row);
-    });
-
-    if (empty) empty.hidden = upcoming.length > 0;
+    if (empty) empty.hidden = sorted.length > 0;
+    refreshReminderReliability();
   }
 
   function localDateInputValue(date) {
@@ -4886,11 +4974,29 @@ function setupVirtualPet() {
         (reminderDateInput.value ? reminderTimeInput : reminderDateInput).focus();
         return;
       }
-      const triggerAt = new Date(`${reminderDateInput.value}T${reminderTimeInput.value}`).getTime();
+
+      const repeatDaily = Boolean(reminderRepeatInput && reminderRepeatInput.checked);
+      const skipSundays = repeatDaily && Boolean(reminderSkipInput && reminderSkipInput.checked);
+
+      let triggerAt = new Date(`${reminderDateInput.value}T${reminderTimeInput.value}`).getTime();
       if (!Number.isFinite(triggerAt)) {
         setReminderStatus(T.reminderNeedTime);
         return;
       }
+
+      /* A daily reminder whose time already passed today starts tomorrow
+         instead of being refused; the guard stops a date typed into the far
+         past from looping for long. */
+      if (repeatDaily) {
+        let guard = 0;
+        while (triggerAt <= Date.now() + 1000 && guard < 400) {
+          const next = new Date(triggerAt);
+          next.setDate(next.getDate() + 1);
+          triggerAt = next.getTime();
+          guard += 1;
+        }
+      }
+
       if (triggerAt <= Date.now() + 1000) {
         setReminderStatus(T.reminderMustBeFuture);
         return;
@@ -4900,19 +5006,48 @@ function setupVirtualPet() {
         id: `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
         title,
         description: reminderDescriptionInput ? reminderDescriptionInput.value.trim() : '',
-        triggerAt
+        triggerAt,
+        repeatDaily,
+        skipSundays
       });
       if (!saved) {
         setReminderStatus(T.reminderSaveFailed);
         return;
       }
-      setReminderStatus(reminderBridge ? T.reminderSaved : T.reminderBrowser);
+      setReminderStatus(
+        reminderBridge
+          ? (repeatDaily ? T.reminderRepeatSaved : T.reminderSaved)
+          : T.reminderBrowser
+      );
       reminderForm.reset();
+      syncReminderSkipRow();
       prefillReminderDefaults();
       refreshReminders();
       ensureReminderNotifications();
     });
   }
+
+  const reminderExactButton = document.getElementById('pet-reminder-exact-button');
+  if (reminderExactButton) {
+    reminderExactButton.addEventListener('click', () => {
+      if (reminderBridge && typeof reminderBridge.requestExactAlarmPermission === 'function') {
+        reminderBridge.requestExactAlarmPermission();
+      }
+    });
+  }
+
+  const reminderBatteryButton = document.getElementById('pet-reminder-battery-button');
+  if (reminderBatteryButton) {
+    reminderBatteryButton.addEventListener('click', () => {
+      if (reminderBridge && typeof reminderBridge.requestIgnoreBatteryOptimizations === 'function') {
+        reminderBridge.requestIgnoreBatteryOptimizations();
+      }
+    });
+  }
+
+  /* The activity re-arms alarms and pokes this when it resumes, which is what
+     refreshes the two reliability hints after the system settings close. */
+  window.__onReminderResume = () => refreshReminders();
 
   prefillReminderDefaults();
 

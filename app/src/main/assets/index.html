@@ -624,7 +624,7 @@
       <div class="pet-settings-page">
         <section class="pet-settings-block" id="pet-reminder-block" aria-labelledby="pet-reminder-heading">
           <h2 class="pet-settings-heading" id="pet-reminder-heading" data-i18n="remindersTitle">Reminders</h2>
-          <p class="pet-settings-note" data-i18n="remindersHelp">A reminder buzzes at the exact time you pick and keeps buzzing until you tap Stop on its notification. It makes no sound.</p>
+          <p class="pet-settings-note" data-i18n="remindersHelp">A reminder buzzes at the exact time you pick and keeps buzzing until you tap Stop on its notification. It makes no sound. Turn on Repeat to have it come back every day.</p>
           <form id="pet-reminder-form" class="pet-reminder-form">
             <label class="pet-reminder-field">
               <span data-i18n="reminderTitleLabel">Title</span>
@@ -644,9 +644,25 @@
                 <input id="pet-reminder-time" type="time">
               </label>
             </div>
+            <label class="pet-reminder-toggle">
+              <input id="pet-reminder-repeat" type="checkbox">
+              <span data-i18n="reminderRepeat">Repeat every day</span>
+            </label>
+            <label class="pet-reminder-toggle pet-reminder-toggle-nested" id="pet-reminder-skip-row">
+              <input id="pet-reminder-skip-sunday" type="checkbox" disabled>
+              <span data-i18n="reminderSkipSunday">Skip Sundays</span>
+            </label>
             <button type="submit" class="pet-reminder-add" data-i18n="reminderAdd">Set reminder</button>
           </form>
           <p id="pet-reminder-status" class="pet-settings-note" role="status"></p>
+          <p id="pet-reminder-exact" class="pet-reminder-warning" hidden>
+            <span data-i18n="reminderExactWarning">Android can hold reminders back while the app is closed. Allow exact alarms so they ring on time.</span>
+            <button type="button" id="pet-reminder-exact-button" class="pet-reminder-fix" data-i18n="reminderAllow">Allow</button>
+          </p>
+          <p id="pet-reminder-battery" class="pet-reminder-warning" hidden>
+            <span data-i18n="reminderBatteryWarning">Your phone may put the app to sleep and delay reminders. Let it run in the background.</span>
+            <button type="button" id="pet-reminder-battery-button" class="pet-reminder-fix" data-i18n="reminderAllow">Allow</button>
+          </p>
           <ul id="pet-reminder-list" class="pet-reminder-list"></ul>
           <p id="pet-reminder-empty" class="pet-settings-note" data-i18n="remindersEmpty">No reminders yet.</p>
         </section>

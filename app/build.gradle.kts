@@ -41,12 +41,12 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 38 / 1.33 = reminders: exact-time alarm, silent repeating vibration,
-        // ongoing notification whose Stop action ends it; "remind me" /
-        // "yaad dilana" in chat opens the prefilled form. Settings lost the
-        // "Back to the games" button.
-        versionCode = 38
-        versionName = "1.33"
+        // 39 / 1.34 = reminders that survive a closed app: exact-alarm
+        // permissions, re-arming on every launch, daily repeat with an optional
+        // Sunday skip. The Stop action keeps a repeating reminder for the next
+        // day instead of deleting it.
+        versionCode = 39
+        versionName = "1.34"
     }
 
     signingConfigs {

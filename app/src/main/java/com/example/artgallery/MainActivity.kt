@@ -49,6 +49,11 @@ class MainActivity : ComponentActivity() {
     val horizonAvailable = HorizonNative.isAvailable(this)
     companionName = LauncherStore.readCompanionName(this)
 
+    /* Opening the app is the moment its alarms may have been dropped (force
+       stop, update, a battery manager that slept it), so put them back before
+       the player can even open the pet page. */
+    ReminderStore.rescheduleAll(this)
+
     setContent {
       LauncherTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
