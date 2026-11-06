@@ -6,6 +6,15 @@
         <item name="android:colorBackground">@color/splash_background</item>
     </style>
 
+    <!-- The reminder ring screen: dark, full screen, no chrome. -->
+    <style name="Theme.ArtGallery.Reminder" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">#0B0D10</item>
+        <item name="android:colorBackground">#0B0D10</item>
+        <item name="android:colorAccent">#C9CED4</item>
+    </style>
+
     <!-- Horizon renders its own UI on a NativeActivity surface, so this theme
          removes the system chrome and starts branded. The window background is
          the launch splash (four quadrant boxes on splash_background) rather

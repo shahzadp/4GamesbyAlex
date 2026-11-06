@@ -655,14 +655,20 @@
             <button type="submit" class="pet-reminder-add" data-i18n="reminderAdd">Set reminder</button>
           </form>
           <p id="pet-reminder-status" class="pet-settings-note" role="status"></p>
-          <p id="pet-reminder-exact" class="pet-reminder-warning" hidden>
-            <span data-i18n="reminderExactWarning">Android can hold reminders back while the app is closed. Allow exact alarms so they ring on time.</span>
-            <button type="button" id="pet-reminder-exact-button" class="pet-reminder-fix" data-i18n="reminderAllow">Allow</button>
-          </p>
-          <p id="pet-reminder-battery" class="pet-reminder-warning" hidden>
-            <span data-i18n="reminderBatteryWarning">Your phone may put the app to sleep and delay reminders. Let it run in the background.</span>
-            <button type="button" id="pet-reminder-battery-button" class="pet-reminder-fix" data-i18n="reminderAllow">Allow</button>
-          </p>
+
+          <div id="pet-reminder-reliability" class="pet-reminder-reliability">
+            <p class="pet-reminder-reliability-title" data-i18n="reliabilityTitle">Make reminders reliable</p>
+            <p id="pet-reminder-reliability-ok" class="pet-reminder-reliability-ok" data-i18n="reliabilityOk" hidden>All set — reminders can ring even when this app is closed.</p>
+            <ul id="pet-reminder-checks" class="pet-reminder-checks"></ul>
+            <p class="pet-reminder-reliability-help" data-i18n="reliabilityHelp">On Xiaomi, OPPO, vivo, Samsung or Huawei, also allow autostart and set battery use to "No restrictions" for this app.</p>
+            <div class="pet-reminder-reliability-actions">
+              <button type="button" id="pet-reminder-battery-settings" data-i18n="openBatterySettings">Battery settings</button>
+              <button type="button" id="pet-reminder-app-settings" data-i18n="openAppSettings">App info</button>
+              <button type="button" id="pet-reminder-test" data-i18n="testReminder">Test in 1 minute</button>
+            </div>
+            <p id="pet-reminder-test-status" class="pet-settings-note" role="status"></p>
+          </div>
+
           <ul id="pet-reminder-list" class="pet-reminder-list"></ul>
           <p id="pet-reminder-empty" class="pet-settings-note" data-i18n="remindersEmpty">No reminders yet.</p>
         </section>

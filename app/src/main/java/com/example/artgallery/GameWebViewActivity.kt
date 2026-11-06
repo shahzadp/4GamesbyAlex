@@ -276,6 +276,84 @@ class GameWebViewActivity : ComponentActivity() {
             }
         }
 
+        /** True when a reminder may wake the screen (Android 14+ can say no). */
+        @JavascriptInterface
+        fun canUseFullScreenIntent(): Boolean =
+            ReminderStore.fullScreenIntentAllowed(this@GameWebViewActivity)
+
+        @JavascriptInterface
+        fun requestFullScreenIntentPermission() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+            runOnUiThread {
+                try {
+                    startActivity(
+                        Intent(
+                            Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                            Uri.parse("package:$packageName"),
+                        )
+                    )
+                } catch (error: ActivityNotFoundException) {
+                    openAppSettings()
+                }
+            }
+        }
+
+        /**
+         * The list of apps exempt from battery optimisation. This is the screen
+         * MIUI, ColorOS and One UI players need: without the exemption those
+         * phones freeze the app and hold back every alarm until it is opened.
+         */
+        @JavascriptInterface
+        fun openBatterySettings() {
+            runOnUiThread {
+                try {
+                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                } catch (error: ActivityNotFoundException) {
+                    openAppSettings()
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun openAppSettings() {
+            runOnUiThread {
+                try {
+                    startActivity(
+                        Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:$packageName"),
+                        )
+                    )
+                } catch (error: ActivityNotFoundException) {
+                    // Nothing sensible left to open.
+                }
+            }
+        }
+
+        /** True when Android will let a notification interrupt the phone. */
+        @JavascriptInterface
+        fun areNotificationsEnabled(): Boolean =
+            ReminderStore.notificationsEnabled(this@GameWebViewActivity)
+
+        /** True when Android has put the app in its "restricted" standby bucket. */
+        @JavascriptInterface
+        fun isStandbyRestricted(): Boolean =
+            ReminderStore.standbyRestricted(this@GameWebViewActivity)
+
+        @JavascriptInterface
+        fun openNotificationSettings() {
+            runOnUiThread {
+                try {
+                    startActivity(
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    )
+                } catch (error: ActivityNotFoundException) {
+                    openAppSettings()
+                }
+            }
+        }
+
         /** Opens the system permission dialog on Android 13 and newer. */
         @JavascriptInterface
         fun requestNotificationPermission() {

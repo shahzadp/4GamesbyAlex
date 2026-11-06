@@ -23,6 +23,10 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- Offered in settings when a phone's battery saver sleeps the app. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Lets a reminder wake the screen with its ringing screen, like an alarm,
+         instead of waiting silently in the shade. Downgrades to a heads-up
+         notification if the user has switched it off. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Horizon's save/export path on API 28 only; 29+ uses MediaStore/scoped
          storage and needs no permission at all. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
@@ -109,6 +113,18 @@
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>
         </provider>
+
+        <!-- The screen a reminder opens when it rings. It turns the display on
+             and shows over the lock screen, so a reminder cannot be missed just
+             because the phone was asleep. -->
+        <activity
+            android:name=".ReminderRingActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:theme="@style/Theme.ArtGallery.Reminder"
+            android:turnScreenOn="true" />
 
         <!-- Pet reminders. The alarm fires this receiver even when the app was
              never opened since boot, so it reads the reminder from preferences

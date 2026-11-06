@@ -63,6 +63,8 @@ object ReminderStore {
     private const val KEY_REMINDERS = "reminders_json"
 
     const val EXTRA_ID = "reminder_id"
+    const val EXTRA_RING_TITLE = "reminder_ring_title"
+    const val EXTRA_RING_DESCRIPTION = "reminder_ring_description"
 
     const val CHANNEL_ID = "pet_reminders_alarm"
 
@@ -404,10 +406,15 @@ object ReminderStore {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val openIntent = PendingIntent.getActivity(
+        /* The ringing screen, not just the app. A silent, vibrating notification
+           is invisible on a locked phone; a full-screen intent is the one
+           background launch Android still allows, and it wakes the screen the
+           way an alarm should. Where the permission is off it degrades to a
+           heads-up notification, so the reminder is never lost. */
+        val ringIntent = PendingIntent.getActivity(
             context,
-            notificationId(reminder.id),
-            Intent(context, MainActivity::class.java),
+            notificationId(reminder.id) + 1,
+            ReminderRingActivity.intent(context, reminder),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
@@ -435,7 +442,8 @@ object ReminderStore {
             .setDefaults(0)
             .setVibrate(VIBRATION_PATTERN)
             .addAction(0, stopLabel, stopPendingIntent)
-            .setContentIntent(openIntent)
+            .setFullScreenIntent(ringIntent, true)
+            .setContentIntent(ringIntent)
             .build()
 
         try {
@@ -484,14 +492,52 @@ object ReminderStore {
         }
     }
 
-    fun notificationsEnabled(context: Context): Boolean =
-        NotificationManagerCompat.from(context).areNotificationsEnabled()
+    fun notificationsEnabled(context: Context): Boolean {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        // The app can be allowed notifications while this one channel is muted
+        // by a long-press; the reminder would then buzz with no Stop button.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            val channel = manager?.getNotificationChannel(CHANNEL_ID)
+            if (channel != null && channel.importance == NotificationManager.IMPORTANCE_NONE) return false
+        }
+        return true
+    }
+
+    /**
+     * Android 13+ can place an app in the "restricted" App Standby bucket. That
+     * is separate from the battery-optimisation exemption and it is a common
+     * reason for an alarm to be held back until the app is opened by hand.
+     */
+    fun standbyRestricted(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+        val usageStats = context.getSystemService(Context.USAGE_STATS_SERVICE)
+            as? android.app.usage.UsageStatsManager ?: return false
+        return try {
+            usageStats.appStandbyBucket ==
+                android.app.usage.UsageStatsManager.STANDBY_BUCKET_RESTRICTED
+        } catch (error: Exception) {
+            false
+        }
+    }
 
     /** Android 12+ gates `setAlarmClock` behind a user-controlled permission. */
     fun exactAlarmsAllowed(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
         val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return false
         return manager.canScheduleExactAlarms()
+    }
+
+    /**
+     * Android 14+ lets the user switch off full-screen notifications. When that
+     * is off the ringing screen still appears as a heads-up notification, but
+     * it will not turn the screen on.
+     */
+    fun fullScreenIntentAllowed(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            ?: return false
+        return manager.canUseFullScreenIntent()
     }
 
     /**

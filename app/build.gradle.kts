@@ -41,12 +41,13 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 39 / 1.34 = reminders that survive a closed app: exact-alarm
-        // permissions, re-arming on every launch, daily repeat with an optional
-        // Sunday skip. The Stop action keeps a repeating reminder for the next
-        // day instead of deleting it.
-        versionCode = 39
-        versionName = "1.34"
+        // 40 / 1.35 = reminders ring like an alarm: full-screen ringing
+        // activity that wakes the screen, plus a reliability panel that names
+        // the exact system setting blocking delivery (notifications, exact
+        // alarms, full-screen alerts, battery exemption, restricted bucket)
+        // and a one-minute test.
+        versionCode = 40
+        versionName = "1.35"
     }
 
     signingConfigs {

@@ -1938,23 +1938,90 @@ body.android-fullscreen .page.active {
   cursor: default;
 }
 
-.pet-reminder-warning {
+.pet-reminder-reliability {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  border: 1px solid rgba(226, 231, 236, 0.1);
+  border-radius: 10px;
+  background: #101214;
+}
+
+.pet-reminder-reliability[hidden] { display: none; }
+
+.pet-reminder-reliability-title {
+  margin: 0;
+  color: #dfe3e7;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pet-reminder-reliability-ok {
+  margin: 0;
+  color: #9ec49a;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.pet-reminder-reliability-ok[hidden] { display: none; }
+
+.pet-reminder-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pet-reminder-checks[hidden] { display: none; }
+
+.pet-reminder-check {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid rgba(240, 196, 120, 0.28);
-  border-radius: 10px;
-  background: rgba(240, 196, 120, 0.08);
   color: #e8cfaa;
   font-size: 0.74rem;
   line-height: 1.35;
 }
 
-.pet-reminder-warning[hidden] { display: none; }
+.pet-reminder-check span { flex: 1; }
 
-.pet-reminder-warning span { flex: 1; }
+.pet-reminder-reliability-help {
+  margin: 0;
+  color: #8b9198;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.pet-reminder-reliability-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.pet-reminder-reliability-actions button {
+  min-height: 34px;
+  border: 1px solid rgba(226, 231, 236, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d7dade;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The test button is the one that proves the whole chain works. */
+.pet-reminder-reliability-actions button:last-child {
+  grid-column: 1 / -1;
+  background: rgba(201, 206, 212, 0.14);
+  border-color: rgba(201, 206, 212, 0.32);
+  color: #f0f2f4;
+}
+
+.pet-reminder-reliability-actions button:active { transform: scale(0.98); }
 
 .pet-reminder-fix {
   flex: 0 0 auto;

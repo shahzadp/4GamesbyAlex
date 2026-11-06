@@ -4439,9 +4439,20 @@ function setupVirtualPet() {
       reminderEveryDayNoSunday: 'Every day except Sunday',
       reminderMissed: 'Missed',
       reminderRepeatSaved: 'Reminder set. It will ring every day.',
-      reminderExactWarning: 'Android can hold reminders back while the app is closed. Allow exact alarms so they ring on time.',
-      reminderBatteryWarning: 'Your phone may put the app to sleep and delay reminders. Let it run in the background.',
       reminderAllow: 'Allow',
+      reliabilityTitle: 'Make reminders reliable',
+      reliabilityOk: 'All set - reminders can ring even when this app is closed.',
+      checkNotifications: 'Notifications are off, so a reminder cannot show its Stop button.',
+      checkExactAlarms: 'Exact alarms are off, so Android may delay a reminder.',
+      checkFullScreen: 'Full-screen alerts are off, so a reminder cannot wake the screen.',
+      checkBattery: 'The phone may sleep the app and hold reminders back.',
+      checkStandby: 'Android has marked this app as restricted, which can stop its alarms. Open App info, then Battery, and choose Unrestricted.',
+      reliabilityHelp: 'On Xiaomi, OPPO, vivo, Samsung or Huawei, also allow autostart and set battery use to "No restrictions" for this app.',
+      openBatterySettings: 'Battery settings',
+      openAppSettings: 'App info',
+      testReminder: 'Test in 1 minute',
+      testReminderTitle: 'Test reminder',
+      testReminderSet: 'Test reminder set. Close the app completely and wait a minute.',
       apiKeyLabel: 'OpenRouter API key',
       petLanguage: 'Pet language',
       saveKey: 'Save key securely',
@@ -4502,9 +4513,20 @@ function setupVirtualPet() {
       reminderEveryDayNoSunday: 'اتوار کے سوا ہر روز',
       reminderMissed: 'چھوٹ گئی',
       reminderRepeatSaved: 'یاد دہانی رکھ دی گئی۔ یہ ہر روز بجے گی۔',
-      reminderExactWarning: 'ایپ بند ہونے پر Android یاد دہانیاں روک سکتا ہے۔ بروقت بجانے کے لیے درست الارم کی اجازت دیں۔',
-      reminderBatteryWarning: 'آپ کا فون ایپ کو سلا سکتا ہے اور یاد دہانیاں دیر سے بجا سکتا ہے۔ اسے پس منظر میں چلنے دیں۔',
       reminderAllow: 'اجازت دیں',
+      reliabilityTitle: 'یاد دہانیاں قابلِ بھروسہ بنائیں',
+      reliabilityOk: 'سب ٹھیک ہے - ایپ بند ہونے پر بھی یاد دہانی بج سکتی ہے۔',
+      checkNotifications: 'اطلاعات بند ہیں، اس لیے یاد دہانی کا "سٹاپ" بٹن نہیں آ سکے گا۔',
+      checkExactAlarms: 'درست الارم بند ہیں، اس لیے Android یاد دہانی میں دیر کر سکتا ہے۔',
+      checkFullScreen: 'فل اسکرین اطلاعات بند ہیں، اس لیے یاد دہانی اسکرین نہیں جگا سکے گی۔',
+      checkBattery: 'فون ایپ کو سلا سکتا ہے اور یاد دہانیاں روک سکتا ہے۔',
+      checkStandby: 'Android نے اس ایپ کو "restricted" قرار دیا ہے، جس سے الارم رک سکتے ہیں۔ App info کھولیں، پھر Battery، اور Unrestricted منتخب کریں۔',
+      reliabilityHelp: 'Xiaomi، OPPO، vivo، Samsung یا Huawei پر آٹو اسٹارٹ کی اجازت دیں اور بیٹری کو "No restrictions" پر رکھیں۔',
+      openBatterySettings: 'بیٹری کی ترتیبات',
+      openAppSettings: 'ایپ کی معلومات',
+      testReminder: 'ایک منٹ میں آزمائیں',
+      testReminderTitle: 'آزمائشی یاد دہانی',
+      testReminderSet: 'آزمائشی یاد دہانی رکھ دی گئی۔ ایپ مکمل بند کریں اور ایک منٹ انتظار کریں۔',
       apiKeyLabel: 'OpenRouter API کلید',
       petLanguage: 'پالتو کی زبان',
       saveKey: 'کلید محفوظ کریں',
@@ -4728,8 +4750,7 @@ function setupVirtualPet() {
   const reminderSkipInput = document.getElementById('pet-reminder-skip-sunday');
   const reminderSkipRow = document.getElementById('pet-reminder-skip-row');
   const reminderStatus = document.getElementById('pet-reminder-status');
-  const reminderExactNote = document.getElementById('pet-reminder-exact');
-  const reminderBatteryNote = document.getElementById('pet-reminder-battery');
+  const reminderTestStatus = document.getElementById('pet-reminder-test-status');
 
   function setReminderStatus(message) {
     if (reminderStatus) reminderStatus.textContent = message || '';
@@ -4834,16 +4855,58 @@ function setupVirtualPet() {
     }
   }
 
-  /* Only shown when the phone would otherwise delay the alarm. With the
-     manifest's exact-alarm permission both stay hidden; a device that has the
-     permission switched off gets one tap to fix it. */
+  /* The reliability panel is the answer to "it only rings when I open the
+     app": it names the exact system setting that is holding the alarm back and
+     opens the right screen to change it. Each row only appears while its check
+     is failing, so a healthy phone shows a single reassuring line. */
+  function reminderCheckRow(label, actionLabel, handler) {
+    const item = document.createElement('li');
+    item.className = 'pet-reminder-check';
+
+    const text = document.createElement('span');
+    text.textContent = label;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'pet-reminder-fix';
+    button.textContent = actionLabel;
+    button.addEventListener('click', handler);
+
+    item.append(text, button);
+    return item;
+  }
+
   function refreshReminderReliability() {
-    const exact = document.getElementById('pet-reminder-exact');
-    const battery = document.getElementById('pet-reminder-battery');
+    const panel = document.getElementById('pet-reminder-reliability');
+    const list = document.getElementById('pet-reminder-checks');
+    const ok = document.getElementById('pet-reminder-reliability-ok');
+    if (!panel || !list) return;
+
     if (!reminderBridge) {
-      if (exact) exact.hidden = true;
-      if (battery) battery.hidden = true;
+      panel.hidden = true;
       return;
+    }
+    panel.hidden = false;
+
+    const T = petText();
+    const rows = [];
+
+    let notificationsOn = true;
+    try {
+      if (typeof reminderBridge.notificationsEnabled === 'function') {
+        notificationsOn = Boolean(reminderBridge.notificationsEnabled());
+      }
+    } catch (error) { /* assume allowed */ }
+    if (!notificationsOn) {
+      rows.push(reminderCheckRow(T.checkNotifications, T.reminderAllow, () => {
+        try {
+          if (typeof reminderBridge.openNotificationSettings === 'function') {
+            reminderBridge.openNotificationSettings();
+          } else {
+            reminderBridge.requestNotificationPermission();
+          }
+        } catch (error) {}
+      }));
     }
 
     let exactAllowed = true;
@@ -4851,16 +4914,53 @@ function setupVirtualPet() {
       if (typeof reminderBridge.canScheduleExactAlarms === 'function') {
         exactAllowed = Boolean(reminderBridge.canScheduleExactAlarms());
       }
-    } catch (error) { /* assume the best */ }
-    if (exact) exact.hidden = exactAllowed;
+    } catch (error) { /* assume allowed */ }
+    if (!exactAllowed) {
+      rows.push(reminderCheckRow(T.checkExactAlarms, T.reminderAllow, () => {
+        try { reminderBridge.requestExactAlarmPermission(); } catch (error) {}
+      }));
+    }
+
+    let fullScreenAllowed = true;
+    try {
+      if (typeof reminderBridge.canUseFullScreenIntent === 'function') {
+        fullScreenAllowed = Boolean(reminderBridge.canUseFullScreenIntent());
+      }
+    } catch (error) { /* assume allowed */ }
+    if (!fullScreenAllowed) {
+      rows.push(reminderCheckRow(T.checkFullScreen, T.reminderAllow, () => {
+        try { reminderBridge.requestFullScreenIntentPermission(); } catch (error) {}
+      }));
+    }
 
     let batteryIgnored = true;
     try {
       if (typeof reminderBridge.isIgnoringBatteryOptimizations === 'function') {
         batteryIgnored = Boolean(reminderBridge.isIgnoringBatteryOptimizations());
       }
-    } catch (error) { /* assume the best */ }
-    if (battery) battery.hidden = batteryIgnored;
+    } catch (error) { /* assume allowed */ }
+    if (!batteryIgnored) {
+      rows.push(reminderCheckRow(T.checkBattery, T.reminderAllow, () => {
+        try { reminderBridge.requestIgnoreBatteryOptimizations(); } catch (error) {}
+      }));
+    }
+
+    let standbyRestricted = false;
+    try {
+      if (typeof reminderBridge.isStandbyRestricted === 'function') {
+        standbyRestricted = Boolean(reminderBridge.isStandbyRestricted());
+      }
+    } catch (error) { /* assume fine */ }
+    if (standbyRestricted) {
+      rows.push(reminderCheckRow(T.checkStandby, T.openAppSettings, () => {
+        try { reminderBridge.openAppSettings(); } catch (error) {}
+      }));
+    }
+
+    list.innerHTML = '';
+    rows.forEach(row => list.appendChild(row));
+    list.hidden = rows.length === 0;
+    if (ok) ok.hidden = rows.length > 0;
   }
 
   function buildReminderRow(reminder, missed) {
@@ -5027,20 +5127,48 @@ function setupVirtualPet() {
     });
   }
 
-  const reminderExactButton = document.getElementById('pet-reminder-exact-button');
-  if (reminderExactButton) {
-    reminderExactButton.addEventListener('click', () => {
-      if (reminderBridge && typeof reminderBridge.requestExactAlarmPermission === 'function') {
-        reminderBridge.requestExactAlarmPermission();
+  function setReminderTestStatus(message) {
+    if (reminderTestStatus) reminderTestStatus.textContent = message || '';
+  }
+
+  const reminderBatterySettings = document.getElementById('pet-reminder-battery-settings');
+  if (reminderBatterySettings) {
+    reminderBatterySettings.addEventListener('click', () => {
+      if (reminderBridge && typeof reminderBridge.openBatterySettings === 'function') {
+        reminderBridge.openBatterySettings();
       }
     });
   }
 
-  const reminderBatteryButton = document.getElementById('pet-reminder-battery-button');
-  if (reminderBatteryButton) {
-    reminderBatteryButton.addEventListener('click', () => {
-      if (reminderBridge && typeof reminderBridge.requestIgnoreBatteryOptimizations === 'function') {
-        reminderBridge.requestIgnoreBatteryOptimizations();
+  const reminderAppSettings = document.getElementById('pet-reminder-app-settings');
+  if (reminderAppSettings) {
+    reminderAppSettings.addEventListener('click', () => {
+      if (reminderBridge && typeof reminderBridge.openAppSettings === 'function') {
+        reminderBridge.openAppSettings();
+      }
+    });
+  }
+
+  /* One real alarm a minute from now, so the player can prove the whole chain
+     (alarm, notification, ringing screen) with the app closed instead of
+     waiting a day to find out it never fires. */
+  const reminderTestButton = document.getElementById('pet-reminder-test');
+  if (reminderTestButton) {
+    reminderTestButton.addEventListener('click', () => {
+      if (!reminderBridge) return;
+      const T = petText();
+      const saved = saveReminder({
+        id: `test-${Date.now().toString(36)}`,
+        title: T.testReminderTitle,
+        description: '',
+        triggerAt: Date.now() + 60 * 1000,
+        repeatDaily: false,
+        skipSundays: false
+      });
+      setReminderTestStatus(saved ? T.testReminderSet : T.reminderSaveFailed);
+      if (saved) {
+        refreshReminders();
+        ensureReminderNotifications();
       }
     });
   }
