@@ -4447,6 +4447,8 @@ function setupVirtualPet() {
       checkFullScreen: 'Full-screen alerts are off, so a reminder cannot wake the screen.',
       checkBattery: 'The phone may sleep the app and hold reminders back.',
       checkStandby: 'Android has marked this app as restricted, which can stop its alarms. Open App info, then Battery, and choose Unrestricted.',
+      checkAlarmDropped: 'This phone cancelled a reminder\'s alarm ({time}) while the app was in the background. Allow autostart and set battery use to "No restrictions".',
+      autostartSettings: 'Autostart settings',
       reliabilityHelp: 'On Xiaomi, OPPO, vivo, Samsung or Huawei, also allow autostart and set battery use to "No restrictions" for this app.',
       openBatterySettings: 'Battery settings',
       openAppSettings: 'App info',
@@ -4521,6 +4523,8 @@ function setupVirtualPet() {
       checkFullScreen: 'فل اسکرین اطلاعات بند ہیں، اس لیے یاد دہانی اسکرین نہیں جگا سکے گی۔',
       checkBattery: 'فون ایپ کو سلا سکتا ہے اور یاد دہانیاں روک سکتا ہے۔',
       checkStandby: 'Android نے اس ایپ کو "restricted" قرار دیا ہے، جس سے الارم رک سکتے ہیں۔ App info کھولیں، پھر Battery، اور Unrestricted منتخب کریں۔',
+      checkAlarmDropped: 'فون نے ایپ کے پس منظر میں جانے پر {time} کی یاد دہانی کا الارم منسوخ کر دیا۔ آٹو اسٹارٹ کی اجازت دیں اور بیٹری کو "No restrictions" پر رکھیں۔',
+      autostartSettings: 'آٹو اسٹارٹ کی ترتیبات',
       reliabilityHelp: 'Xiaomi، OPPO، vivo، Samsung یا Huawei پر آٹو اسٹارٹ کی اجازت دیں اور بیٹری کو "No restrictions" پر رکھیں۔',
       openBatterySettings: 'بیٹری کی ترتیبات',
       openAppSettings: 'ایپ کی معلومات',
@@ -4891,6 +4895,25 @@ function setupVirtualPet() {
     const T = petText();
     const rows = [];
 
+    /* A reminder's alarm that the phone cleared while the app was backgrounded
+       cannot be repaired from here - but the player can stop the phone from
+       doing it again, so say it plainly and offer that one screen. */
+    let health = null;
+    try {
+      if (typeof reminderBridge.getAlarmHealth === 'function') {
+        health = JSON.parse(reminderBridge.getAlarmHealth() || '{}');
+      }
+    } catch (error) { /* no health information available */ }
+    if (health && Number(health.droppedAt) > 0 && Number(health.droppedFor) > 0) {
+      rows.push(reminderCheckRow(
+        T.checkAlarmDropped.replace('{time}', formatReminderTime(Number(health.droppedFor))),
+        T.autostartSettings,
+        () => {
+          try { reminderBridge.openAutostartSettings(); } catch (error) {}
+        }
+      ));
+    }
+
     let notificationsOn = true;
     try {
       if (typeof reminderBridge.notificationsEnabled === 'function') {
@@ -5145,6 +5168,17 @@ function setupVirtualPet() {
     reminderAppSettings.addEventListener('click', () => {
       if (reminderBridge && typeof reminderBridge.openAppSettings === 'function') {
         reminderBridge.openAppSettings();
+      }
+    });
+  }
+
+  /* MIUI, ColorOS, Funtouch and One UI hide background limits in their own
+     screens, not in Android's battery list. */
+  const reminderAutostart = document.getElementById('pet-reminder-autostart');
+  if (reminderAutostart) {
+    reminderAutostart.addEventListener('click', () => {
+      if (reminderBridge && typeof reminderBridge.openAutostartSettings === 'function') {
+        reminderBridge.openAutostartSettings();
       }
     });
   }

@@ -50,8 +50,9 @@ class MainActivity : ComponentActivity() {
     companionName = LauncherStore.readCompanionName(this)
 
     /* Opening the app is the moment its alarms may have been dropped (force
-       stop, update, a battery manager that slept it), so put them back before
-       the player can even open the pet page. */
+       stop, update, a battery manager that slept it), so check what survived
+       and put them all back before the player can even open the pet page. */
+    ReminderStore.auditArmed(this)
     ReminderStore.rescheduleAll(this)
 
     setContent {
@@ -71,6 +72,9 @@ class MainActivity : ComponentActivity() {
     super.onResume()
     // Coming back from a game: the player may have renamed the companion.
     companionName = LauncherStore.readCompanionName(this)
+    // Same check as onCreate, for the case where the app was only backgrounded.
+    ReminderStore.auditArmed(this)
+    ReminderStore.rescheduleAll(this)
   }
 
   private fun openGame(game: GameEntry) {

@@ -41,13 +41,15 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 40 / 1.35 = reminders ring like an alarm: full-screen ringing
-        // activity that wakes the screen, plus a reliability panel that names
-        // the exact system setting blocking delivery (notifications, exact
-        // alarms, full-screen alerts, battery exemption, restricted bucket)
-        // and a one-minute test.
-        versionCode = 40
-        versionName = "1.35"
+        // 41 / 1.36 = reminders survive the app going to the background: every
+        // reminder is armed twice (alarm clock + exact standby) so one kind of
+        // alarm being cleared by a vendor battery manager is not fatal, the
+        // alarms are re-armed as the app leaves the screen, and the settings
+        // page now detects and reports a phone that cancelled an alarm while
+        // the app was in the background, with a shortcut to its autostart
+        // screen.
+        versionCode = 41
+        versionName = "1.36"
     }
 
     signingConfigs {

@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -339,6 +340,24 @@ class GameWebViewActivity : ComponentActivity() {
         @JavascriptInterface
         fun isStandbyRestricted(): Boolean =
             ReminderStore.standbyRestricted(this@GameWebViewActivity)
+
+        /**
+         * Alarm bookkeeping for the settings page: the system's next alarm
+         * clock, and whether this phone cleared a reminder's alarm while the
+         * app was in the background.
+         */
+        @JavascriptInterface
+        fun getAlarmHealth(): String = ReminderStore.healthJson(this@GameWebViewActivity)
+
+        /**
+         * Opens the vendor screen that lets a background app keep its timers.
+         * Those screens have no public API, so each known OEM component is
+         * tried in turn and App info is the fallback.
+         */
+        @JavascriptInterface
+        fun openAutostartSettings() {
+            runOnUiThread { openAutostartSettingsScreen() }
+        }
 
         @JavascriptInterface
         fun openNotificationSettings() {
@@ -843,6 +862,10 @@ class GameWebViewActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        /* First check whether the phone dropped an alarm while this app was in
+           the background, then put every reminder back. The order matters: once
+           the alarms are re-armed the check would always look healthy. */
+        ReminderStore.auditArmed(this)
         /* Re-arm every reminder. Alarms are dropped by a force-stop, a revoked
            exact-alarm permission and some aggressive battery managers; doing
            this on every resume means a reminder set last week is still an
@@ -858,6 +881,14 @@ class GameWebViewActivity : ComponentActivity() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        /* One last re-arm as the app leaves the screen. Several vendor battery
+           managers clear an app's alarms when it is backgrounded, so the alarm
+           is put back in the instant before that can happen. */
+        ReminderStore.rescheduleAll(this)
+    }
+
     override fun onDestroy() {
         petApiExecutor.shutdownNow()
         textToSpeech?.stop()
@@ -866,6 +897,68 @@ class GameWebViewActivity : ComponentActivity() {
             webView.destroy()
         }
         super.onDestroy()
+    }
+
+    /**
+     * Vendor "autostart" / "background activity" screens. They are not part of
+     * the Android SDK, so the components are tried in order; the fallback is the
+     * app's own info page, where Battery is one tap away.
+     */
+    private fun openAutostartSettingsScreen() {
+        for (component in autostartComponents()) {
+            try {
+                startActivity(Intent().setComponent(component))
+                return
+            } catch (error: Exception) {
+                // Not this phone, or the screen moved between OS versions.
+            }
+        }
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$packageName"),
+                )
+            )
+        } catch (error: ActivityNotFoundException) {
+            // Nothing left to open.
+        }
+    }
+
+    private fun autostartComponents(): List<ComponentName> {
+        val maker = "${Build.MANUFACTURER} ${Build.BRAND}".lowercase(Locale.ROOT)
+        val components = mutableListOf<ComponentName>()
+        fun add(packageName: String, className: String) {
+            components.add(ComponentName(packageName, className))
+        }
+        when {
+            maker.contains("xiaomi") || maker.contains("redmi") || maker.contains("poco") -> {
+                add("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+                add("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")
+            }
+            maker.contains("oppo") || maker.contains("realme") || maker.contains("oneplus") -> {
+                add("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
+                add("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")
+                add("com.oplus.safecenter", "com.oplus.safecenter.startupapp.StartupAppListActivity")
+            }
+            maker.contains("vivo") || maker.contains("iqoo") -> {
+                add("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")
+                add("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")
+            }
+            maker.contains("huawei") || maker.contains("honor") -> {
+                add("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")
+                add("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")
+            }
+            maker.contains("samsung") -> {
+                add("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")
+                add("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.BatteryActivity")
+            }
+            maker.contains("infinix") || maker.contains("tecno") || maker.contains("itel") -> {
+                add("com.transsion.phonemaster", "com.transsion.phonemaster.ui.autoboot.AutoBootActivity")
+                add("com.itel.autobootmanager", "com.itel.autobootmanager.activity.AutoBootMgrActivity")
+            }
+        }
+        return components
     }
 
     private companion object {

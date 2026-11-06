@@ -2021,6 +2021,10 @@ body.android-fullscreen .page.active {
   color: #f0f2f4;
 }
 
+/* The vendor autostart screen is the fix on MIUI, ColorOS and One UI, so it
+   gets a row of its own rather than sharing a cell. */
+#pet-reminder-autostart { grid-column: 1 / -1; }
+
 .pet-reminder-reliability-actions button:active { transform: scale(0.98); }
 
 .pet-reminder-fix {

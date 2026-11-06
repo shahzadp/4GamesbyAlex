@@ -172,6 +172,7 @@ object ReminderStore {
 
         save(context, load(context).filterNot { it.id == prepared.id }.plus(prepared))
         schedule(context, prepared)
+        recordArmed(context)
         return true
     }
 
@@ -182,6 +183,8 @@ object ReminderStore {
         val reminders = load(context)
         val remaining = reminders.filterNot { it.id == id }
         save(context, remaining)
+        if (remaining.isEmpty()) clearDropped(context)
+        recordArmed(context)
         return remaining.size != reminders.size
     }
 
@@ -196,6 +199,7 @@ object ReminderStore {
         if (!reminder.repeatDaily) {
             cancelAlarm(context, id)
             save(context, load(context).filterNot { it.id == id })
+            recordArmed(context)
             return
         }
         val now = System.currentTimeMillis()
@@ -203,6 +207,7 @@ object ReminderStore {
         val updated = reminder.copy(triggerAt = next)
         save(context, load(context).map { if (it.id == id) updated else it })
         schedule(context, updated)
+        recordArmed(context)
     }
 
     /**
@@ -234,6 +239,7 @@ object ReminderStore {
             }
         }
         save(context, kept)
+        recordArmed(context)
     }
 
     /** The next time this reminder should ring, strictly after [now]. */
@@ -264,25 +270,42 @@ object ReminderStore {
             add(Calendar.DAY_OF_YEAR, days)
         }.timeInMillis
 
-    private fun pendingIntent(context: Context, reminder: Reminder): PendingIntent {
-        val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
-            putExtra(EXTRA_ID, reminder.id)
-            // A distinct data URI keeps two reminders from sharing one
-            // PendingIntent even if their request codes ever collide.
-            data = Uri.parse("reminder://${reminder.id}")
+    /* Every reminder is armed twice, with different request codes and data
+       URIs: once with `setAlarmClock` (the strong one - it fires on the minute
+       with the phone asleep and puts the alarm icon in the status bar) and once
+       with `setExactAndAllowWhileIdle` as an independent second delivery.
+
+       Vendor battery managers do not all agree on what to clear when an app
+       leaves the foreground: MIUI is known to drop third-party "alarm clock"
+       alarms, others drop exact wakeups but keep the alarm clock. Two alarms of
+       different kinds mean one surviving is enough. Both deliver to the same
+       receiver, and `fire()` is idempotent, so a double delivery rings once. */
+    private const val BACKUP_REQUEST_CODE = 0x5A5A5A
+
+    private fun alarmIntent(context: Context, id: String, backup: Boolean): Intent =
+        Intent(context, ReminderAlarmReceiver::class.java).apply {
+            putExtra(EXTRA_ID, id)
+            // A distinct data URI keeps two reminders - and the two alarms of
+            // one reminder - from ever sharing a PendingIntent.
+            data = Uri.parse(
+                if (backup) "reminder://backup/$id" else "reminder://$id"
+            )
         }
-        return PendingIntent.getBroadcast(
+
+    private fun pendingIntent(context: Context, id: String, backup: Boolean): PendingIntent =
+        PendingIntent.getBroadcast(
             context,
-            reminder.id.hashCode(),
-            intent,
+            id.hashCode() xor if (backup) BACKUP_REQUEST_CODE else 0,
+            alarmIntent(context, id, backup),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-    }
 
     private fun schedule(context: Context, reminder: Reminder) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val operation = pendingIntent(context, reminder)
+        val primary = pendingIntent(context, reminder.id, backup = false)
+        val backup = pendingIntent(context, reminder.id, backup = true)
 
+        var clockArmed = false
         if (exactAlarmsAllowed(context)) {
             val showIntent = PendingIntent.getActivity(
                 context,
@@ -293,9 +316,9 @@ object ReminderStore {
             try {
                 alarmManager.setAlarmClock(
                     AlarmManager.AlarmClockInfo(reminder.triggerAt, showIntent),
-                    operation,
+                    primary,
                 )
-                return
+                clockArmed = true
             } catch (error: SecurityException) {
                 // Permission revoked between the check and the call.
             }
@@ -303,30 +326,145 @@ object ReminderStore {
 
         // Inexact, but still a wakeup alarm, so the reminder is late rather
         // than lost. The settings page asks for the exact-alarm permission.
+        if (!clockArmed) {
+            try {
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    reminder.triggerAt,
+                    primary,
+                )
+            } catch (error: SecurityException) {
+                // Nothing else AlarmManager may do for us.
+            }
+        }
+
+        // The independent second delivery. It costs one more AlarmManager row
+        // and cannot ring the reminder twice (see `fire`).
         try {
-            alarmManager.setAndAllowWhileIdle(
+            alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 reminder.triggerAt,
-                operation,
+                backup,
             )
         } catch (error: SecurityException) {
-            // Nothing else AlarmManager may do for us.
+            try {
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    reminder.triggerAt,
+                    backup,
+                )
+            } catch (error: SecurityException) {
+                // The primary alarm is still the best this device allows.
+            }
         }
     }
 
     private fun cancelAlarm(context: Context, id: String) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
-            data = Uri.parse("reminder://$id")
+        for (backup in booleanArrayOf(false, true)) {
+            val operation = pendingIntent(context, id, backup)
+            alarmManager.cancel(operation)
+            operation.cancel()
         }
-        val operation = PendingIntent.getBroadcast(
-            context,
-            id.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        alarmManager.cancel(operation)
-        operation.cancel()
+    }
+
+    /* ---- "Why didn't it ring?" bookkeeping --------------------------------
+       Scheduling an alarm is a promise the app cannot keep on its own: the
+       phone may clear it the moment the app leaves the foreground. The two
+       fields below turn that from a guess into a fact the settings page can
+       show. `armed` is what we last handed to AlarmManager; `dropped` is only
+       written when a reminder is still waiting and the system no longer lists
+       its alarm at the next foreground return. */
+
+    private const val KEY_ARMED = "alarm_armed_json"
+    private const val KEY_DROPPED = "alarm_dropped_json"
+
+    /** The next alarm the system itself knows about, in epoch millis (0 = none). */
+    fun systemNextAlarm(context: Context): Long {
+        val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return 0L
+        return manager.nextAlarmClock?.triggerTime ?: 0L
+    }
+
+    /** Remembers which reminder the alarms currently in the system belong to. */
+    private fun recordArmed(context: Context) {
+        val now = System.currentTimeMillis()
+        val next = load(context).filter { it.triggerAt > now }.minByOrNull { it.triggerAt }
+        if (next == null) {
+            prefs(context).edit().remove(KEY_ARMED).commit()
+            return
+        }
+        val armed = JSONObject()
+            .put("at", now)
+            .put("for", next.triggerAt)
+            .put("id", next.id)
+        prefs(context).edit().putString(KEY_ARMED, armed.toString()).commit()
+    }
+
+    /**
+     * Called on every foreground return, *before* the alarms are re-armed.
+     *
+     * A reminder that is still waiting while the system no longer lists its
+     * alarm was cleared by the phone, not forgotten by the app. That is worth
+     * telling the player: no app can re-arm an alarm while it is not running,
+     * but the player can stop the phone from clearing it.
+     */
+    fun auditArmed(context: Context) {
+        val raw = prefs(context).getString(KEY_ARMED, null) ?: return
+        val armed = try { JSONObject(raw) } catch (error: Exception) { null } ?: run {
+            prefs(context).edit().remove(KEY_ARMED).commit()
+            return
+        }
+        val armedFor = armed.optLong("for")
+        val armedId = armed.optString("id")
+        val reminder = load(context).firstOrNull { it.id == armedId }
+        if (reminder == null || reminder.triggerAt != armedFor) {
+            // It rang, was deleted or was moved on: nothing to explain.
+            prefs(context).edit().remove(KEY_ARMED).commit()
+            return
+        }
+        // Without the exact-alarm permission the status-bar alarm clock is
+        // never ours, so this check would misfire. The settings panel already
+        // has a row asking for that permission.
+        if (!exactAlarmsAllowed(context)) return
+
+        val next = systemNextAlarm(context)
+        if (next != 0L && Math.abs(next - armedFor) < 60_000L) return
+        // Another app's alarm may simply be the next one. Only a missing alarm
+        // clock, or one scheduled after ours, proves ours is gone.
+        if (next != 0L && next < armedFor - 60_000L) return
+
+        val dropped = JSONObject()
+            .put("at", System.currentTimeMillis())
+            .put("for", armedFor)
+            .put("armedAt", armed.optLong("at"))
+        prefs(context).edit().putString(KEY_DROPPED, dropped.toString()).commit()
+        prefs(context).edit().remove(KEY_ARMED).commit()
+    }
+
+    /** What the settings page needs to show, or explain, a dropped alarm. */
+    fun healthJson(context: Context): String {
+        val raw = prefs(context).getString(KEY_DROPPED, null)
+        var droppedAt = 0L
+        var droppedFor = 0L
+        if (raw != null) {
+            try {
+                val dropped = JSONObject(raw)
+                droppedAt = dropped.optLong("at")
+                droppedFor = dropped.optLong("for")
+            } catch (error: Exception) {
+                // A corrupt blob simply means there is nothing to report.
+            }
+        }
+        return JSONObject()
+            .put("now", System.currentTimeMillis())
+            .put("nextAlarmClock", systemNextAlarm(context))
+            .put("droppedAt", droppedAt)
+            .put("droppedFor", droppedFor)
+            .toString()
+    }
+
+    private fun clearDropped(context: Context) {
+        prefs(context).edit().remove(KEY_DROPPED).commit()
     }
 
     private fun ensureChannel(context: Context) {
@@ -490,6 +628,9 @@ object ReminderStore {
             // by record.
             save(context, load(context).filterNot { it.id == id })
         }
+        // It rang, so any "the phone dropped this alarm" note is stale.
+        clearDropped(context)
+        recordArmed(context)
     }
 
     fun notificationsEnabled(context: Context): Boolean {
