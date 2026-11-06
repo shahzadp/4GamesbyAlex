@@ -622,58 +622,6 @@
       </header>
 
       <div class="pet-settings-page">
-        <section class="pet-settings-block" id="pet-reminder-block" aria-labelledby="pet-reminder-heading">
-          <h2 class="pet-settings-heading" id="pet-reminder-heading" data-i18n="remindersTitle">Reminders</h2>
-          <p class="pet-settings-note" data-i18n="remindersHelp">A reminder buzzes at the exact time you pick and keeps buzzing until you tap Stop on its notification. It makes no sound. Turn on Repeat to have it come back every day.</p>
-          <form id="pet-reminder-form" class="pet-reminder-form">
-            <label class="pet-reminder-field">
-              <span data-i18n="reminderTitleLabel">Title</span>
-              <input id="pet-reminder-title" type="text" maxlength="80" autocomplete="off" data-i18n-ph="reminderTitlePlaceholder">
-            </label>
-            <label class="pet-reminder-field">
-              <span data-i18n="reminderDescriptionLabel">Description</span>
-              <input id="pet-reminder-description" type="text" maxlength="200" autocomplete="off" data-i18n-ph="reminderDescriptionPlaceholder">
-            </label>
-            <div class="pet-reminder-when">
-              <label class="pet-reminder-field">
-                <span data-i18n="reminderDateLabel">Date</span>
-                <input id="pet-reminder-date" type="date">
-              </label>
-              <label class="pet-reminder-field">
-                <span data-i18n="reminderTimeLabel">Time</span>
-                <input id="pet-reminder-time" type="time">
-              </label>
-            </div>
-            <label class="pet-reminder-toggle">
-              <input id="pet-reminder-repeat" type="checkbox">
-              <span data-i18n="reminderRepeat">Repeat every day</span>
-            </label>
-            <label class="pet-reminder-toggle pet-reminder-toggle-nested" id="pet-reminder-skip-row">
-              <input id="pet-reminder-skip-sunday" type="checkbox" disabled>
-              <span data-i18n="reminderSkipSunday">Skip Sundays</span>
-            </label>
-            <button type="submit" class="pet-reminder-add" data-i18n="reminderAdd">Set reminder</button>
-          </form>
-          <p id="pet-reminder-status" class="pet-settings-note" role="status"></p>
-
-          <div id="pet-reminder-reliability" class="pet-reminder-reliability">
-            <p class="pet-reminder-reliability-title" data-i18n="reliabilityTitle">Make reminders reliable</p>
-            <p id="pet-reminder-reliability-ok" class="pet-reminder-reliability-ok" data-i18n="reliabilityOk" hidden>All set — reminders can ring even when this app is closed.</p>
-            <ul id="pet-reminder-checks" class="pet-reminder-checks"></ul>
-            <p class="pet-reminder-reliability-help" data-i18n="reliabilityHelp">On Xiaomi, OPPO, vivo, Samsung or Huawei, also allow autostart and set battery use to "No restrictions" for this app.</p>
-            <div class="pet-reminder-reliability-actions">
-              <button type="button" id="pet-reminder-battery-settings" data-i18n="openBatterySettings">Battery settings</button>
-              <button type="button" id="pet-reminder-app-settings" data-i18n="openAppSettings">App info</button>
-              <button type="button" id="pet-reminder-autostart" data-i18n="autostartSettings">Autostart settings</button>
-              <button type="button" id="pet-reminder-test" data-i18n="testReminder">Test in 1 minute</button>
-            </div>
-            <p id="pet-reminder-test-status" class="pet-settings-note" role="status"></p>
-          </div>
-
-          <ul id="pet-reminder-list" class="pet-reminder-list"></ul>
-          <p id="pet-reminder-empty" class="pet-settings-note" data-i18n="remindersEmpty">No reminders yet.</p>
-        </section>
-
         <section class="pet-settings-block" aria-labelledby="pet-memory-heading">
           <h2 class="pet-settings-heading" id="pet-memory-heading" data-i18n="memoriesTitle">Things I remember</h2>
           <p class="pet-settings-note" data-i18n="memoriesHelp">Anything saved here is shared with the pet in every chat. You can also just say "remember this" in a message.</p>

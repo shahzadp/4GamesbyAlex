@@ -6,18 +6,15 @@ import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
-import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.speech.RecognizerIntent
@@ -88,18 +85,6 @@ class GameWebViewActivity : ComponentActivity() {
     }
     private val petMicPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) launchPetSpeechRecognition() else deliverPetSpeechResult("")
-    }
-
-    /* Asked when the player saves their first reminder. A denial is not fatal:
-       the vibration still rings, and the settings page says notifications are
-       off, so the reminder's title is not silently swallowed. */
-    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (::webView.isInitialized) {
-            webView.evaluateJavascript(
-                "window.onReminderPermissionResult && window.onReminderPermissionResult($granted)",
-                null,
-            )
-        }
     }
 
     /** JavaScript bridge — exposes Android fullscreen control to the WebView */
@@ -178,215 +163,6 @@ class GameWebViewActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun hasPetApiKey(): Boolean = loadEncryptedPetApiKey() != null
-
-        /* --- Reminders -------------------------------------------------
-         * The list is owned by the native side because the alarm has to ring
-         * with the app closed, and the web page only reaches it through these
-         * calls. Times travel as epoch milliseconds parsed by the date and
-         * time pickers on the page, so no locale parsing happens natively.
-         */
-
-        /** Every saved reminder, oldest first, as the JSON the page renders. */
-        @JavascriptInterface
-        fun getReminders(): String = ReminderStore.toJson(this@GameWebViewActivity)
-
-        /**
-         * Saves and schedules a reminder. Returns false for a blank title or a
-         * time that has already passed, which the page reports to the player.
-         *
-         * `repeatDaily` keeps the alarm after it rings and moves it to the same
-         * time the next day; `skipSundays` (only meaningful with repeat) makes
-         * that next day Monday when the next occurrence lands on a Sunday.
-         */
-        @JavascriptInterface
-        fun createReminder(
-            id: String,
-            title: String,
-            description: String,
-            triggerAt: Long,
-            repeatDaily: Boolean,
-            skipSundays: Boolean,
-        ): Boolean =
-            ReminderStore.add(
-                this@GameWebViewActivity,
-                Reminder(
-                    id = id,
-                    title = title.trim(),
-                    description = description.trim(),
-                    triggerAt = triggerAt,
-                    repeatDaily = repeatDaily,
-                    skipSundays = skipSundays,
-                ),
-            )
-
-        @JavascriptInterface
-        fun deleteReminder(id: String): Boolean =
-            ReminderStore.remove(this@GameWebViewActivity, id)
-
-        @JavascriptInterface
-        fun notificationsEnabled(): Boolean =
-            ReminderStore.notificationsEnabled(this@GameWebViewActivity)
-
-        /** True when Android will let the alarm fire on the exact minute. */
-        @JavascriptInterface
-        fun canScheduleExactAlarms(): Boolean =
-            ReminderStore.exactAlarmsAllowed(this@GameWebViewActivity)
-
-        /**
-         * Opens the system screen where exact alarms are allowed. The page
-         * re-reads [canScheduleExactAlarms] when the activity resumes.
-         */
-        @JavascriptInterface
-        fun requestExactAlarmPermission() {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-            runOnUiThread {
-                try {
-                    startActivity(
-                        Intent(
-                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                            Uri.parse("package:$packageName"),
-                        )
-                    )
-                } catch (error: ActivityNotFoundException) {
-                    // Some manufacturers ship without this screen; the inexact
-                    // fallback still rings, just later.
-                }
-            }
-        }
-
-        /** True when the phone's battery saver may sleep the app. */
-        @JavascriptInterface
-        fun isIgnoringBatteryOptimizations(): Boolean =
-            ReminderStore.batteryOptimisationIgnored(this@GameWebViewActivity)
-
-        @JavascriptInterface
-        fun requestIgnoreBatteryOptimizations() {
-            runOnUiThread {
-                val packageUri = Uri.parse("package:$packageName")
-                try {
-                    startActivity(
-                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri)
-                    )
-                } catch (error: ActivityNotFoundException) {
-                    try {
-                        startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                    } catch (nested: ActivityNotFoundException) {
-                        // No battery settings screen at all; nothing to ask for.
-                    }
-                }
-            }
-        }
-
-        /** True when a reminder may wake the screen (Android 14+ can say no). */
-        @JavascriptInterface
-        fun canUseFullScreenIntent(): Boolean =
-            ReminderStore.fullScreenIntentAllowed(this@GameWebViewActivity)
-
-        @JavascriptInterface
-        fun requestFullScreenIntentPermission() {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
-            runOnUiThread {
-                try {
-                    startActivity(
-                        Intent(
-                            Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
-                            Uri.parse("package:$packageName"),
-                        )
-                    )
-                } catch (error: ActivityNotFoundException) {
-                    openAppSettings()
-                }
-            }
-        }
-
-        /**
-         * The list of apps exempt from battery optimisation. This is the screen
-         * MIUI, ColorOS and One UI players need: without the exemption those
-         * phones freeze the app and hold back every alarm until it is opened.
-         */
-        @JavascriptInterface
-        fun openBatterySettings() {
-            runOnUiThread {
-                try {
-                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                } catch (error: ActivityNotFoundException) {
-                    openAppSettings()
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun openAppSettings() {
-            runOnUiThread {
-                try {
-                    startActivity(
-                        Intent(
-                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                            Uri.parse("package:$packageName"),
-                        )
-                    )
-                } catch (error: ActivityNotFoundException) {
-                    // Nothing sensible left to open.
-                }
-            }
-        }
-
-        /** True when Android will let a notification interrupt the phone. */
-        @JavascriptInterface
-        fun areNotificationsEnabled(): Boolean =
-            ReminderStore.notificationsEnabled(this@GameWebViewActivity)
-
-        /** True when Android has put the app in its "restricted" standby bucket. */
-        @JavascriptInterface
-        fun isStandbyRestricted(): Boolean =
-            ReminderStore.standbyRestricted(this@GameWebViewActivity)
-
-        /**
-         * Alarm bookkeeping for the settings page: the system's next alarm
-         * clock, and whether this phone cleared a reminder's alarm while the
-         * app was in the background.
-         */
-        @JavascriptInterface
-        fun getAlarmHealth(): String = ReminderStore.healthJson(this@GameWebViewActivity)
-
-        /**
-         * Opens the vendor screen that lets a background app keep its timers.
-         * Those screens have no public API, so each known OEM component is
-         * tried in turn and App info is the fallback.
-         */
-        @JavascriptInterface
-        fun openAutostartSettings() {
-            runOnUiThread { openAutostartSettingsScreen() }
-        }
-
-        @JavascriptInterface
-        fun openNotificationSettings() {
-            runOnUiThread {
-                try {
-                    startActivity(
-                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                            .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                    )
-                } catch (error: ActivityNotFoundException) {
-                    openAppSettings()
-                }
-            }
-        }
-
-        /** Opens the system permission dialog on Android 13 and newer. */
-        @JavascriptInterface
-        fun requestNotificationPermission() {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-            runOnUiThread {
-                if (ContextCompat.checkSelfPermission(
-                        this@GameWebViewActivity,
-                        Manifest.permission.POST_NOTIFICATIONS,
-                    ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
-        }
 
         @JavascriptInterface
         fun removePetApiKey(): Boolean = getSharedPreferences(PET_KEY_PREFERENCES, MODE_PRIVATE)
@@ -860,35 +636,6 @@ class GameWebViewActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        /* First check whether the phone dropped an alarm while this app was in
-           the background, then put every reminder back. The order matters: once
-           the alarms are re-armed the check would always look healthy. */
-        ReminderStore.auditArmed(this)
-        /* Re-arm every reminder. Alarms are dropped by a force-stop, a revoked
-           exact-alarm permission and some aggressive battery managers; doing
-           this on every resume means a reminder set last week is still an
-           alarm, not just a row in a list. It is a few JSON rows and a handful
-           of AlarmManager calls, so it costs nothing on a page that is about
-           to draw a 3D dog. */
-        ReminderStore.rescheduleAll(this)
-        if (::webView.isInitialized && !isDestroyed) {
-            webView.evaluateJavascript(
-                "window.__onReminderResume && window.__onReminderResume();",
-                null,
-            )
-        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        /* One last re-arm as the app leaves the screen. Several vendor battery
-           managers clear an app's alarms when it is backgrounded, so the alarm
-           is put back in the instant before that can happen. */
-        ReminderStore.rescheduleAll(this)
-    }
-
     override fun onDestroy() {
         petApiExecutor.shutdownNow()
         textToSpeech?.stop()
@@ -897,68 +644,6 @@ class GameWebViewActivity : ComponentActivity() {
             webView.destroy()
         }
         super.onDestroy()
-    }
-
-    /**
-     * Vendor "autostart" / "background activity" screens. They are not part of
-     * the Android SDK, so the components are tried in order; the fallback is the
-     * app's own info page, where Battery is one tap away.
-     */
-    private fun openAutostartSettingsScreen() {
-        for (component in autostartComponents()) {
-            try {
-                startActivity(Intent().setComponent(component))
-                return
-            } catch (error: Exception) {
-                // Not this phone, or the screen moved between OS versions.
-            }
-        }
-        try {
-            startActivity(
-                Intent(
-                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:$packageName"),
-                )
-            )
-        } catch (error: ActivityNotFoundException) {
-            // Nothing left to open.
-        }
-    }
-
-    private fun autostartComponents(): List<ComponentName> {
-        val maker = "${Build.MANUFACTURER} ${Build.BRAND}".lowercase(Locale.ROOT)
-        val components = mutableListOf<ComponentName>()
-        fun add(packageName: String, className: String) {
-            components.add(ComponentName(packageName, className))
-        }
-        when {
-            maker.contains("xiaomi") || maker.contains("redmi") || maker.contains("poco") -> {
-                add("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
-                add("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")
-            }
-            maker.contains("oppo") || maker.contains("realme") || maker.contains("oneplus") -> {
-                add("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
-                add("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")
-                add("com.oplus.safecenter", "com.oplus.safecenter.startupapp.StartupAppListActivity")
-            }
-            maker.contains("vivo") || maker.contains("iqoo") -> {
-                add("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")
-                add("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")
-            }
-            maker.contains("huawei") || maker.contains("honor") -> {
-                add("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")
-                add("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")
-            }
-            maker.contains("samsung") -> {
-                add("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")
-                add("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.BatteryActivity")
-            }
-            maker.contains("infinix") || maker.contains("tecno") || maker.contains("itel") -> {
-                add("com.transsion.phonemaster", "com.transsion.phonemaster.ui.autoboot.AutoBootActivity")
-                add("com.itel.autobootmanager", "com.itel.autobootmanager.activity.AutoBootMgrActivity")
-            }
-        }
-        return components
     }
 
     private companion object {

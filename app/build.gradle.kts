@@ -41,15 +41,13 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 41 / 1.36 = reminders survive the app going to the background: every
-        // reminder is armed twice (alarm clock + exact standby) so one kind of
-        // alarm being cleared by a vendor battery manager is not fatal, the
-        // alarms are re-armed as the app leaves the screen, and the settings
-        // page now detects and reports a phone that cancelled an alarm while
-        // the app was in the background, with a shortcut to its autostart
-        // screen.
-        versionCode = 41
-        versionName = "1.36"
+        // 42 / 1.37 = removed the pet reminder feature and every permission
+        // it introduced (notifications, exact alarms, boot restart, battery
+        // optimisation, full-screen intent). Only VIBRATE remains, for the
+        // in-game haptics that Horizon uses. The pet keeps chat, saved
+        // memories, voice and settings.
+        versionCode = 42
+        versionName = "1.37"
     }
 
     signingConfigs {
