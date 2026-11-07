@@ -26,10 +26,6 @@ const requests = [
   'engine/stockfish-19-lite-single.wasm',
   'images/virtual_pet.svg',
   'images/chibi_dog_animated.svg',
-  'images/dog.jpg',
-  'images/fire.jpg',
-  'images/nature.jpg',
-  'images/solar_system.jpg',
   'images/touch-dog.svg'
 ];
 
