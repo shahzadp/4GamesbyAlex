@@ -1,0 +1,60 @@
+4 Games by Alex — Proprietary License
+
+Copyright (c) 2026 shahzadp (https://github.com/shahzadp). All rights reserved.
+
+This License governs the original works in this repository and in the
+distributed Android application "4 Games by Alex", comprising:
+
+  * the application launcher shell (Kotlin, Jetpack Compose), including its
+    screen layout, artwork drawn by the author, and interaction logic;
+  * the Flappy Bird game implementation;
+  * the chess game, including its rules engine (chess-core.js), quiz mode
+    (chess-quiz.js), engine client (chess-engine.js) and opening explorer
+    (chess-openings.js and its opening book);
+  * the Virtual Pet 3D game, including the pet logic and the
+    virtual_pet.glb model (excluding the bundled three.js runtime, which is
+    third-party; see below);
+  * all original artwork, fonts-in-use, sound assets created by the author,
+    and all build and verification tooling in this repository.
+
+It does NOT cover the third-party components identified below, which are
+licensed by their respective copyright holders and remain subject to their
+own licenses:
+
+  * Stockfish 19 / Stockfish.js — GNU GPL version 3;
+  * the Cburnett chess piece artwork — Creative Commons Attribution-ShareAlike
+    3.0 Unported;
+  * three.js — MIT;
+  * Horizon (Minecraft Java client for Android, staged at build time) — MIT;
+  * AndroidX / Jetpack Compose and related Google/Android libraries —
+    Apache License 2.0;
+  * development- and test-only dependencies — see THIRD_PARTY_NOTICES.md.
+
+For the third-party components, see THIRD_PARTY_NOTICES.md and the texts in
+the licenses\ directory. Nothing in this License limits the rights those
+licenses grant or overrides the conditions they impose. A summary of this
+section for readers: the application binary contains the Stockfish engine,
+which is GPL-3.0; Stockfish is not, and cannot be, brought under this
+License.
+
+Permission is NOT granted to copy, modify, merge, publish, distribute,
+sublicense, sell, lease or otherwise use any part of the works covered by
+this License — in source code or compiled form — except as expressly
+permitted by the copyright holder in writing, or as permitted by a third
+party's own license for components that license covers.
+
+In particular, nothing in this License grants any right to the name
+"4 Games by Alex", its iconography, or to present modified versions of this
+application as endorsed by, affiliated with, or coming from the copyright
+holder. The application is an unofficial project and is not affiliated
+with, endorsed by, or validated by Mojang AB, Mojang Studios, or Microsoft.
+Minecraft and related marks are trademarks of Mojang AB / Microsoft.
+
+THE WORKS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+OR IN CONNECTION WITH THE WORKS OR THE USE OR OTHER DEALINGS IN THEM.
+
+Questions about licensing: open an issue at https://github.com/shahzadp/4GamesbyAlex
