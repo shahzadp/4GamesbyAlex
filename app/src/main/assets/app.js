@@ -485,7 +485,7 @@ const FLAPPY_THEMES = [
     sky: { top: '#040a1e', mid: '#0d1d3f', low: '#1d3260' },
     stars: 1, celestial: 'moon',
     cloudColor: 'rgba(40,52,90,0.9)',
-    pipe: { body: '#3c4a78', lip: '#4a598a', edge: '#1d2540' },
+    pipe: { body: '#7b8fd9', lip: '#a8b8ec', edge: '#1a2340' },
     ground: { grass: '#25324e', grassEdge: '#141c33', soil: '#1c2540', soilEdge: '#0f1527' },
     bird: { body: '#b8c2d9', belly: '#eef2fb', stroke: '#4a5568', beak: '#fbbf24', beakStroke: '#92400e' },
     birdStyle: 'moon', hat: null, decor: 'none'
@@ -498,7 +498,7 @@ const FLAPPY_THEMES = [
     sky: { top: '#160a26', mid: '#3d1d4f', low: '#b3451b' },
     stars: 0.3, celestial: 'moon',
     cloudColor: 'rgba(70,35,90,0.85)',
-    pipe: { body: '#4e2a63', lip: '#623a7d', edge: '#241031' },
+    pipe: { body: '#8b5cf6', lip: '#c4b5fd', edge: '#2a1544' },
     ground: { grass: '#33203f', grassEdge: '#1c1025', soil: '#241430', soilEdge: '#120920' },
     bird: { body: '#8b5cf6', belly: '#c4b5fd', stroke: '#4c1d95', beak: '#f97316', beakStroke: '#7c2d12' },
     birdStyle: 'bat', hat: null, decor: 'bats'
@@ -524,7 +524,7 @@ const FLAPPY_THEMES = [
     sky: { top: '#020919', mid: '#0d1735', low: '#233257' },
     stars: 1, celestial: 'moon',
     cloudColor: 'rgba(35,46,80,0.9)',
-    pipe: { body: '#1f2333', lip: '#eab308', edge: '#0a0d1a' },
+    pipe: { body: '#d4a017', lip: '#fbbf24', edge: '#3a2c05' },
     ground: { grass: '#141b2e', grassEdge: '#090d18', soil: '#0c1224', soilEdge: '#060a16' },
     bird: { body: '#facc15', belly: '#fef9c3', stroke: '#a16207', beak: '#f97316', beakStroke: '#7c2d12' },
     birdStyle: 'party', hat: 'party', decor: 'confetti'
@@ -563,7 +563,7 @@ const FLAPPY_THEMES = [
     sky: { top: '#e879f9', mid: '#f0abfc', low: '#fbcfe8' },
     stars: 0, celestial: 'sun',
     cloudColor: 'rgba(255,220,250,0.9)',
-    pipe: { body: '#a855f7', lip: '#d8b4fe', edge: '#6b21a8', stripes: true },
+    pipe: { body: '#7c3aed', lip: '#c4b5fd', edge: '#3b0764', stripes: true },
     ground: { grass: '#f5a9e4', grassEdge: '#c25bb5', soil: '#8e3aa8', soilEdge: '#5c226e' },
     bird: { body: '#f472b6', belly: '#fdf4ff', stroke: '#be185d', beak: '#facc15', beakStroke: '#92400e' },
     birdStyle: 'donut', hat: null, decor: 'none'
@@ -1664,62 +1664,63 @@ const flappyGame = {
       }
 
       case 'party': {
-        // Gold bird: bow-tie, striped party cone, cheek sparkle
+        // Gold bird: bow-tie low under the beak, striped party cone on top
         this.birdRadial(ctx, 0, 0, R, '#fef08a', '#facc15', '#a16207', '#422006', 2.5);
         ctx.fillStyle = '#fef9c3';
         ctx.beginPath();
-        ctx.arc(-2, 3, R - 5, 0, Math.PI * 2);
+        ctx.arc(-2, 4, R - 5.5, 0, Math.PI * 2);
         ctx.fill();
-        // bow-tie at the neck
+        // bow-tie: two small triangles clearly below the beak, on the chest
         ctx.fillStyle = '#f43f5e';
         ctx.beginPath();
-        ctx.moveTo(5, -1);
-        ctx.lineTo(1, -5);
-        ctx.lineTo(1, 3);
+        ctx.moveTo(2, 8.2);
+        ctx.lineTo(-3, 5.8);
+        ctx.lineTo(-3, 10.6);
         ctx.closePath();
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(14, -1);
-        ctx.lineTo(17, -5);
-        ctx.lineTo(17, 3);
+        ctx.moveTo(12, 8.2);
+        ctx.lineTo(17, 5.8);
+        ctx.lineTo(17, 10.6);
         ctx.closePath();
         ctx.fill();
         ctx.fillStyle = '#be123d';
-        ctx.fillRect(5.2, -2.2, 8, 4.4);
+        ctx.fillRect(2, 7.4, 10, 1.4);
+        ctx.fillRect(2, 9.0, 10, 1.4);
         // eye shine
         this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220' });
         ctx.fillStyle = 'rgba(255,255,255,0.85)';
         ctx.beginPath();
-        ctx.arc(6, -6, 1.4, 0, Math.PI * 2);
+        ctx.arc(5.2, -6.2, 1.4, 0, Math.PI * 2);
         ctx.fill();
         this.birdBeak(ctx, bc);
-        // striped party cone
+        // wide, low striped party cone sitting on top of the head
         ctx.fillStyle = '#f43f5e';
         ctx.beginPath();
-        ctx.moveTo(-R + 3, -R + 1);
-        ctx.lineTo(0, -R - 14);
-        ctx.lineTo(R - 3, -R + 1);
+        ctx.moveTo(-R, -R + 2);
+        ctx.lineTo(0, -R - 13);
+        ctx.lineTo(R, -R + 2);
         ctx.closePath();
         ctx.fill();
         ctx.save();
         ctx.beginPath();
-        ctx.moveTo(-R + 3, -R + 1);
-        ctx.lineTo(0, -R - 14);
-        ctx.lineTo(R - 3, -R + 1);
+        ctx.moveTo(-R, -R + 2);
+        ctx.lineTo(0, -R - 13);
+        ctx.lineTo(R, -R + 2);
         ctx.closePath();
         ctx.clip();
         ctx.strokeStyle = '#fde68a';
         ctx.lineWidth = 3;
-        [-5, 0, 5].forEach(offset => {
+        for (let offset = -6; offset <= 8; offset += 7) {
           ctx.beginPath();
-          ctx.moveTo(offset - 10, 2);
-          ctx.lineTo(offset + 8, -R - 12);
+          ctx.moveTo(offset - 8, 1);
+          ctx.lineTo(offset + 8, -R - 11);
           ctx.stroke();
-        });
+        }
         ctx.restore();
         ctx.fillStyle = '#fde68a';
         ctx.beginPath();
-        ctx.arc(0, -R - 14, 2.2, 0, Math.PI * 2);
+        ctx.arc(0, -R - 13, 2.2, 0, Math.PI * 2);
         ctx.fill();
         this.birdWing(ctx, wingAngle, '#fde68a', '#422006', 7, 4.8, 0);
         break;
