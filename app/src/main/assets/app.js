@@ -1664,7 +1664,8 @@ const flappyGame = {
       }
 
       case 'party': {
-        // New Year: bright striped party cone on a gold bird, no bow-tie
+        // New Year: a soft, drooping party hat, not a pyramid. Rounded body,
+        // flopped tip with pompom, cream spots, classic conical party silhouette.
         this.birdRadial(ctx, 0, 0, R, '#fde68a', '#facc15', '#b45309', '#422006', 2.5);
         ctx.fillStyle = '#fef9c3';
         ctx.beginPath();
@@ -1677,33 +1678,27 @@ const flappyGame = {
         ctx.arc(5.2, -6.2, 1.4, 0, Math.PI * 2);
         ctx.fill();
         this.birdBeak(ctx, bc);
-        // Striped party cone, alternating cream and red, pompom on top
+        // Soft, rounded cone body — quadratic curves, not straight sides
         ctx.fillStyle = '#c81e1e';
         ctx.beginPath();
-        ctx.moveTo(-R, -R + 2);
-        ctx.lineTo(0, -R - 13);
-        ctx.lineTo(R, -R + 2);
+        ctx.moveTo(-R + 1.5, -R + 2);
+        ctx.quadraticCurveTo(-R * 0.45, -R - 3, -2, -R - 10);
+        ctx.quadraticCurveTo(0.5, -R - 11.5, 2.2, -R - 6.5);
+        ctx.quadraticCurveTo(3.5, -R - 2.5, R - 1.5, -R + 2);
         ctx.closePath();
         ctx.fill();
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(-R, -R + 2);
-        ctx.lineTo(0, -R - 13);
-        ctx.lineTo(R, -R + 2);
-        ctx.closePath();
-        ctx.clip();
-        // Wide diagonal cream stripes
-        ctx.strokeStyle = '#fef3c7';
-        ctx.lineWidth = 5;
-        for (let offset = -12; offset <= 10; offset += 10) {
+        // Cream polka spots on the cone
+        ctx.fillStyle = '#fef3c7';
+        [[-4.2, -R + 6.2, 1.6], [1.2, -R + 3.2, 1.9], [-1.4, -R - 1.6, 1.3]].forEach(([sx, sy, r]) => {
           ctx.beginPath();
-          ctx.moveTo(offset - 10, 0);
-          ctx.lineTo(offset + 10, -R - 10);
-          ctx.stroke();
-        }
-        ctx.restore();
+          ctx.ellipse(sx, sy, r, r * 0.85, 0, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        // Flop pompom at the drooping tip
         ctx.fillStyle = '#fbbf24';
         ctx.beginPath();
+        ctx.arc(1.8, -R - 10, 2.2, 0, Math.PI * 2);
+        ctx.fill();
         ctx.arc(0, -R - 13, 2.3, 0, Math.PI * 2);
         ctx.fill();
         this.birdWing(ctx, wingAngle, '#fef9c3', '#422006', 7, 4.8, 0);
