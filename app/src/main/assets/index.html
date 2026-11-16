@@ -176,16 +176,14 @@
     <section id="page-flappy" class="page" data-page="flappy">
       <!-- Mobile Top App Bar -->
       <header class="mobile-top-bar">
-        <button class="icon-btn-round" data-back title="Back to home">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
+        <!-- No navigation arrows: leave the game with the system back button.
+             Same treatment the pet page got. Spacers keep the title centred. -->
+        <span class="top-bar-spacer" aria-hidden="true"></span>
         <div class="bar-title-box">
           <span class="bar-subtitle">Mini Game 01</span>
           <h2 class="bar-title">Flappy Bird</h2>
         </div>
-        <button class="icon-btn-round nav-quick-btn" data-target="chess" title="Next: Chess">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
+        <span class="top-bar-spacer" aria-hidden="true"></span>
       </header>
 
       <!-- Game Stage -->
@@ -234,16 +232,13 @@
     <section id="page-chess" class="page" data-page="chess">
       <!-- Mobile Top App Bar -->
       <header class="mobile-top-bar">
-        <button class="icon-btn-round" data-back title="Back to home">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
+        <!-- No navigation arrows: leave the game with the system back button.
+             No subtitle either - the title carries the page on its own. -->
+        <span class="top-bar-spacer" aria-hidden="true"></span>
         <div class="bar-title-box">
-          <span class="bar-subtitle">Strategy 02</span>
           <h2 class="bar-title">Chess</h2>
         </div>
-        <button class="icon-btn-round nav-quick-btn" data-target="pet" title="Next: Virtual Pet">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
+        <span class="top-bar-spacer" aria-hidden="true"></span>
       </header>
 
       <!-- Game Stage -->
@@ -272,16 +267,21 @@
           </div>
         </div>
 
-        <!-- Captured Black pieces -->
-        <div class="captured-tray" id="captured-black"></div>
-
         <!-- 8x8 Board -->
         <div class="board-frame">
           <div id="chessboard" class="chessboard-grid"></div>
         </div>
 
-        <!-- Captured White pieces -->
-        <div class="captured-tray" id="captured-white"></div>
+        <!-- Captured pieces from both sides, one slim strip under the board.
+             The placeholder keeps it from looking like a stray empty bar at
+             the start of a game; it fades out on first capture. -->
+        <div class="captured-strip" id="captured-strip" role="status"
+             aria-label="Captured pieces">
+          <span class="captured-placeholder" id="captured-placeholder">Captured pieces appear here</span>
+          <div class="captured-tray" id="captured-white"></div>
+          <span class="captured-sep" aria-hidden="true"></span>
+          <div class="captured-tray" id="captured-black"></div>
+        </div>
 
         <!-- Mode selector: 2-player, Stockfish 19, 2x Stockfish 19, or the quiz -->
         <div class="chess-mode-row">
@@ -304,6 +304,109 @@
             </button>
           </div>
           <span id="chess-mode-label" class="chess-mode-label">2-player</span>
+        </div>
+
+        <!-- 2-player sub-choice: Pass & Play (this device) or Lichess online.
+             Shown only while the 2-Player tab is active; the online game
+             reuses the board above and the clocks/action line below. -->
+        <div id="chess-choice-row" class="chess-choice-row" role="group"
+             aria-label="Two player options">
+          <button id="choice-passplay" class="chess-choice-btn choice-passplay active"
+                  type="button" aria-pressed="true">
+            <span class="choice-title">Pass &amp; Play</span>
+            <span class="choice-sub">Over-the-board</span>
+          </button>
+          <button id="choice-lichess" class="chess-choice-btn choice-lichess"
+                  type="button" aria-pressed="false">
+            <span class="choice-title" id="lichess-choice-title">Lichess Sign-in</span>
+            <span class="choice-sub" id="lichess-choice-sub">Sync rating &amp; play online</span>
+          </button>
+        </div>
+
+        <!-- Lichess panel. Shown only when the Lichess choice is active and
+             only until/unless a match is live - during a match it collapses
+             to a slim match strip and the board takes over. -->
+        <div id="chess-lichess-panel" class="chess-lichess-panel" role="region"
+             aria-label="Lichess online chess">
+          <!-- Signed out -->
+          <div id="lichess-signin-box" class="lichess-signin-box">
+            <button id="btn-lichess-signin" class="lichess-signin-btn" type="button">
+              <span class="lichess-knight" aria-hidden="true">
+                <svg viewBox="0 0 45 45" width="30" height="30" focusable="false">
+                  <path fill="#e8eefc" stroke="#0d1024" stroke-width="1.6" stroke-linejoin="round"
+                        d="M 22 10c4.47-2.2 9.55-1.07 12.68 3.03 2.33 3.04 2.81 7.31 1.74 11.16l-.62 3.31c.95 1.24 1.28 2.77 1.28 4.5H7v-4.5c7-4.5-7-13 7-21.5z M 15 26.5a1.5 1.5 0 1 0 0.01 0z"/>
+                </svg>
+              </span>
+              <span class="lichess-signin-text">
+                <span class="lichess-signin-title">Sign in with Lichess</span>
+                <span class="lichess-signin-sub">Opens lichess.org in your browser — this app never sees your password. The token is stored encrypted on this device.</span>
+              </span>
+            </button>
+            <p class="lichess-fine">Rapid time controls only · casual games by default · no chat · no engine help — fair play on Lichess.</p>
+          </div>
+
+          <!-- Signed in -->
+          <div id="lichess-hub" class="lichess-hub" hidden>
+            <div class="lichess-hub-top">
+              <div class="lichess-id">
+                <span class="lichess-eyebrow">Signed in as</span>
+                <span class="lichess-name" id="lichess-username">@you</span>
+              </div>
+              <div class="lichess-rating-chips" id="lichess-ratings" aria-label="Lichess ratings"></div>
+              <div class="lichess-hub-actions">
+                <button id="btn-lichess-refresh" class="lichess-icon-btn" type="button"
+                        title="Re-sync ratings" aria-label="Re-sync ratings">
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+                </button>
+                <button id="btn-lichess-signout" class="lichess-icon-btn" type="button"
+                        title="Sign out" aria-label="Sign out of Lichess">
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Find a game -->
+            <div id="lichess-setup" class="lichess-setup">
+              <div class="lichess-tc">Time control · Rapid</div>
+              <div class="lichess-presets" role="radiogroup" aria-label="Rapid time control">
+                <button class="lichess-preset active" data-time="10" data-inc="0" role="radio" aria-checked="true" type="button">10 + 0</button>
+                <button class="lichess-preset" data-time="15" data-inc="10" role="radio" aria-checked="false" type="button">15 + 10</button>
+                <button class="lichess-preset" data-time="25" data-inc="10" role="radio" aria-checked="false" type="button">25 + 10</button>
+              </div>
+              <label class="lichess-rated-row">
+                <input id="lichess-rated" type="checkbox">
+                <span>Rated game <small>(affects your Lichess rating)</small></span>
+              </label>
+              <button id="btn-lichess-find" class="lichess-find-btn" type="button">
+                <span class="btn-label">Find game</span>
+              </button>
+            </div>
+
+            <!-- Searching for an opponent -->
+            <div id="lichess-searching" class="lichess-searching" hidden>
+              <div class="lichess-spinner" aria-hidden="true"></div>
+              <p>Searching for a Rapid opponent…</p>
+              <button id="btn-lichess-cancel-search" class="lichess-secondary-btn" type="button">Cancel search</button>
+            </div>
+
+            <!-- Match is live: slim strip with the opponent -->
+            <div id="lichess-matchinfo" class="lichess-matchinfo" hidden>
+              <div class="lichess-opponent">
+                <span class="lichess-opponent-side" id="lichess-opponent-side"></span>
+                <span class="lichess-opponent-name" id="lichess-opponent-name">Opponent</span>
+                <span class="lichess-opponent-rating" id="lichess-opponent-rating"></span>
+              </div>
+              <p class="lichess-matchnote" id="lichess-matchnote"></p>
+              <button id="btn-lichess-abort" class="lichess-secondary-btn" type="button" hidden>Abort game (no moves played)</button>
+            </div>
+
+            <!-- Match finished -->
+            <div id="lichess-result" class="lichess-result" hidden>
+              <p class="lichess-result-text" id="lichess-result-text"></p>
+              <p class="lichess-pgn-note" id="lichess-pgn-note"></p>
+              <button id="btn-lichess-back-to-hub" class="lichess-secondary-btn" type="button">Back to Lichess</button>
+            </div>
+          </div>
         </div>
 
         <!-- Move-count quiz. Shown only for the quiz mode. -->
@@ -475,6 +578,15 @@
         <div class="mobile-bottom-actions">
           <button id="btn-reset-chess" class="mobile-btn btn-reset">
             <span class="btn-icon">🔄</span> <span class="btn-label">Reset</span>
+          </button>
+          <button id="btn-resign-online" class="mobile-btn btn-resign" type="button" hidden>
+            <span class="btn-icon">⚑</span> <span class="btn-label">Resign</span>
+          </button>
+          <button id="btn-draw-online" class="mobile-btn btn-draw" type="button" hidden>
+            <span class="btn-icon">½</span> <span class="btn-label">Offer Draw</span>
+          </button>
+          <button id="btn-decline-draw-online" class="mobile-btn btn-decline-draw" type="button" hidden>
+            <span class="btn-icon">✕</span> <span class="btn-label">Decline</span>
           </button>
         </div>
       </div>

@@ -2136,14 +2136,15 @@ body.android-fullscreen .page.active {
   cursor: progress;
 }
 
-/* Engine status line: loading and error messages land here. */
+/* Engine/chess status lines: loading and error messages land here. Neutral
+   slate so game messages read calm; reserve loud colors for real errors. */
 .chess-status-line {
   min-height: 1.15rem;
   margin: 0.15rem 0 0.35rem;
   text-align: center;
   font-size: 0.8rem;
-  font-weight: 600;
-  color: #7ef0d0;
+  font-weight: 500;
+  color: rgba(230, 233, 242, 0.55);
 }
 
 /* --- Promotion picker ------------------------------------------------- */
@@ -3446,3 +3447,1211 @@ body.android-fullscreen .page.active {
 
 /* Horizon (game 4) has no web layout: it is a native activity, not a page in
    this document. */
+/* =======================================================
+   CHESS - LICHESS ONLINE (2-player sub-choice)
+   ======================================================= */
+
+/* The [hidden] attribute must win over the component's own display value
+   (.mobile-btn is inline-flex, the panel parts are flex column), otherwise
+   hidden buttons and sections still occupy the screen. */
+.mobile-bottom-actions [hidden],
+.chess-choice-row[hidden],
+.chess-lichess-panel [hidden],
+.chess-lichess-panel[hidden] {
+  display: none !important;
+}
+
+/* Shared palette for this section:
+   - surfaces  #12161f (panel) and #171c26 (raised control)
+   - borders   rgba(230, 236, 245, .10)  /  .06
+   - text      #e6e9f2, dimmed to .55 for secondary copy
+   - accent    #35d99a (flat, no gradients, no glows)
+   - danger    #e5484d
+*/
+
+/* --- The two choice buttons --------------------------------------------- */
+
+.chess-choice-row {
+  width: 100%;
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 0.55rem;
+  min-width: 0;
+}
+
+.chess-choice-btn {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.65rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(230, 236, 245, 0.08);
+  background: #12161f;
+  color: rgba(230, 233, 242, 0.72);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.chess-choice-btn .choice-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #e6e9f2;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chess-choice-btn .choice-sub {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: rgba(230, 233, 242, 0.45);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chess-choice-btn.active {
+  background: rgba(53, 217, 154, 0.07);
+  border-color: rgba(53, 217, 154, 0.5);
+  box-shadow: none;
+}
+
+.chess-choice-btn.active .choice-sub {
+  color: #35d99a;
+}
+
+.chess-choice-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.chess-choice-btn:active:not(:disabled) {
+  transform: var(--touch-scale);
+}
+
+/* --- Lichess panel -------------------------------------------------------- */
+
+.chess-lichess-panel {
+  display: none;
+  width: 100%;
+  margin: 0 0 0.55rem;
+  padding: 0.75rem;
+  border-radius: 14px;
+  border: 1px solid rgba(230, 236, 245, 0.08);
+  background: #12161f;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.chess-lichess-panel.active {
+  display: block;
+}
+
+.lichess-tc {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(230, 233, 242, 0.45);
+  margin-bottom: 0.1rem;
+}
+
+/* Signed-out hero button ------------------------------------------------ */
+
+.lichess-signin-btn {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(230, 236, 245, 0.1);
+  background: #171c26;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.lichess-signin-btn:hover {
+  border-color: rgba(230, 236, 245, 0.2);
+  background: #1a2029;
+}
+
+.lichess-signin-btn:active {
+  transform: var(--touch-scale);
+}
+
+.lichess-knight {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #1c2230;
+  border: 1px solid rgba(230, 236, 245, 0.08);
+}
+
+.lichess-signin-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.lichess-signin-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e6e9f2;
+}
+
+.lichess-signin-sub {
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: rgba(230, 233, 242, 0.55);
+}
+
+.lichess-fine {
+  margin: 0.55rem 0 0;
+  font-size: 0.64rem;
+  line-height: 1.45;
+  color: rgba(230, 233, 242, 0.4);
+  text-align: center;
+}
+
+/* Signed in --------------------------------------------------------------- */
+
+.lichess-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.lichess-hub-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 0.45rem;
+  column-gap: 0.5rem;
+  min-width: 0;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(230, 236, 245, 0.07);
+}
+
+.lichess-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 96px;
+}
+
+.lichess-eyebrow {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(230, 233, 242, 0.4);
+}
+
+.lichess-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #e6e9f2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lichess-rating-chips {
+  display: flex;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.lichess-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  padding: 0.25rem 0.38rem;
+  border-radius: 10px;
+  background: #171c26;
+  border: 1px solid rgba(230, 236, 245, 0.06);
+  min-width: 46px;
+}
+
+.lichess-chip-perf {
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(230, 233, 242, 0.45);
+}
+
+.lichess-chip-rating {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #eef1f7;
+}
+
+/* Provisional ratings get a small amber dot instead of a noisy glyph. */
+.lichess-chip-provisional-mark {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f0b429;
+  margin-left: 0.3em;
+  vertical-align: 2px;
+}
+
+.lichess-hub-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.lichess-icon-btn {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  border: 1px solid rgba(230, 236, 245, 0.08);
+  background: #171c26;
+  color: rgba(230, 233, 242, 0.72);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.lichess-icon-btn:hover {
+  border-color: rgba(230, 236, 245, 0.18);
+  color: #e6e9f2;
+}
+
+.lichess-icon-btn:active {
+  transform: var(--touch-scale);
+}
+
+.lichess-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.lichess-presets {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.lichess-preset {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.5rem 0.3rem;
+  border-radius: 10px;
+  border: 1px solid rgba(230, 236, 245, 0.08);
+  background: #171c26;
+  color: rgba(230, 233, 242, 0.78);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.lichess-preset.active {
+  background: #e6e9f2;
+  border-color: #e6e9f2;
+  color: #12161f;
+}
+
+.lichess-rated-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: rgba(230, 233, 242, 0.75);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lichess-rated-row small {
+  color: rgba(230, 233, 242, 0.4);
+  font-weight: 400;
+}
+
+.lichess-rated-row input {
+  accent-color: #35d99a;
+  width: 16px;
+  height: 16px;
+}
+
+.lichess-find-btn {
+  appearance: none;
+  width: 100%;
+  padding: 0.72rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(53, 217, 154, 0.35);
+  background: #35d99a;
+  color: #042b1c;
+  font-family: var(--font-main);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.lichess-find-btn:hover {
+  background: #3ae39e;
+}
+
+.lichess-find-btn:active {
+  transform: var(--touch-scale);
+}
+
+.lichess-find-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lichess-secondary-btn {
+  appearance: none;
+  align-self: center;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(230, 236, 245, 0.12);
+  background: #171c26;
+  color: #e6e9f2;
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.lichess-secondary-btn:hover {
+  border-color: rgba(230, 236, 245, 0.22);
+}
+
+.lichess-secondary-btn:active {
+  transform: var(--touch-scale);
+}
+
+/* Searching state --------------------------------------------------------- */
+
+.lichess-searching {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0 0.2rem;
+  text-align: center;
+}
+
+.lichess-searching p {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(230, 233, 242, 0.7);
+}
+
+.lichess-spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(230, 236, 245, 0.12);
+  border-top-color: #35d99a;
+  animation: lichess-spin 0.9s linear infinite;
+}
+
+@keyframes lichess-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Live match strip --------------------------------------------------------- */
+
+.lichess-matchinfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.lichess-opponent {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.lichess-opponent-side {
+  flex: 0 0 auto;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(230, 233, 242, 0.4);
+}
+
+.lichess-opponent-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #e6e9f2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lichess-opponent-rating {
+  flex: 0 0 auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #f0b429;
+}
+
+.lichess-matchnote {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: rgba(230, 233, 242, 0.55);
+}
+
+/* Result ------------------------------------------------------------------- */
+
+.lichess-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0 0.15rem;
+}
+
+.lichess-result-text {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #e6e9f2;
+  text-align: center;
+}
+
+.lichess-pgn-note {
+  margin: 0;
+  font-size: 0.66rem;
+  color: rgba(53, 217, 154, 0.75);
+  text-align: center;
+  min-height: 0.9rem;
+}
+
+/* --- Bottom-line online buttons ------------------------------------------ */
+
+.btn-resign {
+  background: transparent;
+  border: 1px solid rgba(229, 72, 77, 0.5);
+  color: #ff9d9d;
+}
+
+.btn-draw {
+  background: transparent;
+  border: 1px solid rgba(240, 180, 41, 0.45);
+  color: #f4c563;
+}
+
+/* Draw button doubles as Accept when the opponent offered one. */
+.btn-draw.offer-pending {
+  background: #f0b429;
+  border-color: #f0b429;
+  color: #2a1d00;
+}
+
+.btn-decline-draw {
+  background: transparent;
+  border: 1px solid rgba(230, 236, 245, 0.16);
+  color: #e6e9f2;
+}
+
+/* --- Confirm dialog (resign / leave) ------------------------------------- */
+
+.lichess-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 12, 0.66);
+  padding: 1.2rem;
+}
+
+.lichess-confirm-card {
+  width: 100%;
+  max-width: 340px;
+  background: #171c26;
+  border: 1px solid rgba(230, 236, 245, 0.1);
+  border-radius: 16px;
+  padding: 1rem 1rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.lichess-confirm-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e6e9f2;
+}
+
+.lichess-confirm-body {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: rgba(230, 233, 242, 0.6);
+}
+
+.lichess-confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lichess-confirm-actions .lichess-secondary-btn {
+  flex: 1 1 0;
+  align-self: stretch;
+}
+
+.lichess-confirm-danger {
+  appearance: none;
+  flex: 1 1 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(229, 72, 77, 0.5);
+  background: #e5484d;
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.lichess-confirm-danger:hover {
+  background: #ec5a5e;
+}
+
+.lichess-confirm-danger:active {
+  transform: var(--touch-scale);
+}
+
+/* Keyboard focus for the interactive controls in this section. */
+.lichess-find-btn:focus-visible,
+.lichess-secondary-btn:focus-visible,
+.lichess-icon-btn:focus-visible,
+.lichess-preset:focus-visible,
+.chess-choice-btn:focus-visible,
+.lichess-confirm-danger:focus-visible {
+  outline: 2px solid rgba(53, 217, 154, 0.6);
+  outline-offset: 2px;
+}
+
+/* =======================================================
+   CHESS - LIQUID GLASS (theme-chess only)
+   =======================================================
+   A frosted, prismatic chess room: layered translucency,
+   hairline specular edges, deep obsidian lit from above by
+   an azure aurora. Scoped to the chess page so the other
+   three games keep their look. */
+
+body.theme-chess {
+  --ca: #4e8df7;
+  --ca-hi: #8ec3ff;
+  --ca-line: rgba(126, 172, 255, 0.38);
+  --ca-soft: rgba(96, 153, 255, 0.16);
+  --ca-text: #c3d7ff;
+  --glass-bg: linear-gradient(155deg, rgba(255,255,255,0.145) 0%, rgba(255,255,255,0.055) 45%, rgba(255,255,255,0.028) 100%);
+  --glass-blur: blur(26px) saturate(170%);
+  --glass-border: rgba(255,255,255,0.16);
+  --glass-shine: rgba(255,255,255,0.30);
+  --glass-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 16px 40px rgba(0,0,0,0.45);
+  background:
+    radial-gradient(110% 80% at 18% -12%, rgba(88,150,255,0.42), transparent 56%),
+    radial-gradient(90% 70% at 85% 15%, rgba(110,105,255,0.34), transparent 55%),
+    radial-gradient(120% 100% at 50% 115%, rgba(52,104,182,0.42), transparent 62%),
+    #05070d;
+}
+
+body.theme-chess .bar-subtitle {
+  color: var(--ca-text);
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 18px rgba(96,153,255,0.4);
+}
+body.theme-chess .bar-title {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 22px rgba(80,140,255,0.25);
+}
+
+/* --- Top bar: floating glass pill ---------------------------------------- */
+
+body.theme-chess .mobile-top-bar {
+  margin: 0.6rem 0 0.8rem;
+  padding: 0.72rem 0.9rem;
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  border-bottom: none;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* --- Turn pill + move badge ---------------------------------------------- */
+
+body.theme-chess .chess-turn-pill {
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+body.theme-chess .chess-turn-pill.white-turn {
+  background: linear-gradient(160deg, rgba(126,172,255,0.30), rgba(96,153,255,0.12));
+  border-color: var(--ca-line);
+  color: #eaf0ff;
+}
+body.theme-chess .chess-turn-pill.white-turn .turn-dot {
+  background: #bcd3ff;
+  box-shadow: 0 0 12px rgba(140,190,255,0.85);
+}
+body.theme-chess .chess-turn-pill.black-turn {
+  background: linear-gradient(160deg, rgba(24,28,54,0.85), rgba(24,28,54,0.5));
+  border-color: rgba(140,150,220,0.3);
+  color: #aab4d6;
+}
+body.theme-chess .chess-turn-pill.black-turn .turn-dot {
+  background: #12162e;
+  border: 1px solid #5e6f96;
+  box-shadow: 0 0 12px rgba(94,92,230,0.5);
+}
+body.theme-chess .chess-move-badge {
+  background: rgba(13,18,32,0.55);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(230,236,245,0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Clocks: frosted glass, azure when running, red when critical --------- */
+
+body.theme-chess .chess-clock {
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 var(--glass-shine);
+  border-radius: 16px;
+  padding: 0.42rem 0.75rem;
+}
+body.theme-chess .chess-clock.active {
+  border-color: var(--ca-line);
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 0 0 2px rgba(78,141,247,0.25), 0 6px 22px rgba(40,70,140,0.4);
+}
+body.theme-chess .chess-clock-time { color: #eef2ff; font-size: 1.02rem; }
+body.theme-chess .chess-clock.low {
+  border-color: rgba(229,72,77,0.6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 2px rgba(229,72,77,0.3);
+}
+
+/* --- Board: frosted slab, porcelain + steel squares ----------------------- */
+
+body.theme-chess .board-frame {
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  border-radius: 22px;
+  padding: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 var(--glass-shine), inset 0 -2px 0 rgba(0,0,0,0.25), 0 18px 44px rgba(0,0,0,0.5),
+    0 0 90px rgba(96,153,255,0.14);
+}
+body.theme-chess .chessboard-grid {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), inset 0 0 0 1px rgba(0,0,0,0.4);
+}
+body.theme-chess .chess-square.sq-w { background-color: #eaeef5; }
+body.theme-chess .chess-square.sq-b { background-color: #8f9cb9; }
+body.theme-chess .chess-square.last-move {
+  background-image: linear-gradient(rgba(96,153,255,0.38), rgba(96,153,255,0.38)) !important;
+}
+body.theme-chess .chess-square.selected {
+  background-image: linear-gradient(rgba(96,153,255,0.5), rgba(96,153,255,0.5)) !important;
+}
+body.theme-chess .chess-square.valid-move::after { background: rgba(78,141,247,0.85); }
+body.theme-chess .chess-square.valid-capture::after { border-color: rgba(78,141,247,0.9); }
+body.theme-chess .chess-square.in-check {
+  background-image: radial-gradient(circle, rgba(229,72,77,0.75) 0%, rgba(229,72,77,0.15) 65%, transparent 75%) !important;
+}
+body.theme-chess .captured-tray {
+  background: rgba(13,18,32,0.55);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 0.25rem 0.5rem;
+}
+
+/* --- Mode capsule: frosted, luminous azure on the active tab -------------- */
+
+body.theme-chess .chess-mode-switch {
+  background: rgba(13,18,32,0.72);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: 999px;
+  padding: 5px;
+}
+body.theme-chess .chess-mode-opt { color: rgba(230,236,245,0.66); border-radius: 999px; }
+body.theme-chess .chess-mode-opt.active {
+  background: linear-gradient(180deg, #8ec3ff 0%, #4e8df7 100%);
+  color: #0b1526;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 18px rgba(78,141,247,0.45);
+}
+body.theme-chess .chess-mode-label { color: var(--ca-text); }
+
+/* --- Choice cards & panels: frosted slabs --------------------------------- */
+
+body.theme-chess .chess-choice-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 var(--glass-shine);
+  border-radius: 16px;
+}
+body.theme-chess .chess-choice-btn .choice-title { color: #e9edf7; }
+body.theme-chess .chess-choice-btn .choice-sub { color: rgba(200,214,240,0.55); }
+body.theme-chess .chess-choice-btn.active {
+  background: linear-gradient(180deg, rgba(126,172,255,0.24), rgba(96,153,255,0.12));
+  border-color: var(--ca-line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 0 0 1px rgba(78,141,247,0.25), 0 12px 34px rgba(40,70,140,0.38);
+}
+body.theme-chess .chess-choice-btn.active .choice-sub { color: var(--ca-text); }
+
+body.theme-chess .chess-lichess-panel,
+body.theme-chess .chess-duel-panel,
+body.theme-chess .chess-quiz-panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 var(--glass-shine), var(--glass-shadow);
+}
+
+/* Inner raised controls go darker glass; inactive whites go porcelain */
+body.theme-chess .lichess-chip,
+body.theme-chess .lichess-icon-btn,
+body.theme-chess .lichess-preset,
+body.theme-chess .lichess-secondary-btn,
+body.theme-chess .duel-field-input,
+body.theme-chess .duel-btn,
+body.theme-chess .duel-source-opt,
+body.theme-chess .duel-side-opt,
+body.theme-chess .duel-input,
+body.theme-chess .quiz-input {
+  background: rgba(13,18,32,0.62);
+  border: 1px solid rgba(255,255,255,0.09);
+}
+body.theme-chess .lichess-chip-perf,
+body.theme-chess .duel-field-label,
+body.theme-chess .lichess-eyebrow,
+body.theme-chess .lichess-tc { color: rgba(200,214,240,0.45); }
+body.theme-chess .lichess-preset.active,
+body.theme-chess .duel-source-opt.active,
+body.theme-chess .duel-side-opt.active {
+  background: linear-gradient(180deg, #e9edf5, #cbd4e6);
+  border-color: #f4f6fc;
+  color: #10141f;
+}
+
+/* The one luminous call to action on the page */
+body.theme-chess .lichess-find-btn {
+  background: linear-gradient(180deg, #8ec3ff 0%, #4e8df7 100%);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: #0b1526;
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 8px 28px rgba(78,141,247,0.42);
+  letter-spacing: 0.02em;
+}
+body.theme-chess .lichess-find-btn:hover { background: linear-gradient(180deg, #9bc9ff, #5a97ff); }
+
+/* Resign / Draw as glassy outlines with presence */
+body.theme-chess .btn-resign { background: rgba(229,72,77,0.08); }
+body.theme-chess .btn-draw { background: rgba(240,180,41,0.06); }
+body.theme-chess .btn-draw.offer-pending {
+  background: linear-gradient(180deg, #f6c960, #eab308);
+  border-color: #f6c960;
+  color: #241600;
+}
+body.theme-chess .btn-decline-draw { background: rgba(13,18,32,0.62); }
+
+/* --- Moves panel ---------------------------------------------------------- */
+
+body.theme-chess .chess-movelog-wrap {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  border-radius: 18px;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 var(--glass-shine), var(--glass-shadow);
+}
+body.theme-chess .chess-movelog-title { color: var(--ca-text); }
+body.theme-chess .chess-movelog { font-variant-numeric: tabular-nums; }
+
+/* --- Bottom action bar and pill ------------------------------------------ */
+
+body.theme-chess .mobile-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 8px 22px rgba(0,0,0,0.35);
+  color: #e9edf7;
+}
+body.theme-chess .btn-reset {
+  background: linear-gradient(180deg, #8ec3ff 0%, #4e8df7 100%);
+  border-color: rgba(255,255,255,0.4);
+  color: #0b1526;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 6px 22px rgba(78,141,247,0.4);
+}
+body.theme-chess .mobile-stat-pill {
+  background: rgba(13,18,32,0.55);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+body.theme-chess .pill-value { color: var(--ca-hi); }
+
+/* --- Promotion picker ----------------------------------------------------- */
+
+body.theme-chess .promotion-picker {
+  background: rgba(13,18,32,0.85);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: 18px;
+}
+
+/* --- Result overlay -------------------------------------------------------- */
+
+body.theme-chess .chess-result-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-shine);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 var(--glass-shine), 0 30px 80px rgba(0,0,0,0.6);
+  border-radius: 22px;
+}
+body.theme-chess .chess-result-badge { box-shadow: 0 0 34px rgba(78,141,247,0.35); }
+body.theme-chess .chess-result-pgn-wrap { border-color: rgba(255,255,255,0.12); }
+
+/* --- Keyboard focus -------------------------------------------------------- */
+
+body.theme-chess .chess-choice-btn:focus-visible,
+body.theme-chess .lichess-find-btn:focus-visible,
+body.theme-chess .lichess-secondary-btn:focus-visible,
+body.theme-chess .chess-mode-opt:focus-visible,
+body.theme-chess .mobile-btn:focus-visible,
+body.theme-chess .lichess-icon-btn:focus-visible {
+  outline: 2px solid var(--ca);
+  outline-offset: 2px;
+}
+
+/* =======================================================
+   CHESS - LIQUID GLASS, second pass: board-first layout
+   =======================================================
+   Sizes and placements, not just color: the board is the
+   page. Chrome is slimmed to the safe area, the board
+   frame is tighter, and the two capture slits become one
+   slim strip below the board. Duel and quiz move onto the
+   azure glass language - no green, no gold left in them. */
+
+/* --- Shell gives the chess page more room -------------------------------- */
+
+body.theme-chess .mobile-app-shell {
+  padding: 0.5rem 0.2rem calc(env(safe-area-inset-bottom) + 0.3rem);
+}
+body.theme-chess .mobile-top-bar {
+  margin: 0 0 0.4rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 16px;
+}
+body.theme-chess .mobile-chess-header { margin-bottom: 0.22rem; }
+body.theme-chess .chess-move-badge { padding: 0.28rem 0.68rem; }
+
+/* --- Board frame: lean, so the board can grow ---------------------------- */
+
+body.theme-chess .board-frame {
+  padding: 7px;
+  border-radius: 18px;
+}
+body.theme-chess .chessboard-grid { border-radius: 12px; }
+
+/* --- Captured strip: slim, one row, no empty black slit above the board --- */
+
+.captured-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  margin: 0.28rem 0 0;
+  min-height: 24px;
+  padding: 0.16rem 0.45rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(13,18,32,0.5);
+}
+
+.captured-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  color: rgba(200,214,240,0.32);
+  pointer-events: none;
+}
+
+.captured-strip.has-captures .captured-placeholder {
+  display: none;
+}
+
+.captured-strip .captured-tray {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 0.12rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.captured-strip .captured-tray::-webkit-scrollbar { display: none; }
+#captured-white { justify-content: flex-start; }
+#captured-black { justify-content: flex-end; }
+.captured-sep {
+  width: 1px;
+  height: 14px;
+  background: rgba(255,255,255,0.1);
+  flex: 0 0 auto;
+}
+.captured-strip .captured-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* --- Mode row, choice row: tighter chrome --------------------------------- */
+
+body.theme-chess .chess-mode-row { margin: 0.12rem 0 0.4rem; }
+body.theme-chess .chess-mode-switch { padding: 4px; }
+body.theme-chess .chess-mode-opt { padding: 0.45rem 0.5rem; font-size: 0.78rem; }
+body.theme-chess .chess-choice-row { margin: 0 0 0.45rem; gap: 0.45rem; }
+body.theme-chess .chess-choice-btn { padding: 0.5rem 0.45rem; border-radius: 12px; gap: 0.08rem; }
+body.theme-chess .chess-choice-btn .choice-title { font-size: 0.88rem; }
+body.theme-chess .chess-choice-btn .choice-sub { font-size: 0.6rem; }
+
+/* --- Moves log and status: compact ---------------------------------------- */
+
+body.theme-chess .chess-status-line { font-size: 0.75rem; margin: 0.1rem 0 0.28rem; }
+body.theme-chess .chess-movelog-wrap { margin-top: 0.35rem; padding: 0.5rem 0.65rem; border-radius: 14px; }
+body.theme-chess .chess-movelog { max-height: 118px; font-size: 0.78rem; }
+
+/* --- Bottom action bar: tighter -------------------------------------------- */
+
+body.theme-chess .mobile-bottom-actions { margin-top: 0.5rem; margin-bottom: 0.4rem; gap: 0.5rem; row-gap: 0.5rem; }
+body.theme-chess .mobile-btn { padding: 0.62rem 1.1rem; font-size: 0.86rem; }
+
+/* =======================================================
+   DUEL + QUIZ + HISTORY - azure glass (was green/gold)
+   ======================================================= */
+
+/* Duel panel: the Start button becomes luminous azure; Pause keeps its
+   semantic red but flattens; everything else goes azure-slate. */
+body.theme-chess .btn-bot {
+  background: linear-gradient(135deg, rgba(78,141,247,0.22), rgba(78,141,247,0.08));
+  border-color: rgba(78,141,247,0.4);
+  color: #bcd3ff;
+}
+body.theme-chess .btn-bot.active {
+  background: linear-gradient(180deg, #8ec3ff 0%, #4e8df7 100%);
+  border-color: rgba(255,255,255,0.4);
+  color: #0b1526;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 6px 18px rgba(78,141,247,0.4);
+}
+body.theme-chess .duel-tc-title { color: var(--ca-text); letter-spacing: 0.12em; font-weight: 700; }
+body.theme-chess .duel-btn-primary {
+  background: linear-gradient(180deg, #8ec3ff 0%, #4e8df7 100%);
+  border-color: rgba(255,255,255,0.4);
+  color: #0b1526;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 16px rgba(78,141,247,0.4);
+}
+body.theme-chess .duel-btn-primary.active {
+  background: linear-gradient(180deg, #ef5350, #c62828);
+  border-color: rgba(255,255,255,0.3);
+  color: #fff;
+  box-shadow: none;
+}
+body.theme-chess .duel-btn-primary.paused {
+  background: linear-gradient(180deg, #e9edf5, #cbd4e6);
+  border-color: #f4f6fc;
+  color: #10141f;
+  box-shadow: none;
+}
+body.theme-chess .duel-chip { background: rgba(78,141,247,0.14); color: var(--ca-hi); }
+body.theme-chess .duel-open:active { background: rgba(78,141,247,0.14); }
+body.theme-chess .duel-open.selected { background: rgba(78,141,247,0.18); box-shadow: inset 2px 0 0 #4e8df7; }
+body.theme-chess .duel-open-eco { color: var(--ca-hi); }
+body.theme-chess .duel-note.is-ok { color: var(--ca-hi); }
+
+/* Quiz panel: gold out, azure in. Wrong answers stay red on purpose. */
+body.theme-chess .quiz-title { color: var(--ca-text); font-weight: 700; letter-spacing: 0.05em; }
+body.theme-chess .quiz-score { color: var(--ca-hi); font-weight: 700; }
+body.theme-chess .quiz-summary-text { color: var(--ca-hi); font-weight: 600; }
+body.theme-chess .quiz-btn-primary {
+  background: linear-gradient(180deg, #8ec3ff 0%, #4e8df7 100%);
+  border-color: rgba(255,255,255,0.4);
+  color: #0b1526;
+}
+body.theme-chess .quiz-fb-side { color: var(--ca-text); }
+body.theme-chess .quiz-fb-btn { border-color: rgba(78,141,247,0.5); background: rgba(78,141,247,0.12); color: #bcd3ff; }
+body.theme-chess .quiz-fb-right { border-color: rgba(78,141,247,0.55); }
+body.theme-chess .quiz-legend-ring.good { border-color: #4e8df7; }
+
+/* History panel: slate-azure, not gold */
+body.theme-chess .chess-history-panel { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.045); }
+body.theme-chess .history-title { color: var(--ca-text); font-weight: 700; letter-spacing: 0.12em; }
+body.theme-chess .history-entry:active { background: rgba(78,141,247,0.13); }
+body.theme-chess .history-btn { background: rgba(255,255,255,0.05); }
+
+/* Promotion picker title: azure, not gold */
+body.theme-chess .promo-title { color: var(--ca-text); }
+
+/* Focus rings on the text inputs were teal/gold; go azure + soft halo */
+body.theme-chess .quiz-input:focus {
+  border-color: rgba(126,172,255,0.7);
+  box-shadow: 0 0 0 2px rgba(78,141,247,0.3);
+}
+body.theme-chess .duel-input:focus,
+body.theme-chess .duel-search:focus,
+body.theme-chess .duel-fen-input:focus {
+  border-color: rgba(126,172,255,0.7);
+  box-shadow: 0 0 0 2px rgba(78,141,247,0.3);
+}
+
+
+/* =======================================================
+   CHESS - third pass: notch-safe, compact bars
+   =======================================================
+   The app renders edge-to-edge; the header must never
+   draw under a notch or a cutout. Every bar on the page
+   is sized for necessity, not for presence. */
+
+/* Never let the header sit under the system cutout */
+body.theme-chess .mobile-app-shell {
+  padding-top: calc(0.4rem + env(safe-area-inset-top, 0px));
+}
+
+body.theme-chess .mobile-top-bar {
+  margin: 0 0 0.3rem;
+  padding: 0.36rem 0.7rem;
+  border-radius: 14px;
+  gap: 0.35rem;
+}
+body.theme-chess .top-bar-spacer { flex-basis: 34px; width: 34px; height: 34px; }
+body.theme-chess .bar-title { font-size: 1.02rem; font-weight: 700; }
+body.theme-chess .icon-btn-round { width: 34px; height: 34px; }
+
+/* Turn row: smaller pill, smaller badge */
+body.theme-chess .mobile-chess-header { margin-bottom: 0.1rem; gap: 0.4rem; }
+body.theme-chess .chess-turn-pill { padding: 0.26rem 0.66rem; font-size: 0.73rem; gap: 0.38rem; }
+body.theme-chess .chess-turn-pill .turn-dot { width: 8px; height: 8px; }
+body.theme-chess .chess-move-badge { font-size: 0.68rem; padding: 0.22rem 0.58rem; }
+
+/* Clocks: shorter, tighter */
+body.theme-chess .chess-clock { padding: 0.28rem 0.58rem; border-radius: 12px; gap: 0.35rem; }
+body.theme-chess .chess-clock-time { font-size: 0.88rem; }
+body.theme-chess .chess-clock-side { font-size: 0.78rem; }
+body.theme-chess .chess-clocks { gap: 0.45rem; margin-bottom: 0.3rem; }
+
+/* Mode capsule: necessity-sized tabs */
+body.theme-chess .chess-mode-row { margin: 0.1rem 0 0.35rem; }
+body.theme-chess .chess-mode-switch { padding: 3px; gap: 3px; }
+body.theme-chess .chess-mode-opt { padding: 0.34rem 0.4rem; font-size: 0.72rem; gap: 0.3rem; }
+body.theme-chess .chess-mode-opt .mode-ico { font-size: 0.82rem; }
+body.theme-chess .chess-mode-label { font-size: 0.68rem; }
+
+/* Choice cards: smaller, tighter, still unmistakably tappable */
+body.theme-chess .chess-choice-row { margin: 0 0 0.4rem; gap: 0.4rem; }
+body.theme-chess .chess-choice-btn { padding: 0.38rem 0.4rem; border-radius: 11px; gap: 0.04rem; }
+body.theme-chess .chess-choice-btn .choice-title { font-size: 0.78rem; }
+body.theme-chess .chess-choice-btn .choice-sub { font-size: 0.55rem; }
+
+/* Captured strip: shortest it still carries pieces */
+body.theme-chess .captured-strip { min-height: 20px; margin-top: 0.2rem; padding: 0.08rem 0.4rem; }
+
+/* Status line, moves log: tighter again */
+body.theme-chess .chess-status-line { font-size: 0.68rem; margin: 0.04rem 0 0.2rem; }
+body.theme-chess .chess-movelog-wrap { margin-top: 0.3rem; padding: 0.4rem 0.55rem; }
+body.theme-chess .chess-movelog { max-height: 112px; font-size: 0.74rem; line-height: 1.4; }
+body.theme-chess .chess-movelog-title { font-size: 0.66rem; margin-bottom: 0.22rem; }
+
+/* Bottom action bar: smaller buttons */
+body.theme-chess .mobile-bottom-actions { margin-top: 0.35rem; margin-bottom: 0.25rem; gap: 0.4rem; row-gap: 0.4rem; }
+body.theme-chess .mobile-btn { padding: 0.48rem 0.9rem; font-size: 0.78rem; }
+
+/* Let the action pills fill the row like every other button on the page -
+   the 200px cap left Reset looking stubby next to the mode capsule, the
+   choice cards and Find game. */
+body.theme-chess .mobile-btn {
+  max-width: none;
+}

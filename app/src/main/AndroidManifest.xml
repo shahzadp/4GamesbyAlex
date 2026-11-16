@@ -45,12 +45,32 @@
 
         <!-- One browser game at a time, opened at its URL hash. The WebView and
              its JavaScript bridge live in this activity rather than in the
-             launcher, so leaving a game disposes of it completely. -->
+             launcher, so leaving a game disposes of it completely.
+
+             exported=true with a single-scheme intent filter so the Lichess
+             OAuth redirect can return here: the user signs in in their browser,
+             Lichess redirects to com.example.artgallery://lichess/callback, and
+             Android routes that VIEW intent back to this activity instead of
+             creating a new one (launchMode singleTask + onNewIntent), so the
+             board the user left is still on screen, now signed in.
+             The filter only claims that one scheme and path; nothing else can
+             navigate this activity. The scheme is the package name in reverse
+             domain-notation form, which is what Lichess's OAuth endpoint
+             accepts for custom-scheme redirects (it rejects anything that
+             does not look like a reversed domain). -->
         <activity
             android:name=".GameWebViewActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
-            android:exported="false"
-            android:theme="@style/Theme.ArtGallery" />
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.ArtGallery">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.example.artgallery" android:host="lichess" android:path="/callback" />
+            </intent-filter>
+        </activity>
 
         <!-- Horizon: a native Rust client, not a WebView.
 

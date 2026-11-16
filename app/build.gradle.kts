@@ -41,13 +41,11 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 42 / 1.37 = removed the pet reminder feature and every permission
-        // it introduced (notifications, exact alarms, boot restart, battery
-        // optimisation, full-screen intent). Only VIBRATE remains, for the
-        // in-game haptics that Horizon uses. The pet keeps chat, saved
-        // memories, voice and settings.
-        versionCode = 42
-        versionName = "1.37"
+        // 43 / 1.38 = Lichess online play in the 2-player tab (Pass & Play /
+        // Lichess Sign-in), plus the deep link that lets the Lichess sign-in
+        // round trip return to the chess page.
+        versionCode = 43
+        versionName = "1.38"
     }
 
     signingConfigs {

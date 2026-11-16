@@ -36,6 +36,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import android.widget.Toast
+import android.net.Uri
 import android.webkit.RenderProcessGoneDetail
 import androidx.annotation.RequiresApi
 import org.json.JSONArray
@@ -43,7 +44,10 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.security.KeyStore
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.Locale
 import java.util.concurrent.Executors
 import javax.crypto.Cipher
@@ -69,6 +73,9 @@ class GameWebViewActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var insetsController: WindowInsetsControllerCompat
     private val petApiExecutor = Executors.newSingleThreadExecutor()
+    // Token exchange and revoke calls for Lichess run here, never on the UI
+    // thread and never through the WebView.
+    private val lichessApiExecutor = Executors.newSingleThreadExecutor()
     // Text-to-speech is created on first use, not at startup. Binding the TTS
     // service in onCreate delayed the first frame for a feature most launches
     // never touch.
@@ -170,6 +177,29 @@ class GameWebViewActivity : ComponentActivity() {
             .clear()
             .commit()
 
+        /* --- Lichess account -------------------------------------------
+         *
+         * Signing in happens in the user's real browser: lichessSignIn()
+         * builds a PKCE authorization request and opens it externally, and the
+         * browser redirects back to com.example.artgallery://lichess/callback,
+         * which the system routes into onNewIntent. The token is exchanged
+         * natively, stored AES/GCM-encrypted like the pet API key, and handed
+         * to JavaScript only in memory for API calls - it is never written to
+         * localStorage or anywhere the page can reach after leaving.
+         */
+
+        @JavascriptInterface
+        fun lichessSignIn() = startLichessSignIn()
+
+        @JavascriptInterface
+        fun lichessHasToken(): Boolean = loadEncryptedLichessToken() != null
+
+        @JavascriptInterface
+        fun lichessToken(): String = loadEncryptedLichessToken().orEmpty()
+
+        @JavascriptInterface
+        fun lichessSignOut(): Boolean = signOutFromLichess()
+
         /* --- PGN export (2x Stockfish match) --------------------------
          *
          * A WebView has no filesystem, and an <a download> against a blob URL
@@ -266,9 +296,14 @@ class GameWebViewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        gameId = intent.getStringExtra(GameCatalog.EXTRA_GAME_ID)
+        var resolvedGameId = intent.getStringExtra(GameCatalog.EXTRA_GAME_ID)
             ?.takeIf { id -> GameCatalog.games.any { it.id == id && it.kind == GameKind.Web } }
             ?: GameCatalog.games.first { it.kind == GameKind.Web }.id
+        // The Lichess OAuth redirect opens this activity. If the process died
+        // while the browser was up, the callback itself creates the activity -
+        // there is no extra to name the game, and the player came from chess.
+        if (intent.data?.let(::isLichessCallback) == true) resolvedGameId = "chess"
+        gameId = resolvedGameId
 
         // Edge-to-edge dark theme
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -289,6 +324,12 @@ class GameWebViewActivity : ComponentActivity() {
                 useWideViewPort = true
                 loadWithOverviewMode = true
                 mediaPlaybackRequiresUserGesture = false
+                // Lichess requires an identifying User-Agent on API requests,
+                // and JavaScript cannot set one. Setting it for the WebView
+                // as a whole makes every request this page can ever make
+                // carry it - asset requests are intercepted locally, so a
+                // custom UA changes nothing about how bundles are served.
+                userAgentString = lichessUserAgent()
             }
             // Attach the native fullscreen bridge
             addJavascriptInterface(AndroidBridge(), "AndroidBridge")
@@ -437,6 +478,13 @@ class GameWebViewActivity : ComponentActivity() {
 
         setContentView(webView)
 
+        // The OAuth redirect lands here either via onNewIntent (the activity
+        // was already running and is delivered the deep link) or via this
+        // onCreate (the process died while the browser was up and the deep
+        // link created the activity). Handle both the same way; the exchange
+        // itself is idempotent because the pending PKCE is consumed eagerly.
+        intent.data?.let { handleLichessCallback(it) }
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 // The web build is a single page with no history to walk back
@@ -449,6 +497,18 @@ class GameWebViewActivity : ComponentActivity() {
                 }
             }
         })
+    }
+
+    /**
+     * Delivers a VIEW intent into the running activity - in practice the
+     * Lichess OAuth redirect. singleTask launch mode sends the deep link here
+     * instead of instantiating a second copy of the game, so the board, the
+     * Stockfish engine and the move log all survive the sign-in round trip.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.data?.let { handleLichessCallback(it) }
     }
 
     /**
@@ -636,8 +696,246 @@ class GameWebViewActivity : ComponentActivity() {
         }
     }
 
+    /* --- Lichess OAuth (PKCE) & token store ------------------------------
+     *
+     * Unregistered public client: Lichess does not require app registration,
+     * only a unique client_id, S256 PKCE, and an identifying User-Agent. The
+     * pending verifier + state are kept in private preferences only for the
+     * lifetime of one sign-in round trip and are wiped the moment the callback
+     * arrives - success or failure.
+     *
+     * The access token itself lives AES/GCM-encrypted in private preferences
+     * behind the Android Keystore, the same scheme the pet's OpenRouter key
+     * uses. It is exchanged on [lichessApiExecutor], never on the UI thread.
+     */
+
+    private fun lichessAppVersionName(): String = runCatching {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(packageName, 0).versionName
+    }.getOrNull() ?: "unknown"
+
+    private fun lichessUserAgent(): String =
+        "4GamesbyAlex/${lichessAppVersionName()} (package $packageName)"
+
+    private fun isLichessCallback(uri: Uri): Boolean =
+        uri.scheme == LICHESS_CALLBACK_SCHEME && uri.host == LICHESS_CALLBACK_HOST && uri.path == "/callback"
+
+    private fun base64UrlNoPadding(bytes: ByteArray): String =
+        Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+
+    private fun clearPendingLichessPkce() {
+        getSharedPreferences(LICHESS_PENDING_PREFERENCES, MODE_PRIVATE).edit().clear().commit()
+    }
+
+    /**
+     * Opens the Lichess authorization page in the user's browser. Returns
+     * immediately; the result arrives out of band at the deep link.
+     */
+    private fun startLichessSignIn() {
+        val (verifier, challenge, state) = runCatching {
+            val random = SecureRandom()
+            val verifierBytes = ByteArray(48)
+            random.nextBytes(verifierBytes)
+            val verifier = base64UrlNoPadding(verifierBytes)
+            val challenge = base64UrlNoPadding(
+                MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII))
+            )
+            val stateBytes = ByteArray(16)
+            random.nextBytes(stateBytes)
+            Triple(verifier, challenge, base64UrlNoPadding(stateBytes))
+        }.getOrElse {
+            deliverLichessAuthError("Could not start sign in on this device.")
+            return
+        }
+
+        getSharedPreferences(LICHESS_PENDING_PREFERENCES, MODE_PRIVATE)
+            .edit()
+            .putString(LICHESS_PENDING_VERIFIER, verifier)
+            .putString(LICHESS_PENDING_STATE, state)
+            .apply()
+
+        val url = LICHESS_AUTH_URL +
+            "?response_type=code" +
+            "&client_id=" + URLEncoder.encode(LICHESS_CLIENT_ID, "UTF-8") +
+            "&redirect_uri=" + URLEncoder.encode(LICHESS_REDIRECT_URI, "UTF-8") +
+            "&code_challenge_method=S256" +
+            "&code_challenge=" + challenge +
+            "&scope=" + URLEncoder.encode(LICHESS_SCOPES, "UTF-8") +
+            "&state=" + state
+
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            clearPendingLichessPkce()
+            deliverLichessAuthError("No browser found to open the sign in page.")
+        }
+    }
+
+    /**
+     * Handles com.example.artgallery://lichess/callback. Returns true when the
+     * URI was consumed, whether the sign-in succeeded, failed or the user
+     * cancelled.
+     */
+    private fun handleLichessCallback(uri: Uri): Boolean {
+        if (!isLichessCallback(uri)) return false
+
+        // One pending sign-in, always consumed, whatever happens next. A
+        // second delivery (fresh onCreate or a browser retry) finds nothing
+        // to match against and fails closed.
+        val pending = getSharedPreferences(LICHESS_PENDING_PREFERENCES, MODE_PRIVATE)
+        val verifier = pending.getString(LICHESS_PENDING_VERIFIER, null)
+        val expectedState = pending.getString(LICHESS_PENDING_STATE, null)
+        clearPendingLichessPkce()
+
+        val error = uri.getQueryParameter("error")
+        if (error != null) {
+            deliverLichessAuthError("Lichess sign in was cancelled.")
+            return true
+        }
+
+        val code = uri.getQueryParameter("code")
+        val state = uri.getQueryParameter("state")
+        if (code.isNullOrBlank() || state.isNullOrBlank()) {
+            deliverLichessAuthError("Lichess returned an unreadable response.")
+            return true
+        }
+        if (verifier == null || expectedState == null || expectedState != state) {
+            deliverLichessAuthError("Sign in response did not match the request that started it.")
+            return true
+        }
+
+        lichessApiExecutor.execute {
+            val ok = runCatching { exchangeLichessCode(code, verifier) }.getOrDefault(false)
+            if (!ok) {
+                deliverLichessAuthError("Could not complete Lichess sign in. Check your connection and try again.")
+            }
+        }
+        return true
+    }
+
+    /** Blocking token-for-code exchange. Runs on [lichessApiExecutor]. */
+    private fun exchangeLichessCode(code: String, verifier: String): Boolean {
+        val body = listOf(
+            "grant_type" to "authorization_code",
+            "code" to code,
+            "code_verifier" to verifier,
+            "redirect_uri" to LICHESS_REDIRECT_URI,
+            "client_id" to LICHESS_CLIENT_ID
+        ).joinToString("&") { (k, v) ->
+            URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
+        }
+
+        var connection: HttpURLConnection? = null
+        try {
+            connection = URL(LICHESS_TOKEN_URL).openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+            connection.doOutput = true
+            connection.setRequestProperty("User-Agent", lichessUserAgent())
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+
+            val responseCode = connection.responseCode
+            val responseBody = (if (responseCode in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (responseCode !in 200..299) return false
+            val token = runCatching { JSONObject(responseBody).optString("access_token") }.getOrDefault("")
+            if (token.isBlank()) return false
+            if (!saveEncryptedLichessToken(token)) return false
+            deliverLichessSignedIn()
+            return true
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    private fun signOutFromLichess(): Boolean {
+        val token = loadEncryptedLichessToken()
+        if (token != null) {
+            // Revoke server-side on a best-effort basis. Even if this fails -
+            // offline, for instance - the local token is gone, so this device
+            // is signed out. The user can revoke at lichess.org if they care.
+            runCatching {
+                val connection = URL(LICHESS_TOKEN_URL).openConnection() as HttpURLConnection
+                try {
+                    connection.requestMethod = "DELETE"
+                    connection.connectTimeout = 10000
+                    connection.readTimeout = 10000
+                    connection.setRequestProperty("User-Agent", lichessUserAgent())
+                    connection.setRequestProperty("Authorization", "Bearer $token")
+                    connection.responseCode
+                } finally {
+                    connection.disconnect()
+                }
+            }
+        }
+        return getSharedPreferences(LICHESS_KEY_PREFERENCES, MODE_PRIVATE).edit().clear().commit()
+    }
+
+    private fun saveEncryptedLichessToken(token: String): Boolean = runCatching {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateLichessEncryptionKey())
+        val encrypted = cipher.doFinal(token.toByteArray(Charsets.UTF_8))
+        getSharedPreferences(LICHESS_KEY_PREFERENCES, MODE_PRIVATE).edit()
+            .putString(LICHESS_KEY_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+            .putString(LICHESS_KEY_VALUE, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+            .commit()
+    }.getOrDefault(false)
+
+    private fun loadEncryptedLichessToken(): String? = runCatching {
+        val preferences = getSharedPreferences(LICHESS_KEY_PREFERENCES, MODE_PRIVATE)
+        val iv = preferences.getString(LICHESS_KEY_IV, null) ?: return null
+        val value = preferences.getString(LICHESS_KEY_VALUE, null) ?: return null
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            getOrCreateLichessEncryptionKey(),
+            GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP))
+        )
+        String(cipher.doFinal(Base64.decode(value, Base64.NO_WRAP)), Charsets.UTF_8)
+    }.getOrNull()
+
+    private fun getOrCreateLichessEncryptionKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (keyStore.getKey(LICHESS_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                LICHESS_KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+        )
+        return generator.generateKey()
+    }
+
+    private fun deliverLichessSignedIn() {
+        runOnUiThread {
+            if (!::webView.isInitialized || isDestroyed) return@runOnUiThread
+            webView.evaluateJavascript(
+                "window.onLichessSignedIn && window.onLichessSignedIn();", null
+            )
+        }
+    }
+
+    private fun deliverLichessAuthError(message: String) {
+        runOnUiThread {
+            if (!::webView.isInitialized || isDestroyed) return@runOnUiThread
+            webView.evaluateJavascript(
+                "window.onLichessAuthError && window.onLichessAuthError(${JSONObject.quote(message)});",
+                null
+            )
+        }
+    }
+
     override fun onDestroy() {
         petApiExecutor.shutdownNow()
+        lichessApiExecutor.shutdownNow()
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         if (::webView.isInitialized) {
@@ -657,6 +955,32 @@ class GameWebViewActivity : ComponentActivity() {
         // disagree the loader returns null, the request escapes to the real
         // network, and the app fails to load at all.
         const val ASSET_PATH = "/assets/"
+
+        // Lichess OAuth, authorization code flow with PKCE. Unregistered
+        // public client: any unique client_id works, no app registration.
+        // Lichess rejects "exotic" custom schemes and asks for reverse
+        // domain notation instead, so the redirect uses the package name.
+        const val LICHESS_CLIENT_ID = "4GamesbyAlex"
+        const val LICHESS_CALLBACK_SCHEME = "com.example.artgallery"
+        const val LICHESS_CALLBACK_HOST = "lichess"
+        const val LICHESS_REDIRECT_URI = "$LICHESS_CALLBACK_SCHEME://$LICHESS_CALLBACK_HOST/callback"
+        const val LICHESS_AUTH_URL = "https://lichess.org/oauth"
+        const val LICHESS_TOKEN_URL = "https://lichess.org/api/token"
+        // Board API covers the event stream, game stream, moves, seek, resign
+        // and draw offers - nothing else is requested of the account. The App
+        // Store listing should state this scope.
+        const val LICHESS_SCOPES = "board:play"
+
+        // Short-lived PKCE verifier + state, one per sign-in attempt.
+        const val LICHESS_PENDING_PREFERENCES = "lichess_oauth_pending"
+        const val LICHESS_PENDING_VERIFIER = "code_verifier"
+        const val LICHESS_PENDING_STATE = "state"
+
+        // The token itself, AES/GCM-encrypted under an Android Keystore key.
+        const val LICHESS_KEY_PREFERENCES = "lichess_secure_store"
+        const val LICHESS_KEY_ALIAS = "lichess_oauth_key"
+        const val LICHESS_KEY_IV = "lichess_token_iv"
+        const val LICHESS_KEY_VALUE = "lichess_token_encrypted"
 
         const val PET_KEY_ALIAS = "virtual_pet_openrouter_key"
         const val PET_KEY_PREFERENCES = "pet_secure_store"

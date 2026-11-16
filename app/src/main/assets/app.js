@@ -394,6 +394,8 @@ function switchPage(targetPageId) {
  * the activity close and show the Compose launcher — the same job the header
  * arrow used to do. */
 window.__onAndroidBack = () => {
+  // The Lichess online controller claims the press while a match is live.
+  if (window.__lichessBack && window.__lichessBack()) return true;
   if (state.currentPage === 'pet-settings') {
     switchPage('pet');
     return true;
@@ -1279,6 +1281,33 @@ function getPieceSvg(type, color) {
   return (set && set[type]) || '';
 }
 
+/* Lichess online is a lazily-fetched chunk: the OTB player never downloads
+   or parses it, and this promise is memoised so a double tap loads it once.
+   lichess.js defines the `chessOnline` object; its init() is called here so
+   wiring happens exactly once. */
+function loadLichessModule() {
+  if (window.__lichessModulePromise) return window.__lichessModulePromise;
+  window.__lichessModulePromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'lichess.js';
+    script.onload = () => {
+      try {
+        chessOnline.init();
+        resolve(chessOnline);
+      } catch (err) {
+        window.__lichessModulePromise = null;
+        reject(err);
+      }
+    };
+    script.onerror = () => {
+      delete window.__lichessModulePromise;
+      reject(new Error('lichess.js failed to load'));
+    };
+    document.body.appendChild(script);
+  });
+  return window.__lichessModulePromise;
+}
+
 // =======================================================
 // CHESS GAME UI LAYER
 // =======================================================
@@ -1309,6 +1338,11 @@ const chessGame = {
   botEnabled: false,
   duelActive: false,
   quizActive: false,
+  // Lichess online play lives inside the 2-player tab as the "Lichess" choice
+  // next to Pass & Play. While the choice is active the board is owned by the
+  // online controller (locks itself except on our move). Only the choice
+  // machinery in app.js touches this flag; chessOnline refines the rest.
+  onlineActive: false,
   botSide: 'b',
   botThinking: false,
   // Bumped whenever the bot engine is disposed. A search or load that was in
@@ -1322,6 +1356,8 @@ const chessGame = {
     this.turnPill = document.getElementById('chess-turn-pill');
     this.turnText = document.getElementById('turn-text');
     this.moveCountEl = document.getElementById('chess-move-count');
+    this.capturedTrayEl = document.getElementById('captured-strip');
+    this.capturedPlaceholderEl = document.getElementById('captured-placeholder');
     this.capturedWhiteEl = document.getElementById('captured-white');
     this.capturedBlackEl = document.getElementById('captured-black');
     this.statusEl = document.getElementById('chess-status');
@@ -1334,9 +1370,22 @@ const chessGame = {
     this.modeQuizBtn = document.getElementById('chess-mode-quiz');
     this.modeLabel = document.getElementById('chess-mode-label');
 
-    const resetBtn = document.getElementById('btn-reset-chess');
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => this.reset());
+    this.resetBtn = document.getElementById('btn-reset-chess');
+    if (this.resetBtn) {
+      this.resetBtn.addEventListener('click', () => this.reset());
+    }
+
+    // The two buttons of the 2-player sub-choice row. The Lichess module
+    // itself is loaded lazily on first use, so OTB players never pay for it.
+    this.choicePassBtn = document.getElementById('choice-passplay');
+    this.choiceLichessBtn = document.getElementById('choice-lichess');
+    this.choiceRow = document.getElementById('chess-choice-row');
+    this.lichessPanel = document.getElementById('chess-lichess-panel');
+    if (this.choicePassBtn) {
+      this.choicePassBtn.addEventListener('click', () => this.setLocalChoice('passplay'));
+    }
+    if (this.choiceLichessBtn) {
+      this.choiceLichessBtn.addEventListener('click', () => this.setLocalChoice('lichess'));
     }
 
     if (this.modeLocalBtn) {
@@ -1392,6 +1441,12 @@ const chessGame = {
   // engine match set up from an opening, or from a pasted FEN - without this
   // object needing to know anything about where that position came from.
   reset(startState) {
+    // Live online game: the board is not ours to wipe. The Reset button is
+    // hidden in this state, so reaching here means a programmatic caller -
+    // all of them are fine to ignore.
+    if (typeof chessOnline !== 'undefined' && chessOnline.matchLive && chessOnline.matchLive()) {
+      return;
+    }
     // The duel controller has to be told first. Resetting writes a record of
     // the match that was in progress, and it takes that record from the move
     // log, the clocks and the final position - all of which this method is
@@ -1559,7 +1614,12 @@ const chessGame = {
     }
 
     if (this.turnText) {
-      if (status === 'checkmate') {
+      // In a live Lichess game (or a locked Lichess idle board) the online
+      // controller owns this line: it knows whose clock is running and how
+      // the game ended.
+      if (this.onlineActive && typeof chessOnline !== 'undefined' && chessOnline.handlesBoardInput && chessOnline.handlesBoardInput()) {
+        // leave the text to the online controller
+      } else if (status === 'checkmate') {
         const winner = this.state.turn === 'w' ? 'Black' : 'White';
         this.turnText.textContent = winner + ' wins by checkmate';
       } else if (status === 'stalemate') {
@@ -1584,6 +1644,10 @@ const chessGame = {
       this.moveCountEl.textContent = String(Math.floor(this.moveLog.length / 2));
     }
 
+    // Reset has nothing to reset in a live Lichess game; the Resign and
+    // Draw buttons in the same bar are the controls that exist there.
+    if (this.resetBtn) this.resetBtn.hidden = this.onlineActive;
+
     // Both trays only change when something is captured, but updateUI() runs many
     // times a second during a match. Rebuilding the same icon list every time
     // is wasted work on a page that is already trying to stay light.
@@ -1598,6 +1662,14 @@ const chessGame = {
       this._whiteTraySig = whiteTray;
       this.capturedWhiteEl.innerHTML = this.capturedWhite
         .map(p => '<span class="captured-icon">' + getPieceSvg(p.t, 'b') + '</span>').join('');
+    }
+    // The placeholder behind the strip fades as soon as either side has a
+    // capture; until then it keeps the strip from reading as a stray bar.
+    if (this.capturedTrayEl) {
+      this.capturedTrayEl.classList.toggle(
+        'has-captures',
+        this.capturedBlack.length > 0 || this.capturedWhite.length > 0
+      );
     }
 
     if (this.moveLogEl) {
@@ -1626,9 +1698,16 @@ const chessGame = {
   // simply whoever's turn it is, so both sides can be played on one device.
   // Against the bot it stays pinned to white, which is the side the engine
   // does not play. In the 2x match there is no human at all, and null is the
-  // signal that every square is off limits.
+  // signal that every square is off limits. In the Lichess choice the online
+  // controller decides: our colour on our turn, null otherwise.
   humanSide() {
     if (this.duelActive) return null;
+    // A live Lichess match (or a locked Lichess idle board) takes over
+    // input entirely. handlesBoardInput() is false whenever the Pass & Play
+    // choice is active or the web bundle has no lichess.js yet.
+    if (typeof chessOnline !== 'undefined' && chessOnline.handlesBoardInput && chessOnline.handlesBoardInput()) {
+      return chessOnline.inputSide();
+    }
     return this.botEnabled ? 'w' : this.state.turn;
   },
 
@@ -1768,8 +1847,11 @@ const chessGame = {
     // 1x bot both go through maybeBotMove; an engine-vs-engine move goes to
     // the duel controller, which has its own clocks and draw rules; a move
     // in the quiz goes to the quiz controller, which asks its question.
+    // A local move in a live Lichess game is posted to the server by the
+    // online controller; the board re-syncs from the stream echo.
     if (this.duelActive) chessDuel.onMovePlayed();
     else if (this.quizActive) chessQuiz.onMovePlayed();
+    else if (this.onlineActive && typeof chessOnline !== 'undefined') chessOnline.onLocalMovePlayed(move);
     else this.maybeBotMove();
   },
 
@@ -1783,6 +1865,18 @@ const chessGame = {
   //   'duel'     - two engines play each other, see chessDuel
   //   'quiz'     - two-player board plus the move-counting quiz, see chessQuiz
   setMode(mode) {
+    // A live Lichess game owns the board and the clocks; abandoning it by
+    // switching tabs would strand the opponent on a ticking clock.
+    if (typeof chessOnline !== 'undefined' && chessOnline.matchLive && chessOnline.matchLive()) {
+      this.setStatus('Finish the Lichess game first - or Resign it from the bottom bar.');
+      return;
+    }
+    // Leaving the 2-player tab while the Lichess choice is idle would leave
+    // the flag set and the board permanently locked for the other tabs, so
+    // park the choice back on Pass & Play. The Lichess panel hides with the
+    // tab anyway.
+    if (mode !== 'local' && this.onlineActive) this.setLocalChoice('passplay');
+
     const wantBot = mode === 'stockfish';
     const wantDuel = mode === 'duel';
     const wantQuiz = mode === 'quiz';
@@ -1887,7 +1981,8 @@ const chessGame = {
     if (this.modeLabel) {
       this.modeLabel.textContent = isDuel ? '2x Stockfish 19'
         : (isBot ? 'Playing Stockfish 19'
-        : (isQuiz ? 'Move count quiz' : '2-player'));
+        : (isQuiz ? 'Move count quiz'
+        : (this.onlineActive ? 'Lichess · Rapid' : '2-player')));
     }
 
     // The match setup panel and the clocks only exist for the 2x mode.
@@ -1896,6 +1991,33 @@ const chessGame = {
     // The quiz panel only exists for the quiz mode.
     chessQuiz.syncVisibility(isQuiz);
 
+    // The Pass & Play / Lichess choice row exists only inside the 2-player
+    // tab. The Lichess panel shows whenever that choice is active; which
+    // section inside it is visible (sign-in, hub, match strip, result) is
+    // owned by the online controller.
+    const lichessMatchLive = typeof chessOnline !== 'undefined' && chessOnline.matchLive && chessOnline.matchLive();
+    if (this.choiceRow) this.choiceRow.hidden = this.mode !== 'local';
+
+    // Over-the-board: both humans share the screen, so Black's pieces are
+    // shown turned 180° towards Black. The Lichess choice keeps the standard
+    // orientation; so do the engine modes.
+    if (this.boardEl) {
+      this.boardEl.classList.toggle('otb-flip-black', this.mode === 'local' && !this.onlineActive);
+    }
+    if (this.lichessPanel) {
+      this.lichessPanel.classList.toggle('active', this.mode === 'local' && this.onlineActive);
+    }
+    if (this.choicePassBtn) {
+      this.choicePassBtn.classList.toggle('active', !this.onlineActive);
+      this.choicePassBtn.setAttribute('aria-pressed', this.onlineActive ? 'false' : 'true');
+      this.choicePassBtn.disabled = lichessMatchLive;
+    }
+    if (this.choiceLichessBtn) {
+      this.choiceLichessBtn.classList.toggle('active', this.onlineActive);
+      this.choiceLichessBtn.setAttribute('aria-pressed', this.onlineActive ? 'true' : 'false');
+      this.choiceLichessBtn.disabled = lichessMatchLive;
+    }
+
     // Keep the legacy toggle button working and in sync, in case it is shown.
     if (this.botBtn) {
       this.botBtn.classList.toggle('active', isBot);
@@ -1903,6 +2025,47 @@ const chessGame = {
       const label = this.botBtn.querySelector('.btn-label');
       if (label) label.textContent = isBot ? 'Stop Bot' : 'Stockfish 19';
     }
+  },
+
+  // --- 2-player sub-choice: Pass & Play vs Lichess -----------------------
+  //
+  // Switching between the two is always legal when no match is live (a
+  // live match blocks the choice in setMode). Choosing Pass & Play parks
+  // the board on a fresh standard position, so tapping Lichess never tears
+  // apart a game in progress. Tapping Lichess the first time fetches the
+  // online module on demand.
+  setLocalChoice(choice) {
+    // The choice buttons themselves are also disabled while a match is live,
+    // but guard here too: nothing may seize the board mid-game.
+    if (typeof chessOnline !== 'undefined' && chessOnline.matchLive && chessOnline.matchLive()) {
+      this.setStatus('Finish the Lichess game first - or Resign it from the bottom bar.');
+      return;
+    }
+    if (choice === 'lichess') {
+      if (typeof chessOnline === 'undefined' || !chessOnline.loaded) {
+        // Lock the board while the module is fetched.
+        this.onlineActive = true;
+        this.setStatus('Loading Lichess…');
+        this.updateModeUI();
+        return loadLichessModule()
+          .then(() => chessOnline.setChoice('lichess'))
+          .catch(err => {
+            this.onlineActive = false;
+            this.updateModeUI();
+            this.setStatus('Could not load Lichess: ' + (err && err.message ? err.message : err));
+          });
+      }
+      chessOnline.setChoice('lichess');
+      return;
+    }
+    // Pass & Play
+    this.onlineActive = false;
+    if (typeof chessOnline !== 'undefined' && chessOnline.loaded) {
+      chessOnline.hide();
+    }
+    this.reset();
+    this.updateModeUI();
+    this.setStatus('');
   },
 
   // Picks a bot game back up after the page was left mid-think. The engine was
@@ -5434,22 +5597,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 2. Wire Back Buttons
-  const backButtons = document.querySelectorAll('[data-back]');
-  backButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      switchPage('main');
-    });
-  });
-
-  // 3. Wire Quick Nav Buttons (Next)
-  const navQuickBtns = document.querySelectorAll('.nav-quick-btn');
-  navQuickBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const target = btn.getAttribute('data-target');
-      if (target) switchPage(target);
-    });
-  });
+  // The top-bar arrows are gone from every game page; the system back
+  // button or the app's exit path is how you leave a game. Nothing left to
+  // wire here.
 
   // 4. Fullscreen
   // There is no button for it any more: a game takes the whole screen as

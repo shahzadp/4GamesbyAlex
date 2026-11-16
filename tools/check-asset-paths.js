@@ -16,6 +16,7 @@ const requests = [
   'index.html',
   'app.js',
   'styles.css',
+  'lichess.js',
   'economy.js',
   'chess-core.js',
   'chess-engine.js',
@@ -78,7 +79,7 @@ for (const rel of requests) {
 // 3. Relative references inside index.html resolve correctly because the
 //    document URL ends in "/index.html", so sibling scripts land beside it.
 const docBase = ASSET_ORIGIN + ASSET_PATH + 'index.html';
-for (const rel of ['app.js', 'styles.css', 'economy.js', 'chess-core.js', 'chess-engine.js', 'chess-quiz.js', 'pet3d/pet3d.js']) {
+for (const rel of ['app.js', 'styles.css', 'lichess.js', 'economy.js', 'chess-core.js', 'chess-engine.js', 'chess-quiz.js', 'pet3d/pet3d.js']) {
   const abs = new URL(rel, docBase).toString();
   const r = resolve(new URL(abs).pathname);
   if (!r.handled || r.opensAsset !== rel) {

@@ -1,14 +1,20 @@
 # 4 Games by Alex
 
 One small, offline-first Android app with four games in it. No ads. No
-trackers. No account required.
+trackers. No account required (the optional Lichess online mode in Chess
+signs in through lichess.org, in your browser, and stores the token
+encrypted on the device; everything else works offline and signed out).
 
 ## The games
 
 - **Chess** — play against Stockfish 19 (single-threaded build, running in a
   Web Worker) or challenge a friend over one screen. Includes an opening
   explorer, a quiz mode ("how many legal moves are there now?") and a full
-  two-player setup.
+  two-player setup. The 2-player tab offers **Pass & Play** (over-the-board)
+  and, optionally, **Lichess online** — sign in with your Lichess account in
+  the browser, sync your ratings, and play Rapid games against random
+  opponents with real clocks, resign and draw buttons. Optional; everything
+  else in the app works offline with no account.
 - **Flappy Bird** — the classic tap-to-fly loop, drawn fresh for this app.
 - **Virtual Pet 3D** — a little pet you keep, feed and chat with. The 3D pet
   renders with three.js; chatting needs an API key you supply to the app
