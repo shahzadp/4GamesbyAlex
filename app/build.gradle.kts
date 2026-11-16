@@ -41,11 +41,14 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
-        // 43 / 1.38 = Lichess online play in the 2-player tab (Pass & Play /
-        // Lichess Sign-in), plus the deep link that lets the Lichess sign-in
-        // round trip return to the chess page.
-        versionCode = 43
-        versionName = "1.38"
+        // 44 / 1.39 = Flappy Bird gets a Customize button bundling ten
+        // hand-painted cosmetic themes (Classic, Sunset Bay, Midnight Metro,
+        // Halloween, Christmas, New Year, Valentine's, Easter, Candy Land,
+        // Coral Lagoon). Each theme ships sky, bird, pipes and ground as a
+        // matched set so they never clash. Flappy Bird renders on tap and
+        // adds haptics, '+1' floater, NEW BEST ribbon, and static Classic Day.
+        versionCode = 44
+        versionName = "1.39"
     }
 
     signingConfigs {
