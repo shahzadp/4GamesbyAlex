@@ -628,7 +628,8 @@ body.android-fullscreen .page.active {
 
 /* In fullscreen the game has the whole screen, so the toolbar under it is
    taken away: there is nothing in it but the best score, and the score is
-   in the game itself as well. */
+   in the game itself as well. The Customize entry therefore lives on the
+   start / game-over overlays where there is no gameplay tap to steal. */
 .mobile-stage-container.fullscreen-active .mobile-bottom-actions {
   display: none;
 }
@@ -713,6 +714,30 @@ body.android-fullscreen .page.active {
   cursor: pointer;
   box-shadow: 0 4px #b45309;
 }
+
+.arcade-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-arcade);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-full);
+  padding: 0.42rem 1.1rem;
+  margin-top: 0.6rem;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.arcade-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+.arcade-btn-ghost:active { transform: translateY(1px); }
 
 .arcade-btn:active {
   transform: translateY(2px);

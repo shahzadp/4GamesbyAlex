@@ -726,13 +726,30 @@ const flappyGame = {
     this.updateScoreUI();
     this.stars = this.makeStars();
 
-    // Customization wiring: opening the grid is lazy, and closing it just
-    // hides the overlay (the theme applies immediately on each tap).
+    // Factor the open action so the toolbar button and the two fullscreen
+    // overlay entries trigger it identically.
+    const openCustomize = () => {
+      this.renderThemeGrid();
+      this.showOverlay('flappy-customize-screen');
+    };
     const customizeBtn = document.getElementById('btn-flappy-customize');
     if (customizeBtn) {
-      customizeBtn.addEventListener('click', () => {
-        this.renderThemeGrid();
-        this.showOverlay('flappy-customize-screen');
+      customizeBtn.addEventListener('click', openCustomize);
+    }
+    // In fullscreen the bottom toolbar is hidden by design - the game owns
+    // the whole screen - so the same action also lives on the two overlays.
+    const openCustomizeStart = document.getElementById('btn-flappy-customize-start');
+    if (openCustomizeStart) {
+      openCustomizeStart.addEventListener('click', e => {
+        e.stopPropagation();
+        openCustomize();
+      });
+    }
+    const openCustomizeGameOver = document.getElementById('btn-flappy-customize-gameover');
+    if (openCustomizeGameOver) {
+      openCustomizeGameOver.addEventListener('click', e => {
+        e.stopPropagation();
+        openCustomize();
       });
     }
     const customizeClose = document.getElementById('btn-flappy-customize-close');
