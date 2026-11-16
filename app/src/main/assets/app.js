@@ -433,35 +433,36 @@ const FLAPPY_STEP = 1 / 60;
  * empty. */
 const MIN_WORLD_HEIGHT = 360;
 
-/* Mixes two "#rrggbb" colours and returns a css rgb() string */
-function mixHex(a, b, t) {
-  const pa = parseInt(a.slice(1), 16);
-  const pb = parseInt(b.slice(1), 16);
-  const r = Math.round(((pa >> 16) & 255) + (((pb >> 16) & 255) - ((pa >> 16) & 255)) * t);
-  const g = Math.round(((pa >> 8) & 255) + (((pb >> 8) & 255) - ((pa >> 8) & 255)) * t);
-  const bl = Math.round((pa & 255) + ((pb & 255) - (pa & 255)) * t);
-  return `rgb(${r}, ${g}, ${bl})`;
-}
-
 /**
  * Flappy Bird cosmetic themes.
  *
  * Each entry is one bundled look - sky, bird, pipes and ground travel
  * together, so a theme can never clash with itself. `sky`, `pipe`,
- * `ground`, `bird` left null means the classic day-night cycle and the
- * original palette, which is what `classic` does.
+ * `ground` and `bird` left null mean the frozen Classic Day palette.
  *
  * `decor` is drawn between the clouds and the pipes. Every theme change
  * is applied to localStorage under 'flappy_theme'.
  */
+
+/** Soft haptic tick for round end and score flow. */
+function haptic(pattern) {
+  try {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  } catch (e) { /* vibration disabled by the platform */ }
+}
+
 const FLAPPY_THEMES = [
   {
     id: 'classic',
     name: 'Classic Day',
     swatchSky1: '#4ec0ca', swatchSky2: '#d3f2f4', swatchSun: '#ffe08a',
     swatchPipe: '#73bf2e', swatchBird: '#facc15', swatchGrass: '#73bf2e',
-    sky: null, stars: null, celestial: null, cloudColor: null,
-    pipe: null, ground: null, bird: null, hat: null, decor: 'none'
+    sky: { top: '#4ec0ca', mid: '#74c9d2', low: '#d3f2f4' },
+    stars: 0, celestial: 'sunHigh',
+    cloudColor: 'rgba(255,255,255,0.92)',
+    pipe: { body: '#73bf2e', lip: '#82cf36', edge: '#558022' },
+    ground: { grass: '#73bf2e', grassEdge: '#558022', soil: '#ded895', soilEdge: '#cbb868' },
+    bird: null, hat: null, decor: 'none'
   },
   {
     id: 'sunset',
@@ -604,6 +605,8 @@ const flappyGame = {
   themeId: 'classic',
   /** Lazily-built decor state for whichever theme is playing right now */
   themeDecorState: null,
+  /** When the last pipe scored, for the '+1' floater */
+  scoreFlash: null,
 
   width: 360,
   height: 520,
@@ -644,23 +647,6 @@ const flappyGame = {
   /** The scroll speed right now. It is set from the score on every step. */
   speed: 2.9,
 
-  /** Where the sun is in its day: 0 is midnight, 0.42 is noon */
-  dayPhase: 0.42,
-  /** How much of the day one point advances */
-  DAY_PER_POINT: 1 / 40,
-  /** How much the day drifts on its own, per frame */
-  DAY_DRIFT: 0.00012,
-  /** Night sky, used to darken the art as the sun goes down */
-  NIGHT_TONE: '#2b3350',
-  /** The sky over the course of one day */
-  SKY: [
-    { at: 0.00, top: '#0a1633', mid: '#152c52', low: '#24406b', tint: [8, 16, 40], tintA: 0.46, light: 0.16, stars: 1 },
-    { at: 0.20, top: '#2f4a86', mid: '#d97a5c', low: '#f6b978', tint: [255, 150, 95], tintA: 0.16, light: 0.62, stars: 0.12 },
-    { at: 0.42, top: '#4ec0ca', mid: '#74c9d2', low: '#d3f2f4', tint: [255, 255, 255], tintA: 0, light: 1, stars: 0 },
-    { at: 0.68, top: '#243a6e', mid: '#c85a4c', low: '#ef9a58', tint: [255, 120, 70], tintA: 0.17, light: 0.6, stars: 0.08 },
-    { at: 0.86, top: '#132347', mid: '#1d3a63', low: '#2c4d78', tint: [10, 20, 48], tintA: 0.4, light: 0.26, stars: 0.8 },
-    { at: 1.00, top: '#0a1633', mid: '#152c52', low: '#24406b', tint: [8, 16, 40], tintA: 0.46, light: 0.16, stars: 1 },
-  ],
   /** Fixed stars, so they do not swim about when the sky changes */
   stars: [],
 
@@ -777,14 +763,43 @@ const flappyGame = {
       if (this.gameState === 'idle') {
         this.start();
         this.jump();
+        haptic(18);
       } else if (this.gameState === 'playing') {
         this.jump();
+      } else if (this.gameState === 'gameover') {
+        // One tap anywhere on the game to fly again. The customization
+        // and restart buttons stop propagation before it reaches here.
+        this.reset();
+        this.start();
+        this.jump();
+        haptic(18);
       }
       if (e) e.preventDefault();
     };
 
     this.canvas.addEventListener('pointerdown', handleTap);
     window.addEventListener('resize', () => this.resize());
+
+    // Bigger touch targets: tapping anywhere on the start or game-over
+    // sheets fires the same action as their primary button.
+    ['flappy-start-screen', 'flappy-gameover-screen'].forEach(id => {
+      const sheet = document.getElementById(id);
+      if (!sheet) return;
+      sheet.addEventListener('pointerdown', e => {
+        // The primary button and Customize handle their own taps; anything
+        // that is not a button means the player tapped the sheet.
+        if (e.target.closest('button')) return;
+        if (id === 'flappy-start-screen') {
+          this.start();
+          this.jump();
+        } else {
+          this.reset();
+          this.start();
+          this.jump();
+        }
+        haptic(18);
+      });
+    });
 
     window.addEventListener('keydown', (e) => {
       if (state.currentPage !== 'flappy') return;
@@ -898,9 +913,6 @@ const flappyGame = {
     this.bird.rotation = 0;
     this.pipes = [];
     this.pipeTimer = 0;
-    // Every run starts in the early morning, so the day rolls over as the
-    // run goes on instead of starting at an arbitrary hour.
-    this.dayPhase = 0.16;
     this.accumulator = 0;
     this.lastTime = 0;
     // The bird starts where it is drawn
@@ -911,6 +923,8 @@ const flappyGame = {
 
     this.showOverlay('flappy-start-screen');
     this.hideOverlay('flappy-gameover-screen');
+    const newBestEl = document.getElementById('flappy-newbest');
+    if (newBestEl) newBestEl.classList.remove('active');
     this.setStatus('');
   },
 
@@ -929,8 +943,10 @@ const flappyGame = {
   gameOver() {
     this.gameState = 'gameover';
     playHitSound();
+    haptic(180);
 
-    if (this.score > this.highScore) {
+    const isNewBest = this.score > this.highScore;
+    if (isNewBest) {
       this.highScore = this.score;
       localStorage.setItem('flappy_best_score', this.highScore.toString());
     }
@@ -942,12 +958,26 @@ const flappyGame = {
     if (finalScoreEl) finalScoreEl.textContent = this.score;
     if (bestScoreEl) bestScoreEl.textContent = this.highScore;
 
+    const newBestEl = document.getElementById('flappy-newbest');
+    if (newBestEl) {
+      newBestEl.classList.toggle('active', isNewBest && this.score > 0);
+    }
+
     this.showOverlay('flappy-gameover-screen');
   },
 
   updateScoreUI() {
     const sideBest = document.getElementById('sidebar-high-score');
     if (sideBest) sideBest.textContent = this.highScore;
+  },
+
+  /** A short kick on the BEST pill when a point lands. */
+  bumpScorePill() {
+    const pill = document.querySelector('#page-flappy .mobile-stat-pill');
+    if (!pill) return;
+    pill.classList.remove('score-bump');
+    void pill.offsetWidth;
+    pill.classList.add('score-bump');
   },
 
   showOverlay(id) {
@@ -1028,9 +1058,6 @@ const flappyGame = {
     this.prevBirdY = this.bird.y;
     this.prevBirdRotation = this.bird.rotation;
 
-    // The day moves on its own between points as well
-    this.dayPhase = (this.dayPhase + this.DAY_DRIFT) % 1;
-
     this.clouds.forEach(c => {
       c.x -= 0.4 * c.scale;
       if (c.x < -80) c.x = this.width + 40;
@@ -1107,9 +1134,10 @@ const flappyGame = {
       if (!p.passed && p.x + this.pipeWidth < this.bird.x) {
         p.passed = true;
         this.score++;
-        // Every point moves the day on a little
-        this.dayPhase = (this.dayPhase + this.DAY_PER_POINT) % 1;
         playScoreSound();
+        this.scoreFlash = { t0: performance.now() };
+        haptic(12);
+        this.bumpScorePill();
       }
 
       const birdBox = {
@@ -1166,45 +1194,9 @@ const flappyGame = {
       </button>`).join('');
   },
 
-  /** The sky colours at the current point in the day */
-  skyNow() {
-    const keys = this.SKY;
-    let i = 0;
-    while (i < keys.length - 2 && this.dayPhase > keys[i + 1].at) i++;
-    const a = keys[i];
-    const b = keys[i + 1];
-    const t = (this.dayPhase - a.at) / (b.at - a.at);
-    const tint = [
-      a.tint[0] + (b.tint[0] - a.tint[0]) * t,
-      a.tint[1] + (b.tint[1] - a.tint[1]) * t,
-      a.tint[2] + (b.tint[2] - a.tint[2]) * t
-    ];
-    const tintA = a.tintA + (b.tintA - a.tintA) * t;
-    /* The colours are worked out every frame and not cached.
-     *
-     * They look like they would be worth keeping: the day-night sky mixes
-     * nine colours and builds a gradient for each frame. Measured on the
-     * page, all of that together costs about a hundredth of a millisecond
-     * against a frame budget of sixteen, so caching it would only have
-     * rounded the day off to a step and put a faint seam in the sky. */
-    return {
-      top: mixHex(a.top, b.top, t),
-      mid: mixHex(a.mid, b.mid, t),
-      low: mixHex(a.low, b.low, t),
-      tint: `rgba(${Math.round(tint[0])}, ${Math.round(tint[1])}, ${Math.round(tint[2])}, ${tintA.toFixed(3)})`,
-      light: a.light + (b.light - a.light) * t,
-      stars: a.stars + (b.stars - a.stars) * t
-    };
-  },
-
   /**
-   * The sun by day, the moon by night, both crossing the sky.
-   *
-   * Both are drawn as soft radial gradients rather than flat discs. A solid
-   * body with a hard rim and a bright ring around it read as a sticker laid
-   * over the sky instead of part of it, and pulled the eye away from the
-   * pipes and the bird. The glow now fades out well past the body and the
-   * body itself thins towards its rim, so the sky shows through both.
+   * Draw the themed sun or moon. The classic theme carries a high noon sun;
+   * the rest specify either 'sun' (warm low glow) or 'moon'.
    */
   drawCelestial(ctx, sky, groundY) {
     const theme = this.theme();
@@ -1216,57 +1208,8 @@ const flappyGame = {
       this.drawThemedSun(ctx, this.width * 0.72, groundY * 0.55, 23, '255, 212, 130');
       return;
     }
-    const p = this.dayPhase;
-    let t;
-    let sun = true;
-    let r = 21;
-    let rgb = '255, 214, 128';
-    let peak = 0.72;
-    if (p >= 0.18 && p < 0.70) {
-      t = (p - 0.18) / 0.52;
-    } else {
-      sun = false;
-      t = (p - 0.70) / 0.48;
-      if (t < 0) t += 1;
-      r = 16;
-      rgb = '222, 232, 250';
-      peak = 0.58;
-    }
-    const x = t * this.width;
-    const y = groundY * 0.6 - Math.sin(t * Math.PI) * groundY * 0.44;
-    // Near the horizon the sun is dimmer, so it sinks into the dusk instead
-    // of hanging over it
-    const a = peak * (0.6 + 0.4 * Math.sin(t * Math.PI));
-
-    // The halo: wide, faint and open at the edges
-    const halo = ctx.createRadialGradient(x, y, 0, x, y, r * 3.4);
-    halo.addColorStop(0, `rgba(${rgb}, ${(a * 0.32).toFixed(3)})`);
-    halo.addColorStop(0.3, `rgba(${rgb}, ${(a * 0.14).toFixed(3)})`);
-    halo.addColorStop(1, `rgba(${rgb}, 0)`);
-    ctx.fillStyle = halo;
-    ctx.beginPath();
-    ctx.arc(x, y, r * 3.4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // The body: brightest in the middle, thinning out towards the rim
-    const body = ctx.createRadialGradient(x, y, 0, x, y, r);
-    body.addColorStop(0, `rgba(${rgb}, ${a.toFixed(3)})`);
-    body.addColorStop(0.62, `rgba(${rgb}, ${(a * 0.88).toFixed(3)})`);
-    body.addColorStop(0.85, `rgba(${rgb}, ${(a * 0.42).toFixed(3)})`);
-    body.addColorStop(1, `rgba(${rgb}, 0)`);
-    ctx.fillStyle = body;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (!sun) {
-      // A couple of craters, just enough to keep the moon from being a dot
-      ctx.fillStyle = 'rgba(176, 186, 206, 0.26)';
-      ctx.beginPath();
-      ctx.arc(x - 5, y - 4, 3, 0, Math.PI * 2);
-      ctx.arc(x + 4, y + 3, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // High noon sun: brighter, cooler hue, properly up in the sky
+    this.drawThemedSun(ctx, this.width * 0.72, groundY * 0.32, 21, '255, 236, 170');
   },
 
   drawThemedSun(ctx, x, y, r, rgb) {
@@ -1482,13 +1425,11 @@ const flappyGame = {
 
     const theme = this.theme();
     const groundY = this.height - this.groundHeight;
-    // A fixed-sky theme takes the whole sky; the classic theme and its
-    // day-night cycle stay on skyNow().
+    // Every theme ships a fixed sky now. Classic Day keeps its original noon
+    // hues; the rest of the sets carry their own scene.
     let sky = theme.sky
       ? { top: theme.sky.top, mid: theme.sky.mid, low: theme.sky.low, tint: 'rgba(255,255,255,0)', light: 1, stars: theme.stars || 0 }
-      : this.skyNow();
-    // How far the sun has set, 0 by day and 1 at night
-    const night = 1 - sky.light;
+      : { top: '#4ec0ca', mid: '#74c9d2', low: '#d3f2f4', tint: 'rgba(255,255,255,0)', light: 1, stars: 0 };
 
     /* Where the frame sits between the last two steps of the game.
      *
@@ -1551,7 +1492,7 @@ const flappyGame = {
 
     this.drawCelestial(ctx, sky, groundY);
 
-    ctx.fillStyle = theme.cloudColor || mixHex('#ffffff', this.NIGHT_TONE, night * 0.85);
+    ctx.fillStyle = theme.cloudColor || 'rgba(255,255,255,0.92)';
     this.clouds.forEach(c => {
       ctx.beginPath();
       ctx.arc(c.x, c.y, 20 * c.scale, 0, Math.PI * 2);
@@ -1562,17 +1503,12 @@ const flappyGame = {
 
     this.drawDecor(ctx, groundY);
 
-    // Fixed-theme pipes take their colors from the theme; the classic
-    // day-night palette still applies to classic mode.
-    let pipeBody = mixHex('#73bf2e', '#2b4430', night);
-    let pipeLip  = mixHex('#82cf36', '#37543a', night);
-    let pipeEdge = mixHex('#558022', '#1e3323', night);
+    // Every theme ships with its own paint set, so no mixing happens here:
+    // the fixed sky IS the classic palette, snapshotted.
+    const pipeBody = (theme.pipe && theme.pipe.body) || '#73bf2e';
+    const pipeLip  = (theme.pipe && theme.pipe.lip)  || '#82cf36';
+    const pipeEdge = (theme.pipe && theme.pipe.edge) || '#558022';
     const pipeStripes = !!(theme.pipe && theme.pipe.stripes);
-    if (theme.pipe) {
-      pipeBody = theme.pipe.body;
-      pipeLip  = theme.pipe.lip;
-      pipeEdge = theme.pipe.edge;
-    }
 
     this.pipes.forEach(p => {
       // The pipe is drawn between the two steps, like the bird
@@ -1622,10 +1558,10 @@ const flappyGame = {
       }
     });
 
-    const grass = theme.ground ? theme.ground.grass : mixHex('#73bf2e', '#2c4a2a', night);
-    const grassEdge = theme.ground ? theme.ground.grassEdge : mixHex('#558022', '#1f351f', night);
-    const soil = theme.ground ? theme.ground.soil : mixHex('#ded895', '#3c4257', night);
-    const soilEdge = theme.ground ? theme.ground.soilEdge : mixHex('#cbb868', '#2f3448', night);
+    const grass = (theme.ground && theme.ground.grass) || '#73bf2e';
+    const grassEdge = (theme.ground && theme.ground.grassEdge) || '#558022';
+    const soil = (theme.ground && theme.ground.soil) || '#ded895';
+    const soilEdge = (theme.ground && theme.ground.soilEdge) || '#cbb868';
 
     ctx.fillStyle = soil;
     ctx.fillRect(0, groundY, this.width, this.groundHeight);
@@ -1745,6 +1681,27 @@ const flappyGame = {
       ctx.textAlign = 'center';
       ctx.strokeText(this.score.toString(), this.width / 2, 60);
       ctx.fillText(this.score.toString(), this.width / 2, 60);
+    }
+
+    // '+1' floater on every pipe passed — a quiet jolt of feedback
+    if (this.scoreFlash) {
+      const age = performance.now() - this.scoreFlash.t0;
+      const k = age / 700;
+      if (k >= 1) {
+        this.scoreFlash = null;
+      } else {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - k);
+        ctx.font = '22px "Press Start 2P", monospace, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = 'rgba(20,16,4,0.75)';
+        ctx.lineWidth = 4;
+        ctx.fillStyle = '#fde047';
+        const y = 96 - k * 36;
+        ctx.strokeText('+1', this.width / 2, y);
+        ctx.fillText('+1', this.width / 2, y);
+        ctx.restore();
+      }
     }
   },
 

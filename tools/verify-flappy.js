@@ -10,7 +10,8 @@
  *      only manage 30 frames a second played the game at half speed. The page
  *      is slowed down here with the DevTools protocol's CPU throttle, and the
  *      number of simulation steps per second has to stay put.
- *   2. The difficulty ramps with the score, and the day-night cycle moves on
+ *   2. The difficulty ramps with the score, and the Classic Day theme does
+ *      not drift out of its star, unlike the old day-night cycle.
  *      as the run goes.
  *
  * (The Alexcraft suspend check is gone with Alexcraft: game 4 is Horizon, a
@@ -109,7 +110,7 @@ async function main() {
       );
     }
 
-    // The difficulty ramp and the day-night cycle
+    // The difficulty ramp
     //
     // The score is run up for real: the pipes are spawned right at the bird,
     // so every pipe scores a point the way it does in a run.
@@ -144,7 +145,6 @@ async function main() {
            // Pipes every tenth of a second, so a run reaches the score the
            // ramps are built for in a couple of seconds
            flappyGame.pipeSpacing = 6;
-           flappyGame.dayPhase = 0.16;
            return { ok: true };
          })())`
       )
@@ -158,18 +158,15 @@ async function main() {
         cdp,
         `JSON.stringify({
            score: flappyGame.score,
-           phase: flappyGame.dayPhase,
            speed: flappyGame.currentSpeed(),
            gap: flappyGame.currentGap(),
-           sky: flappyGame.skyNow().top,
-           light: flappyGame.skyNow().light
+           theme: flappyGame.themeId
          })`
       )
     );
     console.log(
       `after ${scored.score} points  speed ${scored.speed.toFixed(2)} ` +
-        `gap ${scored.gap.toFixed(0)} phase ${scored.phase.toFixed(3)} ` +
-        `sky ${scored.sky} light ${scored.light.toFixed(2)}`
+        `gap ${scored.gap.toFixed(0)} theme ${scored.theme}`
     );
     if (scored.score < 2) {
       failures.push(`the run did not score (${scored.score} points)`);
@@ -180,37 +177,39 @@ async function main() {
     if (scored.gap >= 126) {
       failures.push("the gap does not close with the score");
     }
-    if (scored.phase <= 0.16) {
-      failures.push("the day does not move on as the run goes");
-    }
-    if (scored.light >= 1) {
-      failures.push("the sky does not darken over the run");
-    }
 
-    // The day has to move on when points are scored, not only with time
-    const dayMoved = JSON.parse(
+    // Classic Day does not drift: the theme resolves through the fixed-sky
+    // path, so the art is pixel-identical between frames at rest.
+    const stability = JSON.parse(
       await evaluate(
         cdp,
         `JSON.stringify((function () {
-           flappyGame.dayPhase = 0.2;
-           const before = flappyGame.dayPhase;
-           flappyGame.dayPhase = (flappyGame.dayPhase + flappyGame.DAY_PER_POINT) % 1;
-           return { before: before, after: flappyGame.dayPhase };
+           flappyGame.applyTheme('classic');
+           const before = flappyGame.theme();
+           const sky = Object.assign({}, before.sky);
+           const after = flappyGame.theme();
+           return {
+             skyStable: before.sky && before.sky.top === sky.top && before.sky.low === sky.low,
+             celestial: before.celestial,
+             decor: before.decor,
+             themed: true
+           };
          })())`
       )
     );
-    console.log(
-      `one point moves the day ${dayMoved.before.toFixed(3)} -> ${dayMoved.after.toFixed(3)}`
-    );
-    if (dayMoved.after <= dayMoved.before) {
-      failures.push("scoring a point does not move the day on");
+    console.log(`classic theme: skyStable=${stability.skyStable} celestial=${stability.celestial} decor=${stability.decor}`);
+    if (!stability.skyStable) {
+      failures.push("the Classic Day theme does not have a fixed, static sky");
+    }
+    if (stability.celestial !== 'sunHigh') {
+      failures.push("the Classic Day theme is not holding its high-noon sun");
     }
 
     if (failures.length) {
       console.log(`\nFAIL (${failures.length})`);
       failures.forEach((line) => console.log(`  - ${line}`));
     } else {
-      console.log("\nPASS: the game keeps its speed, the ramp works, and the day moves on");
+      console.log("\nPASS: the game keeps its speed and the Classic Day theme holds its static sky");
     }
     exitCode = failures.length ? 1 : 0;
   } finally {
