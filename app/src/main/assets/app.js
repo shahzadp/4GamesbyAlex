@@ -1664,65 +1664,70 @@ const flappyGame = {
       }
 
       case 'party': {
-        // Gold bird: bow-tie low under the beak, striped party cone on top
-        this.birdRadial(ctx, 0, 0, R, '#fef08a', '#facc15', '#a16207', '#422006', 2.5);
+        // Champagne New Year: gold bird in midnight + gold formalwear that
+        // matches the scene it flies through.
+        this.birdRadial(ctx, 0, 0, R, '#fde68a', '#facc15', '#b45309', '#422006', 2.5);
         ctx.fillStyle = '#fef9c3';
         ctx.beginPath();
         ctx.arc(-2, 4, R - 5.5, 0, Math.PI * 2);
         ctx.fill();
-        // bow-tie: two small triangles clearly below the beak, on the chest
-        ctx.fillStyle = '#f43f5e';
+        // Midnight bow-tie with one gold dot in the knot — echoes the sky
+        ctx.fillStyle = '#0f1f4a';
         ctx.beginPath();
         ctx.moveTo(2, 8.2);
-        ctx.lineTo(-3, 5.8);
-        ctx.lineTo(-3, 10.6);
+        ctx.lineTo(-4, 5.3);
+        ctx.lineTo(-4, 11.1);
         ctx.closePath();
         ctx.fill();
         ctx.beginPath();
         ctx.moveTo(12, 8.2);
-        ctx.lineTo(17, 5.8);
-        ctx.lineTo(17, 10.6);
+        ctx.lineTo(18, 5.3);
+        ctx.lineTo(18, 11.1);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = '#be123d';
-        ctx.fillRect(2, 7.4, 10, 1.4);
-        ctx.fillRect(2, 9.0, 10, 1.4);
-        // eye shine
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(7, 8.2, 1.7, 0, Math.PI * 2);
+        ctx.fill();
+        // Eye shine
         this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220' });
         ctx.fillStyle = 'rgba(255,255,255,0.85)';
         ctx.beginPath();
         ctx.arc(5.2, -6.2, 1.4, 0, Math.PI * 2);
         ctx.fill();
         this.birdBeak(ctx, bc);
-        // wide, low striped party cone sitting on top of the head
-        ctx.fillStyle = '#f43f5e';
+        // Midnight cone with gold stars
+        ctx.fillStyle = '#0f1f4a';
         ctx.beginPath();
         ctx.moveTo(-R, -R + 2);
         ctx.lineTo(0, -R - 13);
         ctx.lineTo(R, -R + 2);
         ctx.closePath();
         ctx.fill();
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(-R, -R + 2);
-        ctx.lineTo(0, -R - 13);
-        ctx.lineTo(R, -R + 2);
-        ctx.closePath();
-        ctx.clip();
-        ctx.strokeStyle = '#fde68a';
-        ctx.lineWidth = 3;
-        for (let offset = -6; offset <= 8; offset += 7) {
+        // Three small gold stars, evenly spaced
+        const star = (sx, sy, r) => {
+          ctx.save();
+          ctx.translate(sx, sy);
           ctx.beginPath();
-          ctx.moveTo(offset - 8, 1);
-          ctx.lineTo(offset + 8, -R - 11);
-          ctx.stroke();
-        }
-        ctx.restore();
-        ctx.fillStyle = '#fde68a';
+          for (let i = 0; i < 10; i++) {
+            const radius = i % 2 === 0 ? r : r * 0.44;
+            const a = (Math.PI / 5) * i - Math.PI / 2;
+            if (i === 0) ctx.moveTo(Math.cos(a) * radius, Math.sin(a) * radius);
+            else ctx.lineTo(Math.cos(a) * radius, Math.sin(a) * radius);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        };
+        ctx.fillStyle = '#fbbf24';
+        star(-5.2, -R + 4.2, 1.6);
+        star(5.2, -R + 4.2, 1.6);
+        star(0, -R - 4.5, 1.8);
+        // Gold pompom
         ctx.beginPath();
         ctx.arc(0, -R - 13, 2.2, 0, Math.PI * 2);
         ctx.fill();
-        this.birdWing(ctx, wingAngle, '#fde68a', '#422006', 7, 4.8, 0);
+        this.birdWing(ctx, wingAngle, '#fef9c3', '#422006', 7, 4.8, 0);
         break;
       }
 
