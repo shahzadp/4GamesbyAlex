@@ -16,6 +16,10 @@ encrypted on the device; everything else works offline and signed out).
   opponents with real clocks, resign and draw buttons. Optional; everything
   else in the app works offline with no account.
 - **Flappy Bird** — the classic tap-to-fly loop, drawn fresh for this app.
+  A Customize button in the toolbar bundles looks as whole sets — sky, bird,
+  pipes and ground travel together, so they can never clash. Classic day
+  plus Sunset Bay, Midnight Metro, Halloween, Christmas, New Year,
+  Valentine's, Easter, Candy Land and Coral Lagoon.
 - **Virtual Pet 3D** — a little pet you keep, feed and chat with. The 3D pet
   renders with three.js; chatting needs an API key you supply to the app
   (stored on-device), and is otherwise optional.

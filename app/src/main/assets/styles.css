@@ -5000,3 +5000,107 @@ body.theme-chess .duel-opening-details-body .duel-row-start { margin-bottom: 0.2
 body.theme-chess .duel-opening-details[open] .duel-opening-summary {
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
+
+/* ================= FLAPPY BIRD - CUSTOMIZE ================= */
+
+.flappy-customize-btn {
+  background: linear-gradient(180deg, #ffd166, #f59e0b);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #3a2400;
+  max-width: none;
+  flex: 1 1 auto;
+}
+.flappy-customize-btn:active { transform: var(--touch-scale); }
+
+.flappy-customize-screen {
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 14, 0.74);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 0.75rem;
+  z-index: 30;
+}
+
+.customize-card {
+  width: 100%;
+  max-width: 430px;
+  max-height: 100%;
+  overflow-y: auto;
+  background: #141826;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 0.75rem 0.75rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+.customize-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.customize-heading { display: flex; flex-direction: column; gap: 0.1rem; }
+.customize-eyebrow {
+  font-size: 0.54rem; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #fbbf24;
+}
+.customize-title { font-size: 1rem; font-weight: 800; color: #eef1fb; }
+.customize-close {
+  appearance: none; border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08); width: 32px; height: 32px;
+  border-radius: 9px; color: #eef1fb; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; line-height: 1;
+}
+.customize-close:active { transform: var(--touch-scale); }
+.customize-note { margin: 0; font-size: 0.66rem; color: rgba(238, 241, 251, 0.55); line-height: 1.4; }
+
+.customize-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.45rem;
+}
+
+.theme-card {
+  appearance: none; position: relative; display: flex; flex-direction: column;
+  border-radius: 13px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05); padding: 0; cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.theme-card:hover { border-color: rgba(255, 255, 255, 0.24); }
+.theme-card:active { transform: scale(0.97); }
+.theme-card:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
+.theme-card.active {
+  border-color: #35d99a;
+  box-shadow: 0 0 0 2px rgba(53, 217, 154, 0.35), 0 6px 18px rgba(53, 217, 154, 0.18);
+}
+.theme-card.active::after {
+  content: "\2713"; position: absolute; top: 5px; right: 5px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #35d99a; color: #052e1f;
+  font-size: 0.66rem; font-weight: 900; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.theme-card-art {
+  position: relative; height: 62px; overflow: hidden; display: block;
+  background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 72%, var(--grass) 100%);
+}
+.theme-card-sun {
+  position: absolute; top: 10px; right: 12px; width: 15px; height: 15px;
+  border-radius: 50%; background: var(--sun); box-shadow: 0 0 12px var(--sun);
+}
+.theme-card-pipe {
+  position: absolute; bottom: 10px; right: 12px; width: 12px; height: 40px;
+  border-radius: 3px 3px 0 0; background: var(--pipe); border: 2px solid rgba(0, 0, 0, 0.22);
+}
+.theme-card-bird {
+  position: absolute; left: 10px; bottom: 10px; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--bird); border: 2px solid rgba(0, 0, 0, 0.3);
+  box-shadow: inset -2px -3px 0 rgba(0, 0, 0, 0.2);
+}
+.theme-card-name {
+  padding: 0.3rem 0.2rem 0.38rem; min-height: 2.1em;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-family: var(--font-main); font-size: 0.62rem; font-weight: 700; line-height: 1.15;
+  color: rgba(238, 241, 251, 0.9);
+}
+.theme-card.active .theme-card-name { color: #d7f5e7; }

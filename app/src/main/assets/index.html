@@ -213,16 +213,40 @@
             </div>
             <button id="btn-restart-flappy" class="arcade-btn">PLAY AGAIN</button>
           </div>
+
+          <!-- Customize overlay: every theme bundles sky, bird, pipes and
+               land together so looks never clash. -->
+          <div id="flappy-customize-screen" class="flappy-overlay flappy-customize-screen"
+               role="dialog" aria-modal="true" aria-label="Customize look">
+            <div class="customize-card">
+              <div class="customize-head">
+                <div class="customize-heading">
+                  <span class="customize-eyebrow">Cosmetics</span>
+                  <span class="customize-title">Pick your look</span>
+                </div>
+                <button id="btn-flappy-customize-close" class="customize-close" type="button"
+                        aria-label="Close">&#x2715;</button>
+              </div>
+              <p class="customize-note">Each set bundles the sky, bird, pipes and ground so the look always matches.</p>
+              <div class="customize-grid" id="flappy-theme-grid"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Action Toolbar Below Game Screen -->
-        <!-- The game takes the whole screen on its own, so there is no button
-             to turn that on. Only the best score is left to show. -->
-        <div class="mobile-bottom-actions">
+        <div class="mobile-bottom-actions flappy-bottom-bar">
           <div class="mobile-stat-pill">
             <span class="pill-label">BEST:</span>
             <span class="pill-value" id="sidebar-high-score">0</span>
           </div>
+          <button id="btn-flappy-customize" class="mobile-btn flappy-customize-btn" type="button"
+                  aria-haspopup="dialog" aria-controls="flappy-customize-screen">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2a10 10 0 0 0 0 20c.93 0 1.65-.75 1.65-1.69 0-.43-.15-.83-.4-1.15-.24-.33-.4-.72-.4-1.15A1.75 1.75 0 0 1 14.6 16.4c3.4.15 6.9-2.35 7.4-6.15A10 10 0 0 0 12 2z"/>
+            </svg>
+            <span class="btn-label">Customize</span>
+          </button>
         </div>
         <div id="flappy-status" class="flappy-status-line" role="status" aria-live="polite"></div>
       </div>

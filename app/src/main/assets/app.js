@@ -443,6 +443,145 @@ function mixHex(a, b, t) {
   return `rgb(${r}, ${g}, ${bl})`;
 }
 
+/**
+ * Flappy Bird cosmetic themes.
+ *
+ * Each entry is one bundled look - sky, bird, pipes and ground travel
+ * together, so a theme can never clash with itself. `sky`, `pipe`,
+ * `ground`, `bird` left null means the classic day-night cycle and the
+ * original palette, which is what `classic` does.
+ *
+ * `decor` is drawn between the clouds and the pipes. Every theme change
+ * is applied to localStorage under 'flappy_theme'.
+ */
+const FLAPPY_THEMES = [
+  {
+    id: 'classic',
+    name: 'Classic Day',
+    swatchSky1: '#4ec0ca', swatchSky2: '#d3f2f4', swatchSun: '#ffe08a',
+    swatchPipe: '#73bf2e', swatchBird: '#facc15', swatchGrass: '#73bf2e',
+    sky: null, stars: null, celestial: null, cloudColor: null,
+    pipe: null, ground: null, bird: null, hat: null, decor: 'none'
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset Bay',
+    swatchSky1: '#2c1e54', swatchSky2: '#f08344', swatchSun: '#ffd194',
+    swatchPipe: '#c2602c', swatchBird: '#fb923c', swatchGrass: '#b06234',
+    sky: { top: '#2c1e54', mid: '#8a3b54', low: '#f08344' },
+    stars: 0.12, celestial: 'sun',
+    cloudColor: 'rgba(255,205,180,0.9)',
+    pipe: { body: '#c2602c', lip: '#d97b45', edge: '#6e3418' },
+    ground: { grass: '#b06234', grassEdge: '#7a3f1e', soil: '#d8b087', soilEdge: '#b9884e' },
+    bird: { body: '#fb923c', belly: '#fed7aa', stroke: '#9a3412', beak: '#fbbf24', beakStroke: '#92400e' },
+    hat: null, decor: 'none'
+  },
+  {
+    id: 'midnight',
+    name: 'Midnight Metro',
+    swatchSky1: '#040a1e', swatchSky2: '#1d3260', swatchSun: '#deebfa',
+    swatchPipe: '#3c4a78', swatchBird: '#b8c2d9', swatchGrass: '#25324e',
+    sky: { top: '#040a1e', mid: '#0d1d3f', low: '#1d3260' },
+    stars: 1, celestial: 'moon',
+    cloudColor: 'rgba(40,52,90,0.9)',
+    pipe: { body: '#3c4a78', lip: '#4a598a', edge: '#1d2540' },
+    ground: { grass: '#25324e', grassEdge: '#141c33', soil: '#1c2540', soilEdge: '#0f1527' },
+    bird: { body: '#b8c2d9', belly: '#eef2fb', stroke: '#4a5568', beak: '#fbbf24', beakStroke: '#92400e' },
+    hat: null, decor: 'none'
+  },
+  {
+    id: 'halloween',
+    name: 'Halloween',
+    swatchSky1: '#160a26', swatchSky2: '#b3451b', swatchSun: '#ffab5c',
+    swatchPipe: '#4e2a63', swatchBird: '#8b5cf6', swatchGrass: '#33203f',
+    sky: { top: '#160a26', mid: '#3d1d4f', low: '#b3451b' },
+    stars: 0.3, celestial: 'moon',
+    cloudColor: 'rgba(70,35,90,0.85)',
+    pipe: { body: '#4e2a63', lip: '#623a7d', edge: '#241031' },
+    ground: { grass: '#33203f', grassEdge: '#1c1025', soil: '#241430', soilEdge: '#120920' },
+    bird: { body: '#8b5cf6', belly: '#c4b5fd', stroke: '#4c1d95', beak: '#f97316', beakStroke: '#7c2d12' },
+    hat: null, decor: 'bats'
+  },
+  {
+    id: 'christmas',
+    name: 'Christmas',
+    swatchSky1: '#16324f', swatchSky2: '#86aac9', swatchSun: '#f2f6fb',
+    swatchPipe: '#c81e1e', swatchBird: '#e11d48', swatchGrass: '#eef3f8',
+    sky: { top: '#16324f', mid: '#27507a', low: '#86aac9' },
+    stars: 0.1, celestial: 'moon',
+    cloudColor: 'rgba(235,242,248,0.92)',
+    pipe: { body: '#c81e1e', lip: '#ffffff', edge: '#7f1d1d', stripes: true },
+    ground: { grass: '#eef3f8', grassEdge: '#c3d2e2', soil: '#dfe8f3', soilEdge: '#b6c6d9' },
+    bird: { body: '#e11d48', belly: '#fda4af', stroke: '#9f1239', beak: '#fbbf24', beakStroke: '#92400e' },
+    hat: 'santa', decor: 'snow'
+  },
+  {
+    id: 'newyear',
+    name: 'New Year',
+    swatchSky1: '#020919', swatchSky2: '#233257', swatchSun: '#eef2fb',
+    swatchPipe: '#1f2333', swatchBird: '#facc15', swatchGrass: '#141b2e',
+    sky: { top: '#020919', mid: '#0d1735', low: '#233257' },
+    stars: 1, celestial: 'moon',
+    cloudColor: 'rgba(35,46,80,0.9)',
+    pipe: { body: '#1f2333', lip: '#eab308', edge: '#0a0d1a' },
+    ground: { grass: '#141b2e', grassEdge: '#090d18', soil: '#0c1224', soilEdge: '#060a16' },
+    bird: { body: '#facc15', belly: '#fef9c3', stroke: '#a16207', beak: '#f97316', beakStroke: '#7c2d12' },
+    hat: 'party', decor: 'confetti'
+  },
+  {
+    id: 'valentine',
+    name: "Valentine's",
+    swatchSky1: '#3d0a24', swatchSky2: '#c2537d', swatchSun: '#ffb3c7',
+    swatchPipe: '#c81e48', swatchBird: '#fb7185', swatchGrass: '#5c1533',
+    sky: { top: '#3d0a24', mid: '#6d1232', low: '#c2537d' },
+    stars: 0.15, celestial: 'moon',
+    cloudColor: 'rgba(120,40,70,0.85)',
+    pipe: { body: '#c81e48', lip: '#e5537f', edge: '#6e0d29' },
+    ground: { grass: '#5c1533', grassEdge: '#2e0818', soil: '#3b0d22', soilEdge: '#1f0511' },
+    bird: { body: '#fb7185', belly: '#ffe4e6', stroke: '#9f1239', beak: '#fff7ed', beakStroke: '#9f1239' },
+    hat: null, decor: 'hearts'
+  },
+  {
+    id: 'easter',
+    name: 'Easter',
+    swatchSky1: '#bfe4ff', swatchSky2: '#f2e9ff', swatchSun: '#fff3a0',
+    swatchPipe: '#34d399', swatchBird: '#c4b5fd', swatchGrass: '#8ff0b3',
+    sky: { top: '#bfe4ff', mid: '#d9efff', low: '#f2e9ff' },
+    stars: 0, celestial: 'sun',
+    cloudColor: 'rgba(255,255,255,0.95)',
+    pipe: { body: '#34d399', lip: '#7ce8b5', edge: '#047857' },
+    ground: { grass: '#8ff0b3', grassEdge: '#34d399', soil: '#efe0b5', soilEdge: '#d3bd82' },
+    bird: { body: '#c4b5fd', belly: '#ede9fe', stroke: '#6d28d9', beak: '#fb923c', beakStroke: '#9a3412' },
+    hat: null, decor: 'rainbow'
+  },
+  {
+    id: 'candy',
+    name: 'Candy Land',
+    swatchSky1: '#e879f9', swatchSky2: '#fbcfe8', swatchSun: '#ffdff0',
+    swatchPipe: '#a855f7', swatchBird: '#f472b6', swatchGrass: '#f5a9e4',
+    sky: { top: '#e879f9', mid: '#f0abfc', low: '#fbcfe8' },
+    stars: 0, celestial: 'sun',
+    cloudColor: 'rgba(255,220,250,0.9)',
+    pipe: { body: '#a855f7', lip: '#d8b4fe', edge: '#6b21a8', stripes: true },
+    ground: { grass: '#f5a9e4', grassEdge: '#c25bb5', soil: '#8e3aa8', soilEdge: '#5c226e' },
+    bird: { body: '#f472b6', belly: '#fdf4ff', stroke: '#be185d', beak: '#facc15', beakStroke: '#92400e' },
+    hat: null, decor: 'none'
+  },
+  {
+    id: 'ocean',
+    name: 'Coral Lagoon',
+    swatchSky1: '#063a54', swatchSky2: '#22a5ba', swatchSun: '#d9fbff',
+    swatchPipe: '#ff7a59', swatchBird: '#2dd4bf', swatchGrass: '#cbbd8f',
+    sky: { top: '#063a54', mid: '#126283', low: '#22a5ba' },
+    stars: 0, celestial: 'sun',
+    cloudColor: 'rgba(190,235,245,0.85)',
+    pipe: { body: '#ff7a59', lip: '#ffa07a', edge: '#a23b1e' },
+    ground: { grass: '#cbbd8f', grassEdge: '#8a7850', soil: '#e6d49a', soilEdge: '#c4b06e' },
+    bird: { body: '#2dd4bf', belly: '#ccfbf1', stroke: '#0f766e', beak: '#fb7185', beakStroke: '#9f1239' },
+    hat: null, decor: 'bubbles'
+  }
+];
+
 const flappyGame = {
   canvas: null,
   ctx: null,
@@ -460,6 +599,11 @@ const flappyGame = {
    * step of the game. */
   prevBirdY: 220,
   prevBirdRotation: 0,
+
+  /** The active cosmetic theme id. Saved under 'flappy_theme'. */
+  themeId: 'classic',
+  /** Lazily-built decor state for whichever theme is playing right now */
+  themeDecorState: null,
 
   width: 360,
   height: 520,
@@ -577,8 +721,39 @@ const flappyGame = {
     this.ctx = this.canvas.getContext('2d');
 
     this.highScore = parseInt(localStorage.getItem('flappy_best_score') || '0', 10);
+    this.themeId = localStorage.getItem('flappy_theme') || 'classic';
+    if (!FLAPPY_THEMES.some(t => t.id === this.themeId)) this.themeId = 'classic';
     this.updateScoreUI();
     this.stars = this.makeStars();
+
+    // Customization wiring: opening the grid is lazy, and closing it just
+    // hides the overlay (the theme applies immediately on each tap).
+    const customizeBtn = document.getElementById('btn-flappy-customize');
+    if (customizeBtn) {
+      customizeBtn.addEventListener('click', () => {
+        this.renderThemeGrid();
+        this.showOverlay('flappy-customize-screen');
+      });
+    }
+    const customizeClose = document.getElementById('btn-flappy-customize-close');
+    if (customizeClose) {
+      customizeClose.addEventListener('click', () => this.hideOverlay('flappy-customize-screen'));
+    }
+    const customizeScreen = document.getElementById('flappy-customize-screen');
+    if (customizeScreen) {
+      customizeScreen.addEventListener('click', e => {
+        // Tapping the backdrop closes the sheet, like any other overlay here
+        if (e.target === customizeScreen) this.hideOverlay('flappy-customize-screen');
+      });
+    }
+    const themeGrid = document.getElementById('flappy-theme-grid');
+    if (themeGrid) {
+      themeGrid.addEventListener('click', e => {
+        const card = e.target.closest('.theme-card');
+        if (!card) return;
+        this.applyTheme(card.dataset.theme || 'classic');
+      });
+    }
 
     const handleTap = (e) => {
       if (state.currentPage !== 'flappy') return;
@@ -940,6 +1115,40 @@ const flappyGame = {
     }
   },
 
+  /** The theme currently in play, or the classic fallback */
+  theme() {
+    return FLAPPY_THEMES.find(t => t.id === this.themeId) || FLAPPY_THEMES[0];
+  },
+
+  /** Switch theme, persist it, repaint the customization grid. */
+  applyTheme(id) {
+    if (!FLAPPY_THEMES.some(t => t.id === id)) return;
+    this.themeId = id;
+    this.themeDecorState = null;
+    localStorage.setItem('flappy_theme', id);
+    this.renderThemeGrid();
+    // Nothing repaints on a theme change unless something draws; the page
+    // is on the animation loop, so the next frame picks it up. Force one
+    // anyway in case the tab is being lagged and we are between loops.
+    if (this.ctx) this.draw();
+  },
+
+  /** Paint the customization grid's active state + cards */
+  renderThemeGrid() {
+    const grid = document.getElementById('flappy-theme-grid');
+    if (!grid) return;
+    grid.innerHTML = FLAPPY_THEMES.map(t => `
+      <button class="theme-card${t.id === this.themeId ? ' active' : ''}" type="button"
+              data-theme="${t.id}" aria-pressed="${t.id === this.themeId}" aria-label="${t.name} theme">
+        <span class="theme-card-art" style="--sky1:${t.swatchSky1};--sky2:${t.swatchSky2};--bird:${t.swatchBird};--pipe:${t.swatchPipe};--grass:${t.swatchGrass};--sun:${t.swatchSun}">
+          <span class="theme-card-sun"></span>
+          <span class="theme-card-pipe"></span>
+          <span class="theme-card-bird"></span>
+        </span>
+        <span class="theme-card-name">${t.name}</span>
+      </button>`).join('');
+  },
+
   /** The sky colours at the current point in the day */
   skyNow() {
     const keys = this.SKY;
@@ -981,6 +1190,15 @@ const flappyGame = {
    * body itself thins towards its rim, so the sky shows through both.
    */
   drawCelestial(ctx, sky, groundY) {
+    const theme = this.theme();
+    if (theme.celestial === 'moon') {
+      this.drawThemedMoon(ctx, this.width * 0.28, groundY * 0.32, 17, '222, 232, 250');
+      return;
+    }
+    if (theme.celestial === 'sun') {
+      this.drawThemedSun(ctx, this.width * 0.72, groundY * 0.55, 23, '255, 212, 130');
+      return;
+    }
     const p = this.dayPhase;
     let t;
     let sun = true;
@@ -1034,12 +1252,224 @@ const flappyGame = {
     }
   },
 
+  drawThemedSun(ctx, x, y, r, rgb) {
+    // Wide, faint halo, then the disc
+    const halo = ctx.createRadialGradient(x, y, 0, x, y, r * 3.4);
+    halo.addColorStop(0, `rgba(${rgb}, 0.32)`);
+    halo.addColorStop(0.3, `rgba(${rgb}, 0.14)`);
+    halo.addColorStop(1, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 3.4, 0, Math.PI * 2);
+    ctx.fill();
+    const body = ctx.createRadialGradient(x, y, 0, x, y, r);
+    body.addColorStop(0, `rgba(${rgb}, 0.95)`);
+    body.addColorStop(0.62, `rgba(${rgb}, 0.85)`);
+    body.addColorStop(1, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  },
+
+  drawThemedMoon(ctx, x, y, r, rgb) {
+    this.drawThemedSun(ctx, x, y, r, rgb);
+    // Craters give it away as a moon, not a pale sun
+    ctx.fillStyle = 'rgba(176, 186, 206, 0.32)';
+    ctx.beginPath();
+    ctx.arc(x - 5, y - 3, 3, 0, Math.PI * 2);
+    ctx.arc(x + 4.5, y + 3, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  },
+
+  /** Deterministic decor positions: stable across frames and themes */
+  decorRng(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  },
+
+  /** Lazily build the decor set for the active theme, once per switch */
+  decorState(kind) {
+    if (this.themeDecorState && this.themeDecorState.kind === kind) return this.themeDecorState;
+    const rand = this.decorRng(20260725);
+    const state = { kind };
+    if (kind === 'bats') {
+      state.bats = [];
+      for (let i = 0; i < 5; i++) {
+        state.bats.push({
+          x: rand() * this.width,
+          y: this.height * (0.12 + rand() * 0.35),
+          size: 6 + rand() * 4,
+          phase: rand() * Math.PI * 2,
+          speed: 1.1 + rand() * 0.5
+        });
+      }
+    } else if (kind === 'snow' || kind === 'bubbles') {
+      state.flakes = [];
+      const count = kind === 'snow' ? 46 : 18;
+      for (let i = 0; i < count; i++) {
+        state.flakes.push({
+          x: rand() * this.width,
+          y: rand() * this.height,
+          r: kind === 'snow' ? 0.9 + rand() * 1.7 : 2 + rand() * 4,
+          speed: kind === 'snow' ? 0.5 + rand() * 0.7 : 0.4 + rand() * 0.6,
+          phase: rand() * Math.PI * 2
+        });
+      }
+    } else if (kind === 'confetti') {
+      const hues = ['#f43f5e', '#facc15', '#22c55e', '#38bdf8', '#a855f7', '#fb923c'];
+      state.bits = [];
+      for (let i = 0; i < 40; i++) {
+        state.bits.push({
+          x: rand() * this.width, y: rand() * this.height,
+          w: 3 + rand() * 3, h: 4 + rand() * 3,
+          hue: hues[Math.floor(rand() * hues.length)],
+          rot: rand() * Math.PI * 2,
+          spin: (rand() - 0.5) * 0.06,
+          speed: 0.6 + rand() * 0.8
+        });
+      }
+    } else if (kind === 'hearts') {
+      state.hearts = [];
+      for (let i = 0; i < 12; i++) {
+        state.hearts.push({
+          x: rand() * this.width, y: rand() * this.height,
+          size: 5 + rand() * 6,
+          phase: rand() * Math.PI * 2,
+          speed: 0.25 + rand() * 0.35
+        });
+      }
+    }
+    this.themeDecorState = state;
+    return state;
+  },
+
+  /** Ambient decor for the active theme. Drawn after clouds, before pipes. */
+  drawDecor(ctx, groundY) {
+    const theme = this.theme();
+    const kind = theme.decor;
+    if (!kind || kind === 'none') return;
+    const now = performance.now() / 1000;
+
+    if (kind === 'rainbow') {
+      ctx.save();
+      ctx.globalAlpha = 0.78;
+      ctx.lineCap = 'round';
+      const colors = ['#f43f5e', '#fb923c', '#fde047', '#34d399', '#38bdf8', '#a78bfa'];
+      for (let i = 0; i < colors.length; i++) {
+        ctx.strokeStyle = colors[i];
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(this.width * 0.78, groundY + 30, 130 - i * 8, Math.PI, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      // Small clouds where the rainbow meets the ground
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      [0.55, 0.78, 1.01].forEach(fx => {
+        const cx = this.width * fx;
+        ctx.beginPath();
+        ctx.arc(cx - 10, groundY, 8, 0, Math.PI * 2);
+        ctx.arc(cx, groundY - 4, 11, 0, Math.PI * 2);
+        ctx.arc(cx + 10, groundY, 8, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      return;
+    }
+
+    const state = this.decorState(kind);
+
+    if (kind === 'bats') {
+      state.bats.forEach(b => {
+        b.x -= b.speed * 0.9;
+        if (b.x < -30) {
+          b.x = this.width + 20 + Math.random() * 140;
+          b.y = this.height * (0.1 + Math.random() * 0.35);
+        }
+        const flap = Math.sin(now * 9 + b.phase) * 0.55;
+        ctx.fillStyle = '#0e0517';
+        ctx.beginPath();
+        ctx.moveTo(b.x - b.size, b.y);
+        ctx.quadraticCurveTo(b.x - b.size * 0.55, b.y - b.size * (0.4 + flap * 0.4), b.x, b.y - b.size * 0.18);
+        ctx.quadraticCurveTo(b.x + b.size * 0.55, b.y - b.size * (0.4 + flap * 0.4), b.x + b.size, b.y);
+        ctx.quadraticCurveTo(b.x + b.size * 0.45, b.y + b.size * 0.3, b.x, b.y + b.size * 0.15);
+        ctx.quadraticCurveTo(b.x - b.size * 0.45, b.y + b.size * 0.3, b.x - b.size, b.y);
+        ctx.fill();
+      });
+      return;
+    }
+
+    if (kind === 'snow' || kind === 'bubbles') {
+      state.flakes.forEach(f => {
+        f.y += f.speed;
+        f.x += Math.sin(now * 1.1 + f.phase) * 0.35;
+        if (f.y > this.height + 6) { f.y = -6; f.x = Math.random() * this.width; }
+        if (f.x > this.width + 6) f.x = -6;
+        if (f.x < -6) f.x = this.width + 6;
+        if (kind === 'snow') {
+          ctx.fillStyle = `rgba(255,255,255,${0.55 + 0.35 * Math.sin(f.phase + now)})`;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = `rgba(220,240,255,${0.5 + 0.3 * Math.sin(f.phase + now * 2)})`;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+      return;
+    }
+
+    if (kind === 'confetti') {
+      state.bits.forEach(b => {
+        b.y += b.speed;
+        b.rot += b.spin;
+        if (b.y > this.height + 8) { b.y = -8; b.x = Math.random() * this.width; }
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.rot);
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = b.hue;
+        ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    if (kind === 'hearts') {
+      state.hearts.forEach(h => {
+        h.y -= h.speed;
+        h.x += Math.sin(now + h.phase) * 0.3;
+        if (h.y < -16) { h.y = this.height + 8; h.x = Math.random() * this.width; }
+        const s = h.size * (0.85 + 0.3 * Math.sin(now * 1.6 + h.phase));
+        ctx.fillStyle = `rgba(255, 122, 156, ${0.5 + 0.3 * Math.sin(now * 2 + h.phase)})`;
+        ctx.beginPath();
+        ctx.moveTo(h.x, h.y + s * 0.85);
+        ctx.bezierCurveTo(h.x - s * 1.1, h.y + s * 0.25, h.x - s * 0.75, h.y - s * 0.75, h.x, h.y - s * 0.12);
+        ctx.bezierCurveTo(h.x + s * 0.75, h.y - s * 0.75, h.x + s * 1.1, h.y + s * 0.25, h.x, h.y + s * 0.85);
+        ctx.fill();
+      });
+      return;
+    }
+  },
+
   draw() {
     const ctx = this.ctx;
     if (!ctx) return;
 
+    const theme = this.theme();
     const groundY = this.height - this.groundHeight;
-    const sky = this.skyNow();
+    // A fixed-sky theme takes the whole sky; the classic theme and its
+    // day-night cycle stay on skyNow().
+    let sky = theme.sky
+      ? { top: theme.sky.top, mid: theme.sky.mid, low: theme.sky.low, tint: 'rgba(255,255,255,0)', light: 1, stars: theme.stars || 0 }
+      : this.skyNow();
     // How far the sun has set, 0 by day and 1 at night
     const night = 1 - sky.light;
 
@@ -1104,7 +1534,7 @@ const flappyGame = {
 
     this.drawCelestial(ctx, sky, groundY);
 
-    ctx.fillStyle = mixHex('#ffffff', this.NIGHT_TONE, night * 0.85);
+    ctx.fillStyle = theme.cloudColor || mixHex('#ffffff', this.NIGHT_TONE, night * 0.85);
     this.clouds.forEach(c => {
       ctx.beginPath();
       ctx.arc(c.x, c.y, 20 * c.scale, 0, Math.PI * 2);
@@ -1113,9 +1543,19 @@ const flappyGame = {
       ctx.fill();
     });
 
-    const pipeBody = mixHex('#73bf2e', '#2b4430', night);
-    const pipeLip = mixHex('#82cf36', '#37543a', night);
-    const pipeEdge = mixHex('#558022', '#1e3323', night);
+    this.drawDecor(ctx, groundY);
+
+    // Fixed-theme pipes take their colors from the theme; the classic
+    // day-night palette still applies to classic mode.
+    let pipeBody = mixHex('#73bf2e', '#2b4430', night);
+    let pipeLip  = mixHex('#82cf36', '#37543a', night);
+    let pipeEdge = mixHex('#558022', '#1e3323', night);
+    const pipeStripes = !!(theme.pipe && theme.pipe.stripes);
+    if (theme.pipe) {
+      pipeBody = theme.pipe.body;
+      pipeLip  = theme.pipe.lip;
+      pipeEdge = theme.pipe.edge;
+    }
 
     this.pipes.forEach(p => {
       // The pipe is drawn between the two steps, like the bird
@@ -1145,12 +1585,30 @@ const flappyGame = {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
       ctx.fillRect(x + 5, 0, 5, p.topHeight);
       ctx.fillRect(x + 5, p.bottomY, 5, bottomHeight);
+
+      if (pipeStripes) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, -2, this.pipeWidth, p.topHeight + 2);
+        ctx.rect(x, p.bottomY, this.pipeWidth, bottomHeight);
+        ctx.clip();
+        ctx.translate(x + this.pipeWidth / 2, 0);
+        ctx.rotate(-0.5);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        // Two loops would leave a seam where rotate meets the clip; a single
+        // wide sweep covers both segments since the clip limits it.
+        const span = this.height * 2;
+        for (let sx = -span; sx < span; sx += 24) {
+          ctx.fillRect(sx, -span, 10, span * 2);
+        }
+        ctx.restore();
+      }
     });
 
-    const grass = mixHex('#73bf2e', '#2c4a2a', night);
-    const grassEdge = mixHex('#558022', '#1f351f', night);
-    const soil = mixHex('#ded895', '#3c4257', night);
-    const soilEdge = mixHex('#cbb868', '#2f3448', night);
+    const grass = theme.ground ? theme.ground.grass : mixHex('#73bf2e', '#2c4a2a', night);
+    const grassEdge = theme.ground ? theme.ground.grassEdge : mixHex('#558022', '#1f351f', night);
+    const soil = theme.ground ? theme.ground.soil : mixHex('#ded895', '#3c4257', night);
+    const soilEdge = theme.ground ? theme.ground.soilEdge : mixHex('#cbb868', '#2f3448', night);
 
     ctx.fillStyle = soil;
     ctx.fillRect(0, groundY, this.width, this.groundHeight);
@@ -1175,15 +1633,16 @@ const flappyGame = {
     ctx.translate(this.bird.x, birdY);
     ctx.rotate(birdRotation);
 
-    ctx.fillStyle = '#facc15';
+    const bc = theme.bird || { body: '#facc15', belly: '#fef08a', stroke: '#ca8a04', beak: '#f97316', beakStroke: '#c2410c' };
+    ctx.fillStyle = bc.body;
     ctx.beginPath();
     ctx.arc(0, 0, this.bird.radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#ca8a04';
+    ctx.strokeStyle = bc.stroke;
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
-    ctx.fillStyle = '#fef08a';
+    ctx.fillStyle = bc.belly;
     ctx.beginPath();
     ctx.arc(-2, 3, this.bird.radius - 5, 0, Math.PI * 2);
     ctx.fill();
@@ -1197,8 +1656,8 @@ const flappyGame = {
     ctx.arc(7, -5, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#f97316';
-    ctx.strokeStyle = '#c2410c';
+    ctx.fillStyle = bc.beak;
+    ctx.strokeStyle = bc.beakStroke;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(10, -2);
@@ -1208,11 +1667,45 @@ const flappyGame = {
     ctx.fill();
     ctx.stroke();
 
+    if (theme.hat === 'santa') {
+      // Red cap with a white brim and pompom
+      ctx.fillStyle = '#e11d48';
+      ctx.beginPath();
+      ctx.moveTo(-this.bird.radius + 3, -this.bird.radius + 1);
+      ctx.lineTo(0, -this.bird.radius - 12);
+      ctx.lineTo(this.bird.radius - 3, -this.bird.radius + 1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-this.bird.radius + 1, -this.bird.radius + 1, this.bird.radius * 2 - 2, 4);
+      ctx.beginPath();
+      ctx.arc(0, -this.bird.radius - 12, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (theme.hat === 'party') {
+      // Cone hat with polka dots and a pompom
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.moveTo(-this.bird.radius + 3, -this.bird.radius + 1);
+      ctx.lineTo(0, -this.bird.radius - 13);
+      ctx.lineTo(this.bird.radius - 3, -this.bird.radius + 1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.arc(-4.5, -this.bird.radius - 6, 1.5, 0, Math.PI * 2);
+      ctx.arc(4.5, -this.bird.radius - 6, 1.5, 0, Math.PI * 2);
+      ctx.arc(0, -this.bird.radius - 2.6, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, -this.bird.radius - 13.5, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.save();
     ctx.translate(-5, 0);
     ctx.rotate(this.bird.wingAngle);
     ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#ca8a04';
+    ctx.strokeStyle = bc.stroke;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(0, 0, 7, 5, 0, 0, Math.PI * 2);
