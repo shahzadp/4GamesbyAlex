@@ -178,6 +178,8 @@ function ok(name, cond, extra) {
       await evaluate(cdp, "!document.querySelector('#page-chess [data-back]') && !document.querySelector('#page-chess .nav-quick-btn')"));
     ok('OTB flip class is applied to the board in Pass & Play',
       await evaluate(cdp, "document.getElementById('chessboard').classList.contains('otb-flip-black')"));
+    ok('black pieces really rotate 180 (computed transform)',
+      await evaluate(cdp, "getComputedStyle(document.querySelector('.chess-piece.piece-b')).transform !== 'none'"));
     ok('Lichess subtitle shows sync rating copy',
       (await evaluate(cdp, "document.getElementById('lichess-choice-sub').textContent")) === 'Sync rating & play online');
     ok('Lichess panel is hidden before being chosen',
@@ -196,6 +198,8 @@ function ok(name, cond, extra) {
       await evaluate(cdp, "document.getElementById('chess-lichess-panel').classList.contains('active')"));
     ok('OTB flip class is removed in the Lichess choice',
       await evaluate(cdp, "!document.getElementById('chessboard').classList.contains('otb-flip-black')"));
+    ok('lichess flip is off before a match starts',
+      await evaluate(cdp, "!document.getElementById('chessboard').classList.contains('lichess-flip')"));
     ok('signed-in hub is shown (mock token)',
       await evaluate(cdp, "document.getElementById('lichess-hub').hidden === false"));
     ok('rating chips rendered for bullet / blitz / rapid',
@@ -227,6 +231,12 @@ function ok(name, cond, extra) {
     await evaluate(cdp, "window.__pushStream('board:abcdefgh', { type: 'gameFull', id: 'abcdefgh', variant: { key: 'standard', name: 'Standard', short: 'Std' }, clock: { initial: 600000, increment: 0 }, speed: 'rapid', perf: { name: 'Rapid' }, rated: false, createdAt: Date.now(), white: { id: 'oppo', name: 'Opponent', rating: 1811 }, black: { id: 'tester', name: 'AlexTester', rating: 1702 }, initialFen: 'startpos', state: { type: 'gameState', moves: '', wtime: 600000, btime: 600000, winc: 0, binc: 0, status: 'started' } })");
     await sleep(300);
     ok('we are black', (await evaluate(cdp, 'chessOnline.match.color')) === 'b');
+    ok('searching UI is hidden now that the game started',
+      await evaluate(cdp, "document.getElementById('lichess-searching').hidden === true"));
+    ok('board flips 180 so black is at the bottom',
+      await evaluate(cdp, "document.getElementById('chessboard').classList.contains('lichess-flip')"));
+    ok('black OTB piece flip is off during an online game',
+      await evaluate(cdp, "!document.getElementById('chessboard').classList.contains('otb-flip-black')"));
     const liveShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(os.tmpdir(), 'lichess-game.png'), Buffer.from(liveShot.data, 'base64'));
     ok("opponent name rendered",
@@ -320,6 +330,10 @@ function ok(name, cond, extra) {
     await sleep(300);
     ok('flip class returns in Pass & Play',
       await evaluate(cdp, "document.getElementById('chessboard').classList.contains('otb-flip-black')"));
+    ok('black pieces rotate again back in Pass & Play',
+      await evaluate(cdp, "getComputedStyle(document.querySelector('.chess-piece.piece-b')).transform !== 'none'"));
+    ok('lichess board flip is cleared back in Pass & Play',
+      await evaluate(cdp, "!document.getElementById('chessboard').classList.contains('lichess-flip')"));
     ok('Reset is visible again',
       await evaluate(cdp, "document.getElementById('btn-reset-chess').hidden === false"));
     ok('Reset clears the board back to the initial position',

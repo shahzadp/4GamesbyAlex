@@ -4427,6 +4427,27 @@ body.theme-chess .chessboard-grid { border-radius: 12px; }
 
 /* --- Captured strip: slim, one row, no empty black slit above the board --- */
 
+/* Over-the-board play: players sit across from each other, so Black's
+   pieces are turned 180deg towards Black and are legible from that side.
+   Applied by app.js to the 8x8 grid whenever an over-the-board choice
+   (Pass & Play, quiz) is active. The board itself keeps its orientation;
+   Lichess online rotates the whole board instead of just the glyphs. */
+.chessboard-grid.otb-flip-black .chess-piece.piece-b {
+  transform: rotate(180deg);
+}
+
+/* Lichess online with Black: the whole board rotates so our pieces sit at
+   the bottom, close to our fingers. The glyphs counter-rotate and stay
+   upright relative to the viewer - the standard online-chess behaviour. */
+.chessboard-grid.lichess-flip {
+  transform: rotate(180deg);
+  transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.chessboard-grid.lichess-flip .chess-piece {
+  transform: rotate(180deg);
+  transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
 .captured-strip {
   position: relative;
   display: flex;
@@ -4654,4 +4675,328 @@ body.theme-chess .mobile-btn { padding: 0.48rem 0.9rem; font-size: 0.78rem; }
    choice cards and Find game. */
 body.theme-chess .mobile-btn {
   max-width: none;
+}
+
+/* =======================================================
+   CHESS - fourth pass: fit the screen, no scrolling
+   =======================================================
+   Board is the page. Everything else is sized to keep it
+   in view until an empty status-line height at the most. */
+
+body.theme-chess .mobile-app-shell { min-height: 100dvh; }
+body.theme-chess .top-bar-spacer { flex-basis: 30px; width: 30px; height: 30px; }
+body.theme-chess .bar-title { font-size: 0.95rem; }
+body.theme-chess .mobile-top-bar { margin: 0 0 0.15rem; padding: 0.3rem 0.6rem; }
+body.theme-chess .mobile-chess-header { margin-bottom: 0.06rem; gap: 0.35rem; }
+body.theme-chess .chess-turn-pill { padding: 0.18rem 0.58rem; font-size: 0.7rem; gap: 0.34rem; }
+body.theme-chess .chess-turn-pill .turn-dot { width: 7px; height: 7px; }
+body.theme-chess .chess-move-badge { font-size: 0.64rem; padding: 0.16rem 0.5rem; }
+body.theme-chess .chess-clocks { margin-bottom: 0.22rem; }
+body.theme-chess .captured-strip { min-height: 17px; margin-top: 0.14rem; padding: 0.05rem 0.4rem; }
+
+body.theme-chess .chess-mode-row { margin: 0.06rem 0 0.25rem; }
+body.theme-chess .chess-mode-opt { padding: 0.26rem 0.35rem; font-size: 0.7rem; gap: 0.26rem; }
+
+body.theme-chess .chess-choice-row { margin: 0 0 0.28rem; gap: 0.35rem; }
+body.theme-chess .chess-choice-btn { padding: 0.28rem 0.38rem; border-radius: 10px; gap: 0.03rem; }
+body.theme-chess .chess-choice-btn .choice-title { font-size: 0.74rem; }
+body.theme-chess .chess-choice-btn .choice-sub { font-size: 0.53rem; }
+
+body.theme-chess .chess-status-line { font-size: 0.65rem; min-height: 0; margin: 0 0 0.16rem; }
+body.theme-chess .chess-movelog-wrap {
+  display: flex; align-items: center; gap: 0.45rem;
+  width: 100%; min-width: 0;
+  margin: 0 0 0.18rem; padding: 0.16rem 0.45rem;
+  border-radius: 9px; border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(13,18,32,0.45);
+  box-sizing: border-box;
+}
+body.theme-chess .chess-movelog-label {
+  flex: 0 0 auto; font-size: 0.5rem; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase; color: rgba(200,214,240,0.4);
+}
+body.theme-chess .chess-movelog {
+  overflow-x: auto; scrollbar-width: none; white-space: nowrap;
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem; -webkit-overflow-scrolling: touch;
+}
+body.theme-chess .chess-movelog::-webkit-scrollbar { display: none; }
+body.theme-chess .movelog-pair { display: inline-flex; align-items: baseline; gap: 0.26rem; }
+body.theme-chess .movelog-num { color: rgba(230,236,245,0.35); font-size: 0.6rem; }
+body.theme-chess .movelog-san { color: #e9edf7; font-weight: 600; font-size: 0.72rem; }
+body.theme-chess .movelog-empty { color: rgba(230,236,245,0.38); font-family: var(--font-main); font-size: 0.68rem; }
+
+body.theme-chess .mobile-bottom-actions { margin-top: 0.25rem; margin-bottom: 0.18rem; row-gap: 0.35rem; }
+
+/* Lichess hub: compact enough that everything fits on one screen */
+body.theme-chess .chess-lichess-panel { padding: 0.45rem 0.5rem 0.4rem; margin-bottom: 0.3rem; }
+body.theme-chess .lichess-hub { gap: 0.28rem; }
+body.theme-chess .lichess-hub-top { gap: 0.35rem; padding-bottom: 0.28rem; }
+body.theme-chess .lichess-eyebrow { font-size: 0.46rem; }
+body.theme-chess .lichess-name { font-size: 0.78rem; }
+body.theme-chess .lichess-chip { min-width: 42px; padding: 0.14rem 0.26rem; border-radius: 8px; gap: 0; }
+body.theme-chess .lichess-chip-perf { font-size: 0.42rem; letter-spacing: 0.07em; }
+body.theme-chess .lichess-chip-rating { font-size: 0.66rem; }
+body.theme-chess .lichess-icon-btn { width: 24px; height: 24px; border-radius: 7px; }
+body.theme-chess .lichess-setup { gap: 0.3rem; }
+body.theme-chess .lichess-setup-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem;
+}
+body.theme-chess .lichess-presets { flex: 1 1 auto; gap: 0.3rem; min-width: 0; }
+body.theme-chess .lichess-preset { flex: 1 1 0; padding: 0.32rem 0.2rem; font-size: 0.7rem; border-radius: 8px; }
+body.theme-chess .lichess-rated-row { font-size: 0.66rem; white-space: nowrap; gap: 0.32rem; }
+body.theme-chess .lichess-rated-row input { width: 12px; height: 12px; }
+body.theme-chess .lichess-rated-row small { font-size: 0.52rem; }
+body.theme-chess .lichess-find-btn { padding: 0.45rem 0.85rem; font-size: 0.78rem; border-radius: 10px; }
+
+@media (max-width: 380px) {
+  body.theme-chess .lichess-setup-row { flex-direction: column; align-items: stretch; }
+}
+
+/* =======================================================
+   CHESS - fifth pass: quiz and duel fit the screen
+   =======================================================
+   Same treatment as the 2-player page: the board is huge,
+   everything else earns its pixels. No green, no gold. */
+
+/* ---- Move-count quiz ---------------------------------------------------- */
+
+body.theme-chess .chess-quiz-panel,
+body.theme-chess .chess-duel-panel { padding: 0.4rem 0.5rem 0.4rem; }
+body.theme-chess .quiz-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.45rem; margin-bottom: 0.15rem;
+}
+body.theme-chess .quiz-title {
+  font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--ca-text);
+}
+body.theme-chess .quiz-score-wrap {
+  display: inline-flex; align-items: baseline; gap: 0.3rem;
+}
+body.theme-chess .quiz-score-label {
+  font-size: 0.54rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(230,233,242,0.5);
+}
+body.theme-chess .quiz-score {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--ca-hi);
+}
+
+/* One slim subline for tally + note instead of two stacked paragraphs */
+body.theme-chess .quiz-subline {
+  display: flex; align-items: baseline; gap: 0.45rem;
+  margin-bottom: 0.25rem; min-width: 0;
+}
+body.theme-chess .quiz-tally {
+  margin: 0; font-size: 0.64rem; font-weight: 600;
+  color: rgba(230,233,242,0.75); white-space: nowrap; flex: 0 0 auto;
+}
+body.theme-chess .quiz-note {
+  margin: 0; font-size: 0.64rem; color: rgba(230,233,242,0.55);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+
+/* Inputs: tighter, side by side, center-aligned values */
+body.theme-chess .quiz-answers { gap: 0.3rem; }
+body.theme-chess .quiz-answer-side { font-size: 0.6rem; }
+body.theme-chess .quiz-dot { width: 0.5rem; height: 0.5rem; }
+body.theme-chess .quiz-input {
+  padding: 0.26rem 0.3rem; font-size: 0.9rem; border-radius: 8px;
+}
+
+/* Submit row: still a full-width call-to-action, smaller font and padding */
+body.theme-chess .quiz-actions { margin-top: 0.26rem; }
+body.theme-chess .quiz-btn {
+  padding: 0.38rem 0.7rem; font-size: 0.74rem;
+  font-family: var(--font-main); font-weight: 700; border-radius: 10px;
+  letter-spacing: 0.02em;
+}
+body.theme-chess .btn-icon { font-size: 0.82em; }
+
+/* Feedback and legend: smaller */
+body.theme-chess .quiz-feedback { margin-top: 0.2rem; gap: 0.2rem; }
+body.theme-chess .quiz-fb { padding: 0.28rem 0.42rem; font-size: 0.62rem; border-radius: 8px; }
+body.theme-chess .quiz-legend { margin-top: 0.22rem; gap: 0.35rem; font-size: 0.55rem; }
+
+/* ---- Engine match (2x Stockfish 19) ------------------------------------- */
+
+body.theme-chess .duel-field-row {
+  display: flex; align-items: center; gap: 0.32rem;
+  margin-bottom: 0.28rem; min-width: 0;
+}
+body.theme-chess .duel-field-row:last-child { margin-bottom: 0.3rem; }
+body.theme-chess .duel-mini-label {
+  flex: 0 0 auto; font-size: 0.5rem; font-weight: 800; letter-spacing: 0.09em;
+  text-transform: uppercase; color: rgba(200,214,240,0.45);
+}
+body.theme-chess .duel-row-start { margin-bottom: 0.32rem; gap: 0.3rem; }
+
+/* Small input inside a dark capsule with the unit inside the border */
+body.theme-chess .duel-field-mini {
+  display: inline-flex; align-items: center; gap: 0.24rem;
+  flex: 1 1 0; min-width: 0;
+  padding: 0.2rem 0.28rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(13,18,32,0.62);
+}
+body.theme-chess .duel-field-mini input {
+  border: 0; padding: 0; margin: 0; outline: none;
+  background: transparent; color: #eaf0ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums; font-weight: 600;
+  font-size: 0.78rem; text-align: right; width: 100%; min-width: 0;
+}
+body.theme-chess .duel-field-mini input:focus-visible {
+  outline: 2px solid var(--ca); outline-offset: 1px; border-radius: 4px;
+}
+body.theme-chess .duel-mini-suffix {
+  flex: 0 0 auto; font-size: 0.5rem; font-weight: 700;
+  color: rgba(230,233,242,0.45);
+}
+
+/* Icon-only utility buttons (Save PGN, History) */
+body.theme-chess .duel-mini-icon-btn {
+  appearance: none; width: 28px; height: 28px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border-radius: 8px; font-size: 0.8rem; line-height: 1;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(13,18,32,0.62); color: rgba(230,233,242,0.78);
+  cursor: pointer; transition: border-color var(--transition-fast);
+}
+body.theme-chess .duel-mini-icon-btn:hover { border-color: rgba(255,255,255,0.2); }
+body.theme-chess .duel-mini-icon-btn:disabled { opacity: 0.45; cursor: default; }
+body.theme-chess .duel-mini-icon-btn:focus-visible {
+  outline: 2px solid var(--ca); outline-offset: 1px;
+}
+
+/* Segmented Opening / FEN control */
+body.theme-chess .duel-source.mini-seg {
+  display: flex; gap: 3px; padding: 3px; min-width: 0; flex: 1 1 auto;
+  border-radius: var(--radius-full); border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(13,18,32,0.62);
+}
+body.theme-chess .duel-source.mini-seg .duel-source-opt {
+  appearance: none; flex: 1 1 auto; min-width: 0;
+  padding: 0.28rem 0.4rem; border: 0; border-radius: var(--radius-full);
+  background: transparent; color: rgba(230,233,242,0.72);
+  font-family: var(--font-main); font-size: 0.62rem; font-weight: 700;
+  white-space: nowrap; cursor: pointer; overflow: hidden; text-overflow: ellipsis;
+}
+body.theme-chess .duel-source.mini-seg .duel-source-opt.active {
+  background: linear-gradient(180deg, #e9edf5, #cbd4e6);
+  color: #10141f; border-color: transparent;
+}
+
+/* The search field: tight */
+body.theme-chess .duel-input {
+  padding: 0.28rem 0.35rem; font-size: 0.78rem; border-radius: 8px;
+}
+
+/* The openings list is a cramped inline scroller now */
+body.theme-chess .duel-openlist.compact { max-height: 64px; border-radius: 8px; }
+
+/* Selected opening chip and the side switch live on one tight row */
+body.theme-chess .duel-side-row.compact {
+  display: flex; align-items: center; gap: 0.3rem;
+  margin-top: 0.22rem; flex-wrap: nowrap; min-width: 0;
+}
+body.theme-chess .duel-opening-chip, .duel-chip {
+  flex: 1 1 auto; min-width: 0;
+  margin-top: 0; padding: 0.22rem 0.35rem; border-radius: 7px;
+  font-size: 0.62rem; font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+body.theme-chess .duel-side-switch.compact {
+  display: flex; gap: 2px; padding: 2px; flex: 0 0 auto;
+  border-radius: var(--radius-full); border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(13,18,32,0.62);
+}
+body.theme-chess .duel-side-switch.compact .duel-side-opt {
+  appearance: none; padding: 0.18rem 0.33rem; border: 0;
+  border-radius: var(--radius-full); background: transparent;
+  font-size: 0.54rem; font-weight: 700; color: rgba(230,233,242,0.72);
+  white-space: nowrap; cursor: pointer;
+}
+body.theme-chess .duel-side-switch.compact .duel-side-opt.active {
+  background: linear-gradient(180deg, #e9edf5, #cbd4e6); color: #10141f;
+}
+
+/* Notes: no reserved line height when they sit empty */
+body.theme-chess .duel-note.compact-note,
+body.theme-chess .duel-note { margin: 0.12rem 0 0; min-height: 0; font-size: 0.56rem; line-height: 1.3; }
+
+/* The single CTA spanning the panel */
+body.theme-chess .duel-start-btn {
+  appearance: none; width: 100%; margin-top: 0.28rem;
+  padding: 0.48rem 0.9rem; border-radius: 10px;
+  font-size: 0.82rem; letter-spacing: 0.03em;
+}
+
+/* Engine readouts: one line, tiny mono */
+body.theme-chess .duel-engine-info.compact {
+  margin-top: 0.28rem; gap: 0.3rem;
+}
+body.theme-chess .duel-engine-tag {
+  padding: 0.14rem 0.25rem; font-size: 0.5rem; letter-spacing: 0.03em;
+  border-radius: 6px;
+}
+
+/* Hide the engine readout entirely before the first match ever runs. */
+body.theme-chess .duel-engine-info.is-idle { display: none; }
+
+/* Panel-level rhythm stays tight */
+body.theme-chess .chess-duel-panel { margin: 0.3rem 0 0; }
+body.theme-chess .chess-quiz-panel { margin: 0.3rem 0 0; }
+
+/* =======================================================
+   CHESS - duel panel collapse open/closed behaviour
+   ======================================================= */
+
+/* The opening explorer hides behind a native <details> element; everything
+   important is reachable with one tap and zero scrolling. */
+body.theme-chess .duel-opening-details {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(13,18,32,0.62);
+  overflow: hidden;
+  margin-bottom: 0.28rem;
+}
+body.theme-chess .duel-opening-summary {
+  display: flex; align-items: center; gap: 0.32rem;
+  padding: 0.4rem 0.5rem; cursor: pointer; min-width: 0;
+  list-style: none;
+}
+body.theme-chess .duel-opening-summary::-webkit-details-marker { display: none; }
+body.theme-chess .duel-opening-summary .duel-mini-label { flex: 0 0 auto; }
+body.theme-chess .duel-opening-summary .duel-chip {
+  flex: 1 1 auto; min-width: 0;
+  padding: 0; background: transparent;
+  font-size: 0.66rem; font-weight: 600;
+  color: var(--ca-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body.theme-chess .duel-chevron {
+  flex: 0 0 auto; width: 10px; height: 10px;
+  border-right: 2px solid rgba(230,233,242,0.55);
+  border-bottom: 2px solid rgba(230,233,242,0.55);
+  transform: rotate(45deg); transition: transform var(--transition-fast);
+  border-radius: 0 1px 0 0;
+}
+body.theme-chess .duel-opening-details[open] .duel-chevron {
+  transform: rotate(225deg);
+}
+body.theme-chess .duel-opening-details-body {
+  padding: 0.25rem 0.3rem 0.3rem;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+/* When the explorer is in use it stays compact too */
+body.theme-chess .duel-opening-details-body .duel-row-start { margin-bottom: 0.25rem; }
+
+/* The divider between the collapsed summary and the panel content vanishes
+   when the chevron is pointing up */
+body.theme-chess .duel-opening-details[open] .duel-opening-summary {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }

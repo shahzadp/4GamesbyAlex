@@ -481,6 +481,7 @@ const chessOnline = {
 
   hide() {
     this.choice = 'passplay';
+    this.setOrientation(); // removes the flip; passplay is white-at-bottom
     // No live match can survive hiding: the app refuses to leave the 2-player
     // tab mid-game, so this only ever tidies up idle or finished panels.
     if (!this.matchLive()) this.stopEventStream();
@@ -762,6 +763,10 @@ const chessOnline = {
   },
 
   onGameFull(gameFull) {
+    // Pairing happened (or we adopted an in-progress game): the search phase
+    // is over, whether the seek gave it up or not.
+    if (this.seekController) this.cancelSeek(true);
+
     // Lichess sends variant as an object ({key, name, short}). Be liberal:
     // accept a bare string too rather than reject the game.
     const rawVariant = gameFull ? gameFull.variant : null;
@@ -831,6 +836,7 @@ const chessOnline = {
     });
 
     this.renderMatchHeader();
+    this.setOrientation();
     this.applyGameState(state);
     this.syncClocksVisibility();
     this.renderHub();
@@ -948,6 +954,17 @@ const chessOnline = {
     const turn = chessGame.state.turn;
     if (turn === this.match.color) return 'Your move' + (chessGame.state.turn === 'w' ? ' (White)' : ' (Black)');
     return "Opponent's move";
+  },
+
+  /* While the match is live, the board faces the local player; with Black
+   * that means the whole grid rotates 180 keep the player's pieces at the
+   * bottom, close to their fingers. Glyphs counter-rotate in CSS and stay
+   * upright. Set/reset exactly on the transitions that change who is here. */
+  setOrientation() {
+    const el = document.getElementById('chessboard');
+    if (!el) return;
+    const flip = !!(this.match && this.match.color === 'b');
+    el.classList.toggle('lichess-flip', flip);
   },
 
   // --- Clocks ------------------------------------------------------------------
@@ -1238,6 +1255,7 @@ const chessOnline = {
   backToHub() {
     this.match = null;
     this.accountBefore = null;
+    this.setOrientation();
     if (this.el.resultText) this.el.resultText.textContent = '';
     if (this.el.pgnNote) this.el.pgnNote.textContent = '';
     // Show the hub again but keep games off the board; find a new match

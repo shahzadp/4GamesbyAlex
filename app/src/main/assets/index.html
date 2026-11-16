@@ -367,16 +367,17 @@
 
             <!-- Find a game -->
             <div id="lichess-setup" class="lichess-setup">
-              <div class="lichess-tc">Time control · Rapid</div>
-              <div class="lichess-presets" role="radiogroup" aria-label="Rapid time control">
+              <div class="lichess-setup-row">
+                <div class="lichess-presets" role="radiogroup" aria-label="Rapid time control">
                 <button class="lichess-preset active" data-time="10" data-inc="0" role="radio" aria-checked="true" type="button">10 + 0</button>
                 <button class="lichess-preset" data-time="15" data-inc="10" role="radio" aria-checked="false" type="button">15 + 10</button>
                 <button class="lichess-preset" data-time="25" data-inc="10" role="radio" aria-checked="false" type="button">25 + 10</button>
               </div>
-              <label class="lichess-rated-row">
-                <input id="lichess-rated" type="checkbox">
-                <span>Rated game <small>(affects your Lichess rating)</small></span>
-              </label>
+                <label class="lichess-rated-row">
+                  <input id="lichess-rated" type="checkbox">
+                  <span>Rated <small>(affects rating)</small></span>
+                </label>
+              </div>
               <button id="btn-lichess-find" class="lichess-find-btn" type="button">
                 <span class="btn-label">Find game</span>
               </button>
@@ -419,9 +420,10 @@
             </span>
           </div>
 
-          <p class="quiz-tally" id="quiz-tally">0 right · 0 wrong</p>
-
-          <p class="quiz-note" id="quiz-note">Make a move to start the quiz.</p>
+          <div class="quiz-subline">
+            <p class="quiz-tally" id="quiz-tally">0 ✓ · 0 ✗</p>
+            <p class="quiz-note" id="quiz-note">Make a move to start the quiz.</p>
+          </div>
 
           <div class="quiz-answers">
             <label class="quiz-answer">
@@ -461,95 +463,89 @@
 
         <!-- Engine match setup. Shown only for the 2x Stockfish 19 mode. -->
         <div id="chess-duel-panel" class="chess-duel-panel">
-          <div class="duel-tc-title">Time control</div>
-          <div class="duel-tc-grid">
-            <label class="duel-field">
-              <span class="duel-field-label">Base</span>
-              <span class="duel-field-input">
-                <input id="duel-base" type="number" min="30" max="3600" step="30"
-                       value="180" inputmode="numeric" aria-label="Base time in seconds">
-                <span class="duel-unit">sec</span>
-              </span>
+          <!-- Clock control -->
+          <div class="duel-field-row">
+            <span class="duel-mini-label">Clock</span>
+            <label class="duel-field-mini">
+              <input id="duel-base" type="number" min="30" max="3600" step="30"
+                     value="180" inputmode="numeric" aria-label="Base time in seconds">
+              <span class="duel-mini-suffix">base</span>
             </label>
-            <label class="duel-field">
-              <span class="duel-field-label">Increment</span>
-              <span class="duel-field-input">
-                <input id="duel-increment" type="number" min="0" max="60" step="1"
-                       value="2" inputmode="numeric" aria-label="Fischer increment in seconds">
-                <span class="duel-unit">sec</span>
-              </span>
+            <label class="duel-field-mini">
+              <input id="duel-increment" type="number" min="0" max="60" step="1"
+                     value="2" inputmode="numeric" aria-label="Fischer increment in seconds">
+              <span class="duel-mini-suffix">inc</span>
             </label>
-            <label class="duel-field">
-              <span class="duel-field-label">Per move</span>
-              <span class="duel-field-input">
-                <input id="duel-permove" type="number" min="1" max="60" step="1"
-                       value="2" inputmode="numeric" aria-label="Maximum think time per move in seconds">
-                <span class="duel-unit">sec</span>
-              </span>
+            <label class="duel-field-mini">
+              <input id="duel-permove" type="number" min="1" max="60" step="1"
+                     value="2" inputmode="numeric" aria-label="Maximum think time per move in seconds">
+              <span class="duel-mini-suffix">/move</span>
             </label>
+            <button id="btn-duel-history" class="duel-mini-icon-btn" type="button"
+                    title="Match history" aria-label="Match history">&#x23F0;</button>
+            <button id="btn-duel-save" class="duel-mini-icon-btn" type="button" disabled
+                    title="Save PGN" aria-label="Save PGN">&#x1F4BE;</button>
           </div>
 
-          <div class="duel-tc-title">Starting position</div>
-          <div class="duel-source" role="tablist" aria-label="Starting position source">
-            <button id="duel-src-opening" class="duel-source-opt active" role="tab"
-                    aria-selected="true" type="button">📖 Opening</button>
-            <button id="duel-src-fen" class="duel-source-opt" role="tab"
-                    aria-selected="false" type="button">🧩 Custom FEN</button>
-          </div>
+          <!-- Opening explorer stays collapsed until the player opts in. -->
+          <details id="duel-opening-details" class="duel-opening-details">
+            <summary class="duel-opening-summary">
+              <span class="duel-mini-label">Opening</span>
+              <span id="duel-opening-chip" class="duel-chip">Standard game — no opening</span>
+              <span class="duel-chevron" aria-hidden="true"></span>
+            </summary>
 
-          <!-- Opening explorer -->
-          <div id="duel-opening-box" class="duel-subpanel">
-            <input id="duel-opening-search" class="duel-input duel-search" type="search"
-                   placeholder="Search: dragon, B76, e4 c5…" autocomplete="off"
-                   spellcheck="false" aria-label="Search openings">
-            <div id="duel-opening-list" class="duel-openlist" role="listbox"
-                 aria-label="Opening search results"></div>
-            <div id="duel-opening-chip" class="duel-chip">Standard game — no opening</div>
-            <div class="duel-side-row">
-              <span class="duel-field-label">Plays the opening for</span>
-              <div id="duel-side-switch" class="duel-side-switch" role="radiogroup"
-                   aria-label="Which side plays the opening">
-                <button class="duel-side-opt" data-side="w" role="radio"
-                        aria-checked="false" type="button">White</button>
-                <button class="duel-side-opt" data-side="b" role="radio"
-                        aria-checked="false" type="button">Black</button>
-                <button class="duel-side-opt active" data-side="both" role="radio"
-                        aria-checked="true" type="button">Both</button>
+            <div class="duel-opening-details-body">
+              <div class="duel-field-row duel-row-start">
+                <div class="duel-source mini-seg" role="tablist" aria-label="Starting position source">
+                  <button id="duel-src-opening" class="duel-source-opt active" role="tab"
+                          aria-selected="true" type="button">Opening</button>
+                  <button id="duel-src-fen" class="duel-source-opt" role="tab"
+                          aria-selected="false" type="button">Custom FEN</button>
+                </div>
+              </div>
+
+              <!-- Opening explorer -->
+              <div id="duel-opening-box" class="duel-subpanel">
+                <input id="duel-opening-search" class="duel-input duel-search" type="search"
+                       placeholder="Search: dragon, B76, e4 c5…" autocomplete="off"
+                       spellcheck="false" aria-label="Search openings">
+                <div id="duel-opening-list" class="duel-openlist compact" role="listbox"
+                     aria-label="Opening search results"></div>
+                <div class="duel-side-row compact">
+                  <div id="duel-side-switch" class="duel-side-switch compact" role="radiogroup"
+                       aria-label="Which side plays the opening">
+                    <button class="duel-side-opt" data-side="w" role="radio"
+                            aria-checked="false" type="button">White</button>
+                    <button class="duel-side-opt" data-side="b" role="radio"
+                            aria-checked="false" type="button">Black</button>
+                    <button class="duel-side-opt active" data-side="both" role="radio"
+                            aria-checked="true" type="button">Both</button>
+                  </div>
+                </div>
+                <p id="duel-opening-note" class="duel-note compact-note"></p>
+              </div>
+
+              <!-- Custom starting position -->
+              <div id="duel-fen-box" class="duel-subpanel">
+                <input id="duel-fen" class="duel-input duel-fen-input" type="text"
+                       placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+                       spellcheck="false" autocapitalize="off" autocomplete="off"
+                       aria-label="Starting position FEN">
+                <p id="duel-fen-note" class="duel-note"></p>
               </div>
             </div>
-            <p id="duel-opening-note" class="duel-note"></p>
-          </div>
+          </details>
 
-          <!-- Custom starting position -->
-          <div id="duel-fen-box" class="duel-subpanel">
-            <input id="duel-fen" class="duel-input duel-fen-input" type="text"
-                   placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-                   spellcheck="false" autocapitalize="off" autocomplete="off"
-                   aria-label="Starting position FEN">
-            <p id="duel-fen-note" class="duel-note"></p>
-          </div>
+          <button id="btn-duel-start" class="duel-btn duel-btn-primary duel-start-btn" type="button">
+            <span class="btn-icon">&#x25B6;</span> <span class="btn-label">Start</span>
+          </button>
 
-          <div class="duel-actions">
-            <button id="btn-duel-start" class="duel-btn duel-btn-primary duel-btn-wide" type="button">
-              <span class="btn-icon">▶</span> <span class="btn-label">Start</span>
-            </button>
-          </div>
-
-          <div class="duel-actions">
-            <button id="btn-duel-save" class="duel-btn" type="button" disabled>
-              <span class="btn-icon">💾</span> <span class="btn-label">Save PGN</span>
-            </button>
-            <button id="btn-duel-history" class="duel-btn" type="button">
-              <span class="btn-icon">📝</span> <span class="btn-label">History</span>
-            </button>
-          </div>
-
-          <div class="duel-engine-info">
+          <div class="duel-engine-info compact">
             <span id="duel-info-white" class="duel-engine-tag">White: idle</span>
             <span id="duel-info-black" class="duel-engine-tag">Black: idle</span>
           </div>
         </div>
-
         <!-- Match history. A record of every game, kept between sessions. -->
         <div id="chess-history-panel" class="chess-history-panel">
           <div class="history-head">

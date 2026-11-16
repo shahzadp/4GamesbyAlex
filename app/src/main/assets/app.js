@@ -1682,6 +1682,8 @@ const chessGame = {
         this.moveLogEl.innerHTML = this.moveLog.length
           ? buildMoveRows(this.moveLog)
           : '<div class="movelog-empty">No moves yet</div>';
+        // Keep the latest move visible in the one-line ticker.
+        this.moveLogEl.scrollLeft = this.moveLogEl.scrollWidth;
       }
     }
 
@@ -2722,6 +2724,7 @@ const chessDuel = {
       clockB: document.getElementById('chess-clock-black'),
       infoW: document.getElementById('duel-info-white'),
       infoB: document.getElementById('duel-info-black'),
+      engineInfo: document.querySelector('.duel-engine-info'),
       overlay: document.getElementById('chess-result-overlay'),
       badge: document.getElementById('chess-result-badge'),
       title: document.getElementById('chess-result-title'),
@@ -4025,6 +4028,11 @@ const chessDuel = {
         : (this.finished ? 'finished' : (this.running ? 'ready' : 'idle'));
       if (this.el.infoW) this.el.infoW.textContent = 'White: ' + label;
       if (this.el.infoB) this.el.infoB.textContent = 'Black: ' + label;
+      // The idle readout is informational noise before any match has ever
+      // run; keep it on screen once the player has committed to a match.
+      if (this.el.engineInfo) {
+        this.el.engineInfo.classList.toggle('is-idle', label === 'idle');
+      }
     }
 
     // A finished match does not need two wasm modules sitting in memory. The
@@ -4364,14 +4372,21 @@ const chessDuel = {
 
 // Renders the "n. white black" move rows shared by the on-board move log and
 // the result overlay, so the two can never drift apart.
+// The move log is a single scrolling ticker: the game is the board, so
+// moves don't get their own block of vertical space. The container is the
+// one to scroll; the wrapper keeps it a hairline.
 function buildMoveRows(moveLog) {
-  const rows = [];
+  const parts = [];
   for (let i = 0; i < moveLog.length; i += 2) {
-    rows.push('<div class="movelog-row"><span class="movelog-num">' + (Math.floor(i / 2) + 1) +
-              '.</span><span class="movelog-san">' + (moveLog[i] || '') + '</span>' +
-              '<span class="movelog-san">' + (moveLog[i + 1] || '') + '</span></div>');
+    const number = Math.floor(i / 2) + 1;
+    const white = moveLog[i];
+    const black = moveLog[i + 1] || '';
+    parts.push('<span class="movelog-pair"><span class="movelog-num">' + number + '.</span>' +
+               '<span class="movelog-san">' + white + '</span>' +
+               (black ? '<span class="movelog-san">' + black + '</span>' : '') +
+               '</span>');
   }
-  return rows.join('');
+  return parts.join('');
 }
 
 // PGN movetext: move numbers paired up, wrapped at the 80-column limit the
