@@ -391,7 +391,7 @@ function switchPage(targetPageId) {
 /* The Android shell asks this before it handles a hardware back press (see
  * GameWebViewActivity.WEB_BACK_SCRIPT). Returning true claims the press.
  * Settings step back to the pet; every other page returns false, which lets
- * the activity close and show the Compose launcher — the same job the header
+ * the activity close and show the Compose launcher â€” the same job the header
  * arrow used to do. */
 window.__onAndroidBack = () => {
   // The Lichess online controller claims the press while a match is live.
@@ -462,7 +462,7 @@ const FLAPPY_THEMES = [
     cloudColor: 'rgba(255,255,255,0.92)',
     pipe: { body: '#73bf2e', lip: '#82cf36', edge: '#558022' },
     ground: { grass: '#73bf2e', grassEdge: '#558022', soil: '#ded895', soilEdge: '#cbb868' },
-    bird: null, hat: null, decor: 'none'
+    bird: null, birdStyle: 'classic', hat: null, decor: 'none'
   },
   {
     id: 'sunset',
@@ -475,7 +475,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#c2602c', lip: '#d97b45', edge: '#6e3418' },
     ground: { grass: '#b06234', grassEdge: '#7a3f1e', soil: '#d8b087', soilEdge: '#b9884e' },
     bird: { body: '#fb923c', belly: '#fed7aa', stroke: '#9a3412', beak: '#fbbf24', beakStroke: '#92400e' },
-    hat: null, decor: 'none'
+    birdStyle: 'phoenix', hat: null, decor: 'none'
   },
   {
     id: 'midnight',
@@ -488,7 +488,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#3c4a78', lip: '#4a598a', edge: '#1d2540' },
     ground: { grass: '#25324e', grassEdge: '#141c33', soil: '#1c2540', soilEdge: '#0f1527' },
     bird: { body: '#b8c2d9', belly: '#eef2fb', stroke: '#4a5568', beak: '#fbbf24', beakStroke: '#92400e' },
-    hat: null, decor: 'none'
+    birdStyle: 'moon', hat: null, decor: 'none'
   },
   {
     id: 'halloween',
@@ -501,7 +501,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#4e2a63', lip: '#623a7d', edge: '#241031' },
     ground: { grass: '#33203f', grassEdge: '#1c1025', soil: '#241430', soilEdge: '#120920' },
     bird: { body: '#8b5cf6', belly: '#c4b5fd', stroke: '#4c1d95', beak: '#f97316', beakStroke: '#7c2d12' },
-    hat: null, decor: 'bats'
+    birdStyle: 'bat', hat: null, decor: 'bats'
   },
   {
     id: 'christmas',
@@ -514,7 +514,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#c81e1e', lip: '#ffffff', edge: '#7f1d1d', stripes: true },
     ground: { grass: '#eef3f8', grassEdge: '#c3d2e2', soil: '#dfe8f3', soilEdge: '#b6c6d9' },
     bird: { body: '#e11d48', belly: '#fda4af', stroke: '#9f1239', beak: '#fbbf24', beakStroke: '#92400e' },
-    hat: 'santa', decor: 'snow'
+    birdStyle: 'santa', hat: 'santa', decor: 'snow'
   },
   {
     id: 'newyear',
@@ -527,7 +527,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#1f2333', lip: '#eab308', edge: '#0a0d1a' },
     ground: { grass: '#141b2e', grassEdge: '#090d18', soil: '#0c1224', soilEdge: '#060a16' },
     bird: { body: '#facc15', belly: '#fef9c3', stroke: '#a16207', beak: '#f97316', beakStroke: '#7c2d12' },
-    hat: 'party', decor: 'confetti'
+    birdStyle: 'party', hat: 'party', decor: 'confetti'
   },
   {
     id: 'valentine',
@@ -540,7 +540,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#c81e48', lip: '#e5537f', edge: '#6e0d29' },
     ground: { grass: '#5c1533', grassEdge: '#2e0818', soil: '#3b0d22', soilEdge: '#1f0511' },
     bird: { body: '#fb7185', belly: '#ffe4e6', stroke: '#9f1239', beak: '#fff7ed', beakStroke: '#9f1239' },
-    hat: null, decor: 'hearts'
+    birdStyle: 'cupid', hat: null, decor: 'hearts'
   },
   {
     id: 'easter',
@@ -553,7 +553,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#34d399', lip: '#7ce8b5', edge: '#047857' },
     ground: { grass: '#8ff0b3', grassEdge: '#34d399', soil: '#efe0b5', soilEdge: '#d3bd82' },
     bird: { body: '#c4b5fd', belly: '#ede9fe', stroke: '#6d28d9', beak: '#fb923c', beakStroke: '#9a3412' },
-    hat: null, decor: 'rainbow'
+    birdStyle: 'bunny', hat: null, decor: 'rainbow'
   },
   {
     id: 'candy',
@@ -566,7 +566,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#a855f7', lip: '#d8b4fe', edge: '#6b21a8', stripes: true },
     ground: { grass: '#f5a9e4', grassEdge: '#c25bb5', soil: '#8e3aa8', soilEdge: '#5c226e' },
     bird: { body: '#f472b6', belly: '#fdf4ff', stroke: '#be185d', beak: '#facc15', beakStroke: '#92400e' },
-    hat: null, decor: 'none'
+    birdStyle: 'donut', hat: null, decor: 'none'
   },
   {
     id: 'ocean',
@@ -579,7 +579,7 @@ const FLAPPY_THEMES = [
     pipe: { body: '#ff7a59', lip: '#ffa07a', edge: '#a23b1e' },
     ground: { grass: '#cbbd8f', grassEdge: '#8a7850', soil: '#e6d49a', soilEdge: '#c4b06e' },
     bird: { body: '#2dd4bf', belly: '#ccfbf1', stroke: '#0f766e', beak: '#fb7185', beakStroke: '#9f1239' },
-    hat: null, decor: 'bubbles'
+    birdStyle: 'tang', hat: null, decor: 'bubbles'
   }
 ];
 
@@ -1419,6 +1419,792 @@ const flappyGame = {
     }
   },
 
+  // --- Per-theme bird designs --------------------------------------------
+
+  /** Small shared helpers for the bird designs. */
+  birdRadial(ctx, cx, cy, r, inner, mid, outer, line, lineWidth) {
+    const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.2, cx, cy, r);
+    g.addColorStop(0, inner);
+    g.addColorStop(0.55, mid);
+    g.addColorStop(1, outer);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = line;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  },
+
+  birdEye(ctx, x, y, r, opts) {
+    const o = opts || {};
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = o.pupil || '#0b1220';
+    ctx.beginPath();
+    ctx.arc(x + r * 0.28, y, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    if (o.brow) {
+      ctx.strokeStyle = o.brow;
+      ctx.lineWidth = r * 0.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.9, y - r * 1.1);
+      ctx.lineTo(x + r * 0.9, y - r * 1.6);
+      ctx.stroke();
+    }
+    if (o.lashes) {
+      ctx.strokeStyle = o.lashColor || '#0b1220';
+      ctx.lineWidth = Math.max(1, r * 0.28);
+      ctx.lineCap = 'round';
+      const ex = x + r * 0.2;
+      [[ex, y - r * 0.9, ex - r * 0.6, y - r * 1.7],
+       [ex, y - r * 1.4, ex + r * 0.3, y - r * 2.1]].forEach(([x1, y1, x2, y2]) => {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      });
+    }
+  },
+
+  birdWing(ctx, angle, fill, stroke, rx, ry, dy) {
+    ctx.save();
+    ctx.translate(-5, (dy === undefined) ? 0 : dy);
+    ctx.rotate(angle);
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx || 7, ry || 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  },
+
+  birdBeak(ctx, bc) {
+    ctx.fillStyle = bc.beak;
+    ctx.strokeStyle = bc.beakStroke;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(10, -2);
+    ctx.lineTo(19, 2);
+    ctx.lineTo(10, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  },
+
+  /** Draw the player's bird with the look that fits the active theme. */
+  drawBird(ctx, birdY, birdRotation) {
+    const theme = this.theme();
+    const R = this.bird.radius;
+    const wingAngle = this.bird.wingAngle;
+    const bc = theme.bird || { body: '#facc15', belly: '#fef08a', stroke: '#ca8a04', beak: '#f97316', beakStroke: '#c2410c' };
+    ctx.save();
+    ctx.translate(this.bird.x, birdY);
+    ctx.rotate(birdRotation);
+
+    switch (theme.birdStyle) {
+      case 'phoenix': {
+        // Warm orange body with a full gradient, flame wing, sweeping crest
+        this.birdRadial(ctx, 0, 0, R, '#fde68a', '#fb923c', '#c2410c', '#7c2d12', 2.5);
+        ctx.fillStyle = '#fed7aa';
+        ctx.beginPath();
+        ctx.arc(-2, 3, R - 5, 0, Math.PI * 2);
+        ctx.fill();
+        // crest: two spear feathers trailing up
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath();
+        ctx.moveTo(-7, -R + 2);
+        ctx.lineTo(-15, -R - 7);
+        ctx.lineTo(-5, -R - 5);
+        ctx.lineTo(-2, -R - 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(2, -R);
+        ctx.lineTo(-4, -R - 9);
+        ctx.lineTo(8, -R - 4);
+        ctx.closePath();
+        ctx.fill();
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220', brow: '#7c2d12' });
+        this.birdBeak(ctx, bc);
+        // flame wing: three pointed feathers
+        ctx.save();
+        ctx.translate(-5, 1);
+        ctx.rotate(wingAngle);
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-6, 6);
+        ctx.lineTo(-9, -4);
+        ctx.lineTo(-13, 3);
+        ctx.lineTo(-11, -7);
+        ctx.lineTo(-7, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#c2410c';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+        ctx.restore();
+        break;
+      }
+
+      case 'moon': {
+        // Slate moon-bird: crescent marking, sleepy lashes
+        this.birdRadial(ctx, 0, 0, R, '#e2e8f0', '#94a3b8', '#334155', '#0f172a', 2.5);
+        ctx.fillStyle = '#eef2fb';
+        ctx.beginPath();
+        ctx.arc(-2, 3, R - 5, 0, Math.PI * 2);
+        ctx.fill();
+        // crescent forehead marking
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(-1, -7, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#334155';
+        ctx.beginPath();
+        ctx.arc(0.6, -7.4, 3.3, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220', lashes: true, lashColor: '#0f172a' });
+        this.birdBeak(ctx, bc);
+        this.birdWing(ctx, wingAngle, '#94a3b8', '#0f172a', 7, 4.6, 0);
+        break;
+      }
+
+      case 'bat': {
+        // Purple bat-bird with pointed ears, fangs and membrane wings
+        this.birdRadial(ctx, 0, 0, R, '#c4b5fd', '#7c3aed', '#2e1065', '#1e0533', 2.5);
+        ctx.fillStyle = '#a78bfa';
+        ctx.beginPath();
+        ctx.arc(-2, 3, R - 5, 0, Math.PI * 2);
+        ctx.fill();
+        // pointed ears
+        ctx.fillStyle = '#4c1d95';
+        ctx.beginPath();
+        ctx.moveTo(-7.5, -R + 2);
+        ctx.lineTo(-12, -R - 6);
+        ctx.lineTo(-4, -R - 1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(6, -R + 2);
+        ctx.lineTo(10, -R - 6);
+        ctx.lineTo(12, -R + 1);
+        ctx.closePath();
+        ctx.fill();
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#ef4444' });
+        this.birdBeak(ctx, bc);
+        // fangs under the beak line
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(12.5, 4);
+        ctx.lineTo(14.5, 7.5);
+        ctx.lineTo(16.5, 4);
+        ctx.closePath();
+        ctx.fill();
+        // membrane wings, scalloped trailing edge
+        ctx.save();
+        ctx.translate(-5, 1);
+        ctx.rotate(wingAngle);
+        ctx.fillStyle = '#4c1d95';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-6, -8, -11, -5);
+        ctx.quadraticCurveTo(-7, -2, -12, 0);
+        ctx.quadraticCurveTo(-7, 2, -10, 6);
+        ctx.quadraticCurveTo(-5, 4, 0, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#1e0533';
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+        ctx.restore();
+        break;
+      }
+
+      case 'santa': {
+        // Round red Santa bird: white fluffy beard, belt with buckle
+        this.birdRadial(ctx, 0, 0, R, '#f87171', '#e11d48', '#7f1d1d', '#450a0a', 2.5);
+        // fluffy white bib on the lower face/belly
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-2, 3.5, R - 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        // black belt across the belly with gold buckle
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-R, 5, R * 2, 4.5);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(-2.5, 5, 5, 4.5);
+        // rosy cheeks
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath();
+        ctx.arc(-5, -1, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220' });
+        this.birdBeak(ctx, bc);
+        // Santa hat
+        ctx.fillStyle = '#e11d48';
+        ctx.beginPath();
+        ctx.moveTo(-R + 3, -R + 1);
+        ctx.lineTo(0, -R - 12);
+        ctx.lineTo(R - 3, -R + 1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-R + 1, -R + 1, R * 2 - 2, 4);
+        ctx.beginPath();
+        ctx.arc(0, -R - 12, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdWing(ctx, wingAngle, '#ffffff', '#450a0a', 7, 4.8, -1);
+        break;
+      }
+
+      case 'party': {
+        // Gold bird: bow-tie, striped party cone, cheek sparkle
+        this.birdRadial(ctx, 0, 0, R, '#fef08a', '#facc15', '#a16207', '#422006', 2.5);
+        ctx.fillStyle = '#fef9c3';
+        ctx.beginPath();
+        ctx.arc(-2, 3, R - 5, 0, Math.PI * 2);
+        ctx.fill();
+        // bow-tie at the neck
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.moveTo(5, -1);
+        ctx.lineTo(1, -5);
+        ctx.lineTo(1, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(14, -1);
+        ctx.lineTo(17, -5);
+        ctx.lineTo(17, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#be123d';
+        ctx.fillRect(5.2, -2.2, 8, 4.4);
+        // eye shine
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220' });
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath();
+        ctx.arc(6, -6, 1.4, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdBeak(ctx, bc);
+        // striped party cone
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.moveTo(-R + 3, -R + 1);
+        ctx.lineTo(0, -R - 14);
+        ctx.lineTo(R - 3, -R + 1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(-R + 3, -R + 1);
+        ctx.lineTo(0, -R - 14);
+        ctx.lineTo(R - 3, -R + 1);
+        ctx.closePath();
+        ctx.clip();
+        ctx.strokeStyle = '#fde68a';
+        ctx.lineWidth = 3;
+        [-5, 0, 5].forEach(offset => {
+          ctx.beginPath();
+          ctx.moveTo(offset - 10, 2);
+          ctx.lineTo(offset + 8, -R - 12);
+          ctx.stroke();
+        });
+        ctx.restore();
+        ctx.fillStyle = '#fde68a';
+        ctx.beginPath();
+        ctx.arc(0, -R - 14, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdWing(ctx, wingAngle, '#fde68a', '#422006', 7, 4.8, 0);
+        break;
+      }
+
+      case 'cupid': {
+        // White-pink cupid bird with heart-shaped wings, rosy cheeks
+        this.birdRadial(ctx, 0, 0, R, '#ffffff', '#fbcfe8', '#f472b6', '#9f1239', 2.5);
+        // heart wings, drawn in one piece with the flap
+        const heart = (hx, hy, s, fill, stroke) => {
+          ctx.fillStyle = fill;
+          ctx.beginPath();
+          ctx.moveTo(hx, hy + s * 0.85);
+          ctx.bezierCurveTo(hx - s * 1.15, hy + s * 0.25, hx - s * 0.78, hy - s * 0.75, hx, hy - s * 0.12);
+          ctx.bezierCurveTo(hx + s * 0.78, hy - s * 0.75, hx + s * 1.15, hy + s * 0.25, hx, hy + s * 0.85);
+          ctx.closePath();
+          ctx.fill();
+          if (stroke) {
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
+          }
+        };
+        ctx.save();
+        ctx.translate(-3, 1);
+        ctx.rotate(wingAngle);
+        heart(0, 0, 5.5, '#fb7185', '#9f1239');
+        ctx.restore();
+        // rosy cheeks
+        ctx.fillStyle = 'rgba(251,113,133,0.65)';
+        ctx.beginPath();
+        ctx.arc(-5, 2, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220' });
+        // almost no beak: a tiny pink triangle
+        ctx.fillStyle = '#fb7185';
+        ctx.strokeStyle = '#9f1239';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(11, 0);
+        ctx.lineTo(15.5, 2.2);
+        ctx.lineTo(11, 4.4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // outer wing, the other heart, slightly behind
+        ctx.save();
+        ctx.translate(-10, -1);
+        ctx.rotate(-wingAngle * 0.6);
+        ctx.globalAlpha = 0.9;
+        heart(0, 0, 4.5, '#fecdd3', '#9f1239');
+        ctx.restore();
+        ctx.globalAlpha = 1;
+        break;
+      }
+
+      case 'bunny': {
+        // Lavender bunny bird: tall ears, pink nose, buck teeth
+        this.birdRadial(ctx, 0, 0, R, '#ddd6fe', '#a78bfa', '#4c1d95', '#2e1065', 2.5);
+        ctx.fillStyle = '#ede9fe';
+        ctx.beginPath();
+        ctx.arc(-2, 3, R - 5, 0, Math.PI * 2);
+        ctx.fill();
+        // ears
+        const ear = (ex) => {
+          ctx.fillStyle = '#a78bfa';
+          ctx.beginPath();
+          ctx.ellipse(ex, -R - 4, 3.4, 7.2, (ex < 0 ? 0.08 : -0.08), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#2e1065';
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+          ctx.fillStyle = '#fda4af';
+          ctx.beginPath();
+          ctx.ellipse(ex, -R - 4.4, 1.5, 4.8, (ex < 0 ? 0.08 : -0.08), 0, Math.PI * 2);
+          ctx.fill();
+        };
+        ear(-4.5);
+        ear(5.5);
+        // pink nose right where the beak would be
+        ctx.fillStyle = '#fb7185';
+        ctx.beginPath();
+        ctx.moveTo(11.5, 1.2);
+        ctx.lineTo(15.5, 3.4);
+        ctx.lineTo(11.5, 5.6);
+        ctx.closePath();
+        ctx.fill();
+        // buck teeth
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(10.5, 6.2, 2, 2.6);
+        ctx.fillRect(13.4, 6.2, 2, 2.6);
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220' });
+        // tail puff
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-R + 1.5, 2, 3.4, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdWing(ctx, wingAngle, '#ddd6fe', '#2e1065', 6.4, 4.4, 0);
+        break;
+      }
+
+      case 'donut': {
+        // Pink frosted donut: sprinkles, hole shadow
+        this.birdRadial(ctx, 0, 0, R, '#f9a8d4', '#ec4899', '#831843', '#3b0524', 2.5);
+        // hole shadow in the middle
+        ctx.fillStyle = '#831843';
+        ctx.beginPath();
+        ctx.ellipse(0, 2, 5.6, 4.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#be185d';
+        ctx.beginPath();
+        ctx.ellipse(0, 1.4, 3.9, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // sprinkles
+        const sprinkles = [
+          [-7, -6, '#fde047', 0.4], [1, -9, '#38bdf8', -0.2], [8, -6, '#a78bfa', 0.9],
+          [-5, 6, '#22c55e', -0.7], [6, 6, '#fb923c', 0.2]
+        ];
+        sprinkles.forEach(([sx, sy, col, rot]) => {
+          ctx.save();
+          ctx.translate(sx, sy);
+          ctx.rotate(rot);
+          ctx.fillStyle = col;
+          ctx.fillRect(-1.8, -0.65, 3.6, 1.3);
+          ctx.restore();
+        });
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220' });
+        this.birdBeak(ctx, bc);
+        // frosting shine
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath();
+        ctx.arc(-5.2, -6.2, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdWing(ctx, wingAngle, '#fbcfe8', '#831843', 7, 4.8, 0);
+        break;
+      }
+
+      case 'tang': {
+        // Teal tang fish-bird with dorsal crest and flowing side fins
+        this.birdRadial(ctx, 0, 0, R, '#5eead4', '#2dd4bf', '#0f766e', '#042f2e', 2.5);
+        ctx.fillStyle = '#ccfbf1';
+        ctx.beginPath();
+        ctx.arc(-2, 3, R - 5, 0, Math.PI * 2);
+        ctx.fill();
+        // dorsal crest fin along the top of the head
+        const crest = ctx.createLinearGradient(0, -R - 8, 0, -R + 2);
+        crest.addColorStop(0, '#fde047');
+        crest.addColorStop(1, '#d9a80b');
+        ctx.fillStyle = crest;
+        ctx.beginPath();
+        ctx.moveTo(-8, -R + 2);
+        ctx.lineTo(-4, -R - 7);
+        ctx.lineTo(0, -R + 2);
+        ctx.lineTo(3, -R - 7);
+        ctx.lineTo(7, -R + 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+        // tang eye: stern, angled
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220', brow: '#042f2e' });
+        // shoulder/brush marks typical of tangs
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.ellipse(-6, -2, 2.6, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // tiny lips
+        ctx.fillStyle = '#fb7185';
+        ctx.beginPath();
+        ctx.ellipse(12.5, 2.6, 2.4, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#9f1239';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // flowing side fins, long ribbons under the body
+        const fin = (sign, alpha) => {
+          ctx.save();
+          ctx.translate(-5, 2);
+          ctx.rotate(wingAngle * sign);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = '#0d9488';
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(-7, 4, -9, 11);
+          ctx.quadraticCurveTo(-5, 9, -2, 12);
+          ctx.quadraticCurveTo(0, 6, 0, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.restore();
+        };
+        fin(1, 0.85);
+        fin(-1, 0.65);
+        break;
+      }
+
+      default: {
+        // Classic: yellow bird, faithful to the original look
+        this.birdRadial(ctx, 0, 0, R, '#fde68a', '#facc15', '#ca8a04', '#7a4c00', 2.5);
+        ctx.fillStyle = bc.belly;
+        ctx.beginPath();
+        ctx.arc(-2, 3, R - 5, 0, Math.PI * 2);
+        ctx.fill();
+        this.birdEye(ctx, 6, -5, 5, { pupil: '#0b1220' });
+        this.birdBeak(ctx, bc);
+        this.birdWing(ctx, wingAngle, '#ffffff', '#ca8a04', 7, 5, 0);
+      }
+    }
+
+    ctx.restore();
+  },
+
+  /** A decorated tree in the back; its lights come on one at a time. */
+  drawChristmasTree(ctx, groundY) {
+    const cx = this.width * 0.84;
+    const baseY = groundY + 2;
+    const scale = this.height / 520;
+    const tiers = [
+      { w: 78 * scale, h: 58 * scale, y: baseY - 12 * scale },
+      { w: 58 * scale, h: 48 * scale, y: baseY - 52 * scale },
+      { w: 40 * scale, h: 38 * scale, y: baseY - 88 * scale }
+    ];
+
+    // Trunk
+    ctx.fillStyle = '#3a1f0e';
+    ctx.fillRect(cx - 7 * scale, baseY - 10 * scale, 14 * scale, 10 * scale);
+
+    // Tier silhouettes with a snowy top edging each branch row
+    tiers.forEach((tier, i) => {
+      ctx.fillStyle = i === 0 ? '#16301c' : (i === 1 ? '#1b3b22' : '#214a2b');
+      ctx.beginPath();
+      ctx.moveTo(cx - tier.w / 2, tier.y);
+      ctx.lineTo(cx, tier.y - tier.h);
+      ctx.lineTo(cx + tier.w / 2, tier.y);
+      ctx.closePath();
+      ctx.fill();
+      // snow rim, a lighter band on each tier edge
+      ctx.fillStyle = 'rgba(240,248,255,0.72)';
+      ctx.beginPath();
+      ctx.moveTo(cx - tier.w / 2, tier.y);
+      ctx.lineTo(cx - tier.w * 0.32, tier.y - tier.h * 0.28);
+      ctx.lineTo(cx - tier.w * 0.32, tier.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx + tier.w / 2, tier.y);
+      ctx.lineTo(cx + tier.w * 0.32, tier.y - tier.h * 0.28);
+      ctx.lineTo(cx + tier.w * 0.32, tier.y);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    // A fixed position star at the apex
+    const lightCount = Math.min(this.score, 20);
+    const apex = tiers[tiers.length - 1];
+    const starY = apex.y - apex.h - 1;
+    const starLit = lightCount >= 18;
+    this.drawStar(ctx, cx, starY, 4.6 * scale, starLit ? '#fde047' : '#8f9b87', starLit);
+
+    // 20 lights cascading on as score grows; each position is fixed so the
+    // tree lights up the same way every run.
+    const rand = this.decorRng(99173);
+    const lampColors = ['#fde047', '#fb7185', '#60a5fa', '#a78bfa', '#fbbf24', '#4ade80'];
+    const rows = [
+      { w: tiers[0].w * 0.62, y: tiers[0].y - tiers[0].h * 0.12, count: 5 },
+      { w: tiers[0].w * 0.78, y: tiers[0].y - tiers[0].h * 0.42, count: 6 },
+      { w: tiers[1].w * 0.62, y: tiers[1].y - tiers[1].h * 0.15, count: 5 },
+      { w: tiers[1].w * 0.75, y: tiers[1].y - tiers[1].h * 0.45, count: 3 },
+      { w: tiers[2].w * 0.75, y: tiers[2].y - tiers[2].h * 0.35, count: 1 }
+    ];
+    // Distribute 20 bulbs across the rows (5+6+5+3+1).
+    const flat = [];
+    rows.forEach((row, ri) => {
+      for (let i = 0; i < row.count; i++) {
+        const t = row.count === 1 ? 0.5 : (i + 0.5) / row.count;
+        const x = cx - row.w / 2 + row.w * t;
+        flat.push({ x, y: row.y, color: lampColors[(i + ri * 2) % lampColors.length] });
+      }
+    });
+    flat.forEach((bulb, i) => {
+      const lit = i < lightCount;
+      if (lit) {
+        const glow = ctx.createRadialGradient(bulb.x, bulb.y, 0, bulb.x, bulb.y, 9 * scale);
+        glow.addColorStop(0, bulb.color);
+        glow.addColorStop(0.45, this.withAlpha(bulb.color, 0.55));
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(bulb.x, bulb.y, 9 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = lit ? bulb.color : '#1c2a1c';
+      ctx.beginPath();
+      ctx.arc(bulb.x, bulb.y, lit ? 2.2 * scale : 1.6 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  },
+
+  drawStar(ctx, cx, cy, r, fill, glow) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const radius = i % 2 === 0 ? r : r * 0.45;
+      const angle = (Math.PI / 5) * i - Math.PI / 2;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    if (glow) {
+      const aura = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 3.2);
+      aura.addColorStop(0, 'rgba(253,224,71,0.55)');
+      aura.addColorStop(1, 'rgba(253,224,71,0)');
+      ctx.fillStyle = aura;
+      ctx.fillRect(-r * 4, -r * 4, r * 8, r * 8);
+      ctx.fillStyle = fill;
+    }
+    ctx.fill();
+    ctx.restore();
+  },
+
+  /** Turn '#rrggbb' into rgba(r,g,b,a). */
+  withAlpha(hex, a) {
+    const p = parseInt(hex.slice(1), 16);
+    const r = (p >> 16) & 255, g = (p >> 8) & 255, b = p & 255;
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  },
+
+  /** Fireworks state for the New Year theme. Lazy, persistent for the session. */
+  newYearState() {
+    if (!this._nyState) {
+      const rand = this.decorRng(31337);
+      const colors = ['#fde047', '#fb7185', '#60a5fa', '#a78bfa', '#4ade80', '#f472b6', '#fb923c'];
+      this._nyState = {
+        rockets: [],
+        sparks: [],
+        balloons: [],
+        nextRocket: 0,
+        colors,
+        bunting: []
+      };
+      for (let i = 0; i < 5; i++) {
+        this._nyState.balloons.push({
+          x: 30 + rand() * 300,
+          y: 40 + rand() * 160,
+          size: 6.5 + rand() * 4,
+          hue: ['#f43f5e', '#fde047', '#22c55e', '#38bdf8', '#a78bfa'][Math.floor(rand() * 5)],
+          phase: rand() * Math.PI * 2,
+          speed: 0.35 + rand() * 0.25
+        });
+      }
+      for (let i = 0; i < 7; i++) {
+        this._nyState.bunting.push({
+          x: 10 + i * 56,
+          y: i % 2 === 0 ? 14 : 22,
+          color: colors[i % colors.length]
+        });
+      }
+    }
+    return this._nyState;
+  },
+
+  drawNewYearDecor(ctx, groundY) {
+    const state = this.newYearState();
+    const now = performance.now() / 1000;
+
+    // Swag of bunting flags hanging in a lazy wave across the top
+    ctx.save();
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    const anchors = [
+      { x: 6, y: 8 },
+      { x: this.width / 2, y: 22 },
+      { x: this.width - 6, y: 8 }
+    ];
+    ctx.beginPath();
+    ctx.moveTo(anchors[0].x, anchors[0].y);
+    ctx.quadraticCurveTo(anchors[1].x, anchors[1].y + 6, anchors[2].x, anchors[2].y);
+    ctx.stroke();
+    state.bunting.forEach(b => {
+      const onMid = b.x < this.width * 0.5
+        ? b.y + (1 - (b.x / (this.width * 0.5))) * 10
+        : 8 + ((b.x - this.width * 0.5) / (this.width * 0.5)) * 10;
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.moveTo(b.x, onMid);
+      ctx.lineTo(b.x + 9, onMid);
+      ctx.lineTo(b.x + 4.5, onMid + 12);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    // Gold balloons bobbing gently
+    state.balloons.forEach(b => {
+      const y = b.y + Math.sin(now * 1.4 + b.phase) * 3;
+      // string
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(b.x, y + b.size + 1);
+      ctx.lineTo(b.x, y + b.size + 5);
+      ctx.stroke();
+      // body + highlight
+      ctx.fillStyle = b.hue;
+      ctx.beginPath();
+      ctx.ellipse(b.x, y, b.size * 0.82, b.size, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath();
+      ctx.ellipse(b.x - b.size * 0.28, y - b.size * 0.3, b.size * 0.22, b.size * 0.34, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Rise a rocket every ~2.8s
+    if (now >= state.nextRocket) {
+      const rand = this.decorRng(Date.now() & 0xffff);
+      state.rockets.push({
+        x: 40 + rand() * (this.width - 80),
+        y: this.height + 10,
+        vy: -(3.6 + rand() * 1.4),
+        hue: state.colors[Math.floor(rand() * state.colors.length)]
+      });
+      state.nextRocket = now + 2.2 + rand() * 1.6;
+    }
+
+    // Update and draw rockets
+    state.rockets = state.rockets.filter(r => {
+      r.y += r.vy;
+      r.vy += 0.03; // mild gravity
+      ctx.fillStyle = 'rgba(255,255,235,0.9)';
+      ctx.fillRect(r.x - 1, r.y, 2, 5);
+      ctx.fillStyle = r.hue;
+      ctx.fillRect(r.x - 0.8, r.y + 4, 1.6, 2.2);
+      // trail sparks
+      if (Math.random() < 0.5) {
+        state.sparks.push({
+          x: r.x + (Math.random() - 0.5) * 3,
+          y: r.y + 5,
+          vx: (Math.random() - 0.5) * 0.7,
+          vy: 0.6 + Math.random() * 0.8,
+          life: 0.9,
+          color: 'rgba(255,255,235,0.85)'
+        });
+      }
+      // burst on apex
+      if (r.vy > -0.6) {
+        const burstColor = r.hue;
+        for (let i = 0; i < 26; i++) {
+          const angle = (Math.PI * 2 * i) / 26 + Math.random() * 0.2;
+          state.sparks.push({
+            x: r.x, y: r.y,
+            vx: Math.cos(angle) * (1.6 + Math.random() * 1.6),
+            vy: Math.sin(angle) * (1.6 + Math.random() * 1.6),
+            life: 1,
+            color: burstColor
+          });
+        }
+        return false;
+      }
+      return r.y > -20;
+    });
+
+    // Sparks update + draw with fade
+    state.sparks = state.sparks.filter(s => {
+      s.x += s.vx;
+      s.y += s.vy;
+      s.vy += 0.028;
+      s.life -= 0.018;
+      if (s.life <= 0) return false;
+      ctx.globalAlpha = Math.max(0, s.life);
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      return true;
+    });
+
+    ctx.restore();
+  },
+
   draw() {
     const ctx = this.ctx;
     if (!ctx) return;
@@ -1488,6 +2274,15 @@ const flappyGame = {
         ctx.fillStyle = `rgba(255, 255, 255, ${((low + high) / 2).toFixed(3)})`;
         ctx.fill();
       }
+    }
+
+    // A decorated tree for Christmas: 20 lights come online one at a time as
+    // the player wins points. Behind the clouds so it sits in the scene.
+    if (theme.id === 'christmas') {
+      this.drawChristmasTree(ctx, groundY);
+    }
+    if (theme.id === 'newyear') {
+      this.drawNewYearDecor(ctx, groundY);
     }
 
     this.drawCelestial(ctx, sky, groundY);
@@ -1582,91 +2377,7 @@ const flappyGame = {
     }
     ctx.stroke();
 
-    ctx.save();
-    ctx.translate(this.bird.x, birdY);
-    ctx.rotate(birdRotation);
-
-    const bc = theme.bird || { body: '#facc15', belly: '#fef08a', stroke: '#ca8a04', beak: '#f97316', beakStroke: '#c2410c' };
-    ctx.fillStyle = bc.body;
-    ctx.beginPath();
-    ctx.arc(0, 0, this.bird.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = bc.stroke;
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-
-    ctx.fillStyle = bc.belly;
-    ctx.beginPath();
-    ctx.arc(-2, 3, this.bird.radius - 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(6, -5, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#000000';
-    ctx.beginPath();
-    ctx.arc(7, -5, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = bc.beak;
-    ctx.strokeStyle = bc.beakStroke;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(10, -2);
-    ctx.lineTo(19, 2);
-    ctx.lineTo(10, 6);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    if (theme.hat === 'santa') {
-      // Red cap with a white brim and pompom
-      ctx.fillStyle = '#e11d48';
-      ctx.beginPath();
-      ctx.moveTo(-this.bird.radius + 3, -this.bird.radius + 1);
-      ctx.lineTo(0, -this.bird.radius - 12);
-      ctx.lineTo(this.bird.radius - 3, -this.bird.radius + 1);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-this.bird.radius + 1, -this.bird.radius + 1, this.bird.radius * 2 - 2, 4);
-      ctx.beginPath();
-      ctx.arc(0, -this.bird.radius - 12, 3.2, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (theme.hat === 'party') {
-      // Cone hat with polka dots and a pompom
-      ctx.fillStyle = '#f43f5e';
-      ctx.beginPath();
-      ctx.moveTo(-this.bird.radius + 3, -this.bird.radius + 1);
-      ctx.lineTo(0, -this.bird.radius - 13);
-      ctx.lineTo(this.bird.radius - 3, -this.bird.radius + 1);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#fde68a';
-      ctx.beginPath();
-      ctx.arc(-4.5, -this.bird.radius - 6, 1.5, 0, Math.PI * 2);
-      ctx.arc(4.5, -this.bird.radius - 6, 1.5, 0, Math.PI * 2);
-      ctx.arc(0, -this.bird.radius - 2.6, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(0, -this.bird.radius - 13.5, 2.1, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.save();
-    ctx.translate(-5, 0);
-    ctx.rotate(this.bird.wingAngle);
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = bc.stroke;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 7, 5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.restore();
+    this.drawBird(ctx, birdY, birdRotation);
 
     // Night falls over the whole scene, then the score is drawn on top of it
     // so it stays readable at any hour
@@ -1683,7 +2394,7 @@ const flappyGame = {
       ctx.fillText(this.score.toString(), this.width / 2, 60);
     }
 
-    // '+1' floater on every pipe passed — a quiet jolt of feedback
+    // '+1' floater on every pipe passed â€” a quiet jolt of feedback
     if (this.scoreFlash) {
       const age = performance.now() - this.scoreFlash.t0;
       const k = age / 700;
@@ -2451,7 +3162,7 @@ const chessGame = {
       this.modeLabel.textContent = isDuel ? '2x Stockfish 19'
         : (isBot ? 'Playing Stockfish 19'
         : (isQuiz ? 'Move count quiz'
-        : (this.onlineActive ? 'Lichess · Rapid' : '2-player')));
+        : (this.onlineActive ? 'Lichess Â· Rapid' : '2-player')));
     }
 
     // The match setup panel and the clocks only exist for the 2x mode.
@@ -2468,7 +3179,7 @@ const chessGame = {
     if (this.choiceRow) this.choiceRow.hidden = this.mode !== 'local';
 
     // Over-the-board: both humans share the screen, so Black's pieces are
-    // shown turned 180° towards Black. The Lichess choice keeps the standard
+    // shown turned 180Â° towards Black. The Lichess choice keeps the standard
     // orientation; so do the engine modes.
     if (this.boardEl) {
       this.boardEl.classList.toggle('otb-flip-black', this.mode === 'local' && !this.onlineActive);
@@ -2514,7 +3225,7 @@ const chessGame = {
       if (typeof chessOnline === 'undefined' || !chessOnline.loaded) {
         // Lock the board while the module is fetched.
         this.onlineActive = true;
-        this.setStatus('Loading Lichess…');
+        this.setStatus('Loading Lichessâ€¦');
         this.updateModeUI();
         return loadLichessModule()
           .then(() => chessOnline.setChoice('lichess'))
@@ -2934,7 +3645,7 @@ const chessQuiz = {
 
     if (this.el.score) this.el.score.textContent = this.scoreText();
     if (this.el.tally) {
-      this.el.tally.textContent = this.right + ' right · ' + this.wrong + ' wrong';
+      this.el.tally.textContent = this.right + ' right Â· ' + this.wrong + ' wrong';
     }
 
     const ready = this.awaitingAnswer && !!this.question;
@@ -2961,7 +3672,7 @@ const chessQuiz = {
       if (this.finished && this.el.summaryText) {
         this.el.summaryText.textContent =
           (this.outcome ? this.outcome.headline + '. ' : '') +
-          'Final score ' + this.scoreText() + ' · ' +
+          'Final score ' + this.scoreText() + ' Â· ' +
           this.right + ' right, ' + this.wrong + ' wrong.';
       }
     }
@@ -2971,7 +3682,7 @@ const chessQuiz = {
     if (this.finished) return 'The game is over. The final score is below.';
     if (this.awaitingAnswer) {
       return 'How many legal moves does each side have? A move that leaves a ' +
-             'piece hanging does not count. +1 each right, −1 each wrong.';
+             'piece hanging does not count. +1 each right, âˆ’1 each wrong.';
     }
     if (this.moves === 0) {
       return 'Make a move to start the quiz. After every move you will be asked ' +
@@ -2995,13 +3706,13 @@ const chessQuiz = {
       const tally = this.question ? this.question[f.side] : null;
 
       let text;
-      if (f.state === 'right') text = 'correct — +1';
-      else if (f.state === 'skipped') text = 'not answered — no points';
-      else text = 'you said ' + f.given + ' — the answer is ' + f.correct + ' (−1)';
+      if (f.state === 'right') text = 'correct â€” +1';
+      else if (f.state === 'skipped') text = 'not answered â€” no points';
+      else text = 'you said ' + f.given + ' â€” the answer is ' + f.correct + ' (âˆ’1)';
 
       if (tally) {
         const blunders = tally.blunders.length;
-        text += ' · ' + tally.total + ' legal, ' + blunders +
+        text += ' Â· ' + tally.total + ' legal, ' + blunders +
                 (blunders === 1 ? ' blunder' : ' blunders');
       }
 
@@ -3018,7 +3729,7 @@ const chessQuiz = {
 };
 
 // =======================================================
-// 2x STOCKFISH 19 — ENGINE VS ENGINE MATCH
+// 2x STOCKFISH 19 â€” ENGINE VS ENGINE MATCH
 // =======================================================
 //
 // The third chess mode. Two independent Stockfish workers play each other
@@ -3392,7 +4103,7 @@ const chessDuel = {
     if (chessInsufficientMaterial(state)) {
       return { ok: true, state, warning: 'Valid, but neither side has mating material, so the match will be drawn at once.' };
     }
-    return { ok: true, state, message: 'Valid — ' + who + ' to move' };
+    return { ok: true, state, message: 'Valid â€” ' + who + ' to move' };
   },
 
   // Replays the chosen opening from the initial position and returns the moves
@@ -3576,7 +4287,7 @@ const chessDuel = {
 
     const opening = this.selectedOpening();
     if (!opening) {
-      el.openingChip.textContent = 'Standard game — no opening';
+      el.openingChip.textContent = 'Standard game â€” no opening';
       if (el.openingNote) {
         el.openingNote.textContent = 'Pick an opening to have the engines start from a book line.';
         el.openingNote.className = 'duel-note';
@@ -3586,7 +4297,7 @@ const chessDuel = {
 
     const sideWord = this.openingSide === 'both' ? 'Both sides'
       : (this.openingSide === 'w' ? 'White' : 'Black');
-    el.openingChip.textContent = opening.eco + ' · ' + opening.name + ' · ' + opening.moves.length + ' plies';
+    el.openingChip.textContent = opening.eco + ' Â· ' + opening.name + ' Â· ' + opening.moves.length + ' plies';
 
     if (!el.openingNote) return;
     // Read from a freshly computed script rather than from this.script, which
@@ -3865,7 +4576,7 @@ const chessDuel = {
     if (!opening) return 'Match running: ' + this.timeControlTag();
     const who = this.openingSide === 'both' ? 'both sides'
       : (this.openingSide === 'w' ? 'White' : 'Black');
-    return 'Match running: ' + this.timeControlTag() + ' · ' + opening.eco + ' ' + opening.name + ' (' + who + ')';
+    return 'Match running: ' + this.timeControlTag() + ' Â· ' + opening.eco + ' ' + opening.name + ' (' + who + ')';
   },
 
   // Freezes the match without ending it. The board, the move list, the
@@ -4355,12 +5066,12 @@ const chessDuel = {
         entry.moves + (entry.moves === 1 ? ' move' : ' moves'),
         entry.opening,
         when
-      ].join(' · ');
+      ].join(' Â· ');
       return '<button class="history-entry" data-id="' + chessEscapeHtml(entry.id) + '" type="button">' +
         '<span class="history-badge ' + this.historyBadgeClass(entry.result) + '">' +
         chessEscapeHtml(entry.result || '*') + '</span>' +
         '<span class="history-main">' +
-        '<span class="history-line1">' + chessEscapeHtml(entry.headline + ' · ' + entry.detail) + '</span>' +
+        '<span class="history-line1">' + chessEscapeHtml(entry.headline + ' Â· ' + entry.detail) + '</span>' +
         '<span class="history-line2">' + chessEscapeHtml(meta) + '</span>' +
         '</span></button>';
     }).join('');
@@ -4453,7 +5164,7 @@ const chessDuel = {
       return;
     }
     const score = evt.score === null || evt.score === undefined ? '' : formatDuelScore(evt.score);
-    el.textContent = name + ': depth ' + evt.depth + (score ? ' · ' + score : '');
+    el.textContent = name + ': depth ' + evt.depth + (score ? ' Â· ' + score : '');
   },
 
   renderAll() {
@@ -4462,12 +5173,12 @@ const chessDuel = {
 
     if (this.el.startBtn) {
       const label = this.loading
-        ? '<span class="btn-icon">✕</span> <span class="btn-label">Cancel</span>'
+        ? '<span class="btn-icon">âœ•</span> <span class="btn-label">Cancel</span>'
         : (this.paused
-          ? '<span class="btn-icon">▶</span> <span class="btn-label">Resume</span>'
+          ? '<span class="btn-icon">â–¶</span> <span class="btn-label">Resume</span>'
           : (this.running
-            ? '<span class="btn-icon">⏸</span> <span class="btn-label">Pause</span>'
-            : '<span class="btn-icon">▶</span> <span class="btn-label">Start</span>'));
+            ? '<span class="btn-icon">â¸</span> <span class="btn-label">Pause</span>'
+            : '<span class="btn-icon">â–¶</span> <span class="btn-label">Start</span>'));
       // renderAll() runs on every render, and renderAll() is reached from
       // updateUI() several times a second during a match. Assigning innerHTML
       // re-parses the markup and drops the button's children each time, so it
@@ -5044,7 +5755,7 @@ function setupVirtualPet() {
       rest: 'Rest',
       askPlaceholder: 'Ask your pet something...',
       greeting: 'Hi! Pet me or ask me anything.',
-      level: n => `Friendship · Level ${n}`,
+      level: n => `Friendship Â· Level ${n}`,
       settingsTitle: 'Voice and AI settings',
       settingsKicker: 'Your companion',
       settingsHeading: 'Settings',
@@ -5068,39 +5779,39 @@ function setupVirtualPet() {
       moodChat: 'Nice to hear from you!',
     },
     ur: {
-      moodHappy: 'خوش اور پُرجوش',
-      moodTired: 'تھوڑا تھک گیا ہوں',
-      moodHungry: 'مجھے بھوک لگی ہے',
-      moodPlayful: 'آپ کے ساتھ کھیلنا ہے',
-      feed: 'پیٹ',
-      energy: 'توانائی',
-      joy: 'خوشی',
-      play: 'کھیل',
-      rest: 'آرام',
-      askPlaceholder: 'اپنے پالتو سے کچھ پوچھیں...',
-      greeting: 'سلام! مجھے پیار کریں یا کوئی سوال پوچھیں۔',
-      level: n => `دوستی · سطح ${n}`,
-      settingsTitle: 'آواز اور اے آئی سیٹنگز',
-      settingsKicker: 'آپ کا ساتھی',
-      settingsHeading: 'سیٹنگز',
-      memoriesTitle: 'وہ باتیں جو مجھے یاد ہیں',
-      memoriesHelp: 'یہاں محفوظ کی گئی باتیں ہر بات چیت میں آپ کے پالتو کو بتائی جاتی ہیں۔ آپ چیٹ میں "یاد رکھنا" بھی لکھ سکتے ہیں۔',
-      memoryPlaceholder: 'یاد رکھنے کے لیے کچھ لکھیں...',
-      memoryAdd: 'شامل کریں',
-      memoriesEmpty: 'ابھی کچھ محفوظ نہیں ہے۔',
-      memoryEdit: 'تبدیل کریں',
-      memorySave: 'محفوظ کریں',
-      memoryCancel: 'منسوخ',
-      memoryDelete: 'حذف کریں',
-      memoryNote: 'یادوں میں محفوظ کر لیا',
-      backToGames: 'کھیلوں پر واپس',
-      apiKeyLabel: 'OpenRouter API کلید',
-      petLanguage: 'پالتو کی زبان',
-      saveKey: 'کلید محفوظ کریں',
-      forgetKey: 'محفوظ کلید بھول جائیں',
-      statusAndroid: 'Android پر محفوظ کیز اس آلے پر خفیہ رہتی ہیں۔',
-      playReply: 'واہ! زومیز کا وقت! آپ کے ساتھ کھیلنا مزے کا ہے!',
-      moodChat: 'آپ سے بات کر کے خوشی ہوئی',
+      moodHappy: 'Ø®ÙˆØ´ Ø§ÙˆØ± Ù¾ÙØ±Ø¬ÙˆØ´',
+      moodTired: 'ØªÚ¾ÙˆÚ‘Ø§ ØªÚ¾Ú© Ú¯ÛŒØ§ ÛÙˆÚº',
+      moodHungry: 'Ù…Ø¬Ú¾Û’ Ø¨Ú¾ÙˆÚ© Ù„Ú¯ÛŒ ÛÛ’',
+      moodPlayful: 'Ø¢Ù¾ Ú©Û’ Ø³Ø§ØªÚ¾ Ú©Ú¾ÛŒÙ„Ù†Ø§ ÛÛ’',
+      feed: 'Ù¾ÛŒÙ¹',
+      energy: 'ØªÙˆØ§Ù†Ø§Ø¦ÛŒ',
+      joy: 'Ø®ÙˆØ´ÛŒ',
+      play: 'Ú©Ú¾ÛŒÙ„',
+      rest: 'Ø¢Ø±Ø§Ù…',
+      askPlaceholder: 'Ø§Ù¾Ù†Û’ Ù¾Ø§Ù„ØªÙˆ Ø³Û’ Ú©Ú†Ú¾ Ù¾ÙˆÚ†Ú¾ÛŒÚº...',
+      greeting: 'Ø³Ù„Ø§Ù…! Ù…Ø¬Ú¾Û’ Ù¾ÛŒØ§Ø± Ú©Ø±ÛŒÚº ÛŒØ§ Ú©ÙˆØ¦ÛŒ Ø³ÙˆØ§Ù„ Ù¾ÙˆÚ†Ú¾ÛŒÚºÛ”',
+      level: n => `Ø¯ÙˆØ³ØªÛŒ Â· Ø³Ø·Ø­ ${n}`,
+      settingsTitle: 'Ø¢ÙˆØ§Ø² Ø§ÙˆØ± Ø§Û’ Ø¢Ø¦ÛŒ Ø³ÛŒÙ¹Ù†Ú¯Ø²',
+      settingsKicker: 'Ø¢Ù¾ Ú©Ø§ Ø³Ø§ØªÚ¾ÛŒ',
+      settingsHeading: 'Ø³ÛŒÙ¹Ù†Ú¯Ø²',
+      memoriesTitle: 'ÙˆÛ Ø¨Ø§ØªÛŒÚº Ø¬Ùˆ Ù…Ø¬Ú¾Û’ ÛŒØ§Ø¯ ÛÛŒÚº',
+      memoriesHelp: 'ÛŒÛØ§Úº Ù…Ø­ÙÙˆØ¸ Ú©ÛŒ Ú¯Ø¦ÛŒ Ø¨Ø§ØªÛŒÚº ÛØ± Ø¨Ø§Øª Ú†ÛŒØª Ù…ÛŒÚº Ø¢Ù¾ Ú©Û’ Ù¾Ø§Ù„ØªÙˆ Ú©Ùˆ Ø¨ØªØ§Ø¦ÛŒ Ø¬Ø§ØªÛŒ ÛÛŒÚºÛ” Ø¢Ù¾ Ú†ÛŒÙ¹ Ù…ÛŒÚº "ÛŒØ§Ø¯ Ø±Ú©Ú¾Ù†Ø§" Ø¨Ú¾ÛŒ Ù„Ú©Ú¾ Ø³Ú©ØªÛ’ ÛÛŒÚºÛ”',
+      memoryPlaceholder: 'ÛŒØ§Ø¯ Ø±Ú©Ú¾Ù†Û’ Ú©Û’ Ù„ÛŒÛ’ Ú©Ú†Ú¾ Ù„Ú©Ú¾ÛŒÚº...',
+      memoryAdd: 'Ø´Ø§Ù…Ù„ Ú©Ø±ÛŒÚº',
+      memoriesEmpty: 'Ø§Ø¨Ú¾ÛŒ Ú©Ú†Ú¾ Ù…Ø­ÙÙˆØ¸ Ù†ÛÛŒÚº ÛÛ’Û”',
+      memoryEdit: 'ØªØ¨Ø¯ÛŒÙ„ Ú©Ø±ÛŒÚº',
+      memorySave: 'Ù…Ø­ÙÙˆØ¸ Ú©Ø±ÛŒÚº',
+      memoryCancel: 'Ù…Ù†Ø³ÙˆØ®',
+      memoryDelete: 'Ø­Ø°Ù Ú©Ø±ÛŒÚº',
+      memoryNote: 'ÛŒØ§Ø¯ÙˆÚº Ù…ÛŒÚº Ù…Ø­ÙÙˆØ¸ Ú©Ø± Ù„ÛŒØ§',
+      backToGames: 'Ú©Ú¾ÛŒÙ„ÙˆÚº Ù¾Ø± ÙˆØ§Ù¾Ø³',
+      apiKeyLabel: 'OpenRouter API Ú©Ù„ÛŒØ¯',
+      petLanguage: 'Ù¾Ø§Ù„ØªÙˆ Ú©ÛŒ Ø²Ø¨Ø§Ù†',
+      saveKey: 'Ú©Ù„ÛŒØ¯ Ù…Ø­ÙÙˆØ¸ Ú©Ø±ÛŒÚº',
+      forgetKey: 'Ù…Ø­ÙÙˆØ¸ Ú©Ù„ÛŒØ¯ Ø¨Ú¾ÙˆÙ„ Ø¬Ø§Ø¦ÛŒÚº',
+      statusAndroid: 'Android Ù¾Ø± Ù…Ø­ÙÙˆØ¸ Ú©ÛŒØ² Ø§Ø³ Ø¢Ù„Û’ Ù¾Ø± Ø®ÙÛŒÛ Ø±ÛØªÛŒ ÛÛŒÚºÛ”',
+      playReply: 'ÙˆØ§Û! Ø²ÙˆÙ…ÛŒØ² Ú©Ø§ ÙˆÙ‚Øª! Ø¢Ù¾ Ú©Û’ Ø³Ø§ØªÚ¾ Ú©Ú¾ÛŒÙ„Ù†Ø§ Ù…Ø²Û’ Ú©Ø§ ÛÛ’!',
+      moodChat: 'Ø¢Ù¾ Ø³Û’ Ø¨Ø§Øª Ú©Ø± Ú©Û’ Ø®ÙˆØ´ÛŒ ÛÙˆØ¦ÛŒ',
     },
   };
 
@@ -5170,19 +5881,19 @@ function setupVirtualPet() {
   /* Recognises the two ways a player asks the pet to remember something:
      an English command at the start of the sentence ("remember my birthday
      is 5 May", "please remember that I like blue"), and the Urdu command at
-     the end ("میری سالگرہ 5 مئی ہے، یاد رکھنا" or "mera birthday 5 may hai
+     the end ("Ù…ÛŒØ±ÛŒ Ø³Ø§Ù„Ú¯Ø±Û 5 Ù…Ø¦ÛŒ ÛÛ’ØŒ ÛŒØ§Ø¯ Ø±Ú©Ú¾Ù†Ø§" or "mera birthday 5 may hai
      yaad rakhna"). Returns the fact itself, or an empty string. */
   function extractMemory(raw) {
     const text = String(raw || '').trim();
     if (!text) return '';
     let match = text.match(/^(?:please\s+)?remember(?:\s+(?:this|that|it))?\s*[:,]?\s+([\s\S]+)$/i);
     if (match && match[1].trim()) return match[1].trim();
-    const urduCommand = /(?:یاد\s*رکھنا|یاد\s*رکھو|یاد\s*رکھیں|یاد\s*رکھ)[\s:،,!.۔]*$/;
+    const urduCommand = /(?:ÛŒØ§Ø¯\s*Ø±Ú©Ú¾Ù†Ø§|ÛŒØ§Ø¯\s*Ø±Ú©Ú¾Ùˆ|ÛŒØ§Ø¯\s*Ø±Ú©Ú¾ÛŒÚº|ÛŒØ§Ø¯\s*Ø±Ú©Ú¾)[\s:ØŒ,!.Û”]*$/;
     if (urduCommand.test(text)) {
-      const body = text.replace(urduCommand, '').replace(/[\s،,:]+$/, '').trim();
+      const body = text.replace(urduCommand, '').replace(/[\sØŒ,:]+$/, '').trim();
       if (body) return body;
     }
-    match = text.match(/^(.*?)[,،]?\s*(?:please\s+)?yaad\s*(?:rakhna|rakho|rakhein|rakh)\s*[.!]?$/i);
+    match = text.match(/^(.*?)[,ØŒ]?\s*(?:please\s+)?yaad\s*(?:rakhna|rakho|rakhein|rakh)\s*[.!]?$/i);
     if (match && match[1].trim()) return match[1].trim();
     return '';
   }
@@ -5220,14 +5931,14 @@ function setupVirtualPet() {
 
       const edit = document.createElement('button');
       edit.type = 'button';
-      edit.textContent = '✏️';
+      edit.textContent = 'âœï¸';
       edit.title = T.memoryEdit;
       edit.setAttribute('aria-label', T.memoryEdit);
       edit.addEventListener('click', () => startMemoryEdit(row, memory));
 
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.textContent = '🗑️';
+      remove.textContent = 'ðŸ—‘ï¸';
       remove.title = T.memoryDelete;
       remove.setAttribute('aria-label', T.memoryDelete);
       remove.addEventListener('click', () => deleteMemory(memory.id));
@@ -5256,13 +5967,13 @@ function setupVirtualPet() {
 
     const save = document.createElement('button');
     save.type = 'button';
-    save.textContent = '✓';
+    save.textContent = 'âœ“';
     save.title = T.memorySave;
     save.setAttribute('aria-label', T.memorySave);
 
     const cancel = document.createElement('button');
     cancel.type = 'button';
-    cancel.textContent = '✕';
+    cancel.textContent = 'âœ•';
     cancel.title = T.memoryCancel;
     cancel.setAttribute('aria-label', T.memoryCancel);
 
@@ -5383,7 +6094,7 @@ function setupVirtualPet() {
       hint = document.createElement('div');
       hint.className = 'pet-hint';
       hint.setAttribute('aria-hidden', 'true');
-      hint.textContent = '← drag to turn the pet →';
+      hint.textContent = 'â† drag to turn the pet â†’';
       const wrap = petWorld.querySelector('.pet-image-wrap');
       if (wrap) wrap.appendChild(hint);
     }
@@ -5851,7 +6562,7 @@ function setupVirtualPet() {
     });
   }
 
-  // Pet language. English by default, Urdu selectable — the choice is
+  // Pet language. English by default, Urdu selectable â€” the choice is
   // mirrored to the native side for text-to-speech and the speech recogniser.
   const languageSelect = document.getElementById('pet-language');
   if (languageSelect) {
@@ -5978,8 +6689,8 @@ function setupVirtualPet() {
     document.getElementById('pet-send').disabled = true;
 
     const PET_PROMPTS = {
-      en: 'You are a friendly, playful virtual pet dog in a mobile game. Speak simply and warmly. If the player asks you to write a story, write a full story — never give a one-line reply. If the player writes in Urdu, reply in Urdu.',
-      ur: 'آپ ایک موبائل گیم کے دوستانہ اور شوخ ورچوئل پالتو کتے ہیں۔ سادہ اور پُرجوش انداز میں بات کریں۔ اگر کھلاڑی کہانی مانگے تو پوری کہانی لکھیں۔ اگر کھلاڑی اردو میں لکھے تو اردو میں جواب دیں۔'
+      en: 'You are a friendly, playful virtual pet dog in a mobile game. Speak simply and warmly. If the player asks you to write a story, write a full story â€” never give a one-line reply. If the player writes in Urdu, reply in Urdu.',
+      ur: 'Ø¢Ù¾ Ø§ÛŒÚ© Ù…ÙˆØ¨Ø§Ø¦Ù„ Ú¯ÛŒÙ… Ú©Û’ Ø¯ÙˆØ³ØªØ§Ù†Û Ø§ÙˆØ± Ø´ÙˆØ® ÙˆØ±Ú†ÙˆØ¦Ù„ Ù¾Ø§Ù„ØªÙˆ Ú©ØªÛ’ ÛÛŒÚºÛ” Ø³Ø§Ø¯Û Ø§ÙˆØ± Ù¾ÙØ±Ø¬ÙˆØ´ Ø§Ù†Ø¯Ø§Ø² Ù…ÛŒÚº Ø¨Ø§Øª Ú©Ø±ÛŒÚºÛ” Ø§Ú¯Ø± Ú©Ú¾Ù„Ø§Ú‘ÛŒ Ú©ÛØ§Ù†ÛŒ Ù…Ø§Ù†Ú¯Û’ ØªÙˆ Ù¾ÙˆØ±ÛŒ Ú©ÛØ§Ù†ÛŒ Ù„Ú©Ú¾ÛŒÚºÛ” Ø§Ú¯Ø± Ú©Ú¾Ù„Ø§Ú‘ÛŒ Ø§Ø±Ø¯Ùˆ Ù…ÛŒÚº Ù„Ú©Ú¾Û’ ØªÙˆ Ø§Ø±Ø¯Ùˆ Ù…ÛŒÚº Ø¬ÙˆØ§Ø¨ Ø¯ÛŒÚºÛ”'
     };
 
     /* Facts the player saved. They ride along with every request, and the
