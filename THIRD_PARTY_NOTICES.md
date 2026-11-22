@@ -72,28 +72,24 @@ the repository.
   The copyright notice in that file is satisfied by this entry and by
   retaining `licenses/MIT.txt` with any distribution.
 
-## 4. Horizon (Minecraft Java client for Android) — MIT
+## 4. Starling (Minecraft Java client for Android) — MIT
 
-- **Not committed to this repository.** The native library is staged at build
-  time from a hash-verified upstream release (see `tools/fetch-horizon.ps1` /
-  `tools/build-horizon.ps1` and `.gitignore`), into `app/src/main/jniLibs/`
-  and `app/src/main/assets/engine-data.zip`.
-- **Upstream:** Horizon, copyright 2026 Ludovic Marie and the Horizon
-  contributors, MIT — <https://github.com/Vasysik/horizon-android>.
-- **In-app notices:** the staged build carries Horizon's own notices at
-  `assets/horizon/THIRD_PARTY_NOTICES.md` inside the application, covering
-  wgpu-hal and naga 30.0.1 (MIT or Apache-2.0), winit 0.30.13 (Apache-2.0),
-  Pixelify Sans (SIL OFL 1.1), Pixelarticons (MIT), AMD FidelityFX SDK 1.1.4
-  shaders (MIT), Horizon's bundled mods (horizon-mods, SmartF3 — MIT), and
-  branding/logo notices for third parties.
-- **License for the Horizon engine itself:** MIT — text in
-  [`licenses/MIT.txt`](licenses/MIT.txt). Redistribution and sublicensing are
-  permitted with retention of the copyright notice in §4 of that file.
-- **Mojang content:** Horizon downloads Mojang assets to the device at
-  runtime under Mojang's terms; this repository and the distributed APK
-  contain **no** Mojang/Minecraft code, textures, or assets. The application
+- **Not committed to this repository.** The native libraries, Java bridge and
+  game-file preparation kits are staged at build time from the hash-verified
+  0.9.0 release by `tools/fetch-starling.ps1` (see `.gitignore`) into
+  `app/src/main/jniLibs/arm64-v8a/` and `app/src/main/assets/`.
+- **Upstream:** Starling, copyright 2026 JuanLuci, Vasysik and the Starling
+  contributors, MIT — <https://github.com/starling-client/starling>. Starling
+  is built on Horizon, copyright 2026 Ludovic Marie and the Horizon
+  contributors, MIT — <https://github.com/ludovic111/horizon>.
+- **In this APK:** Starling's Rust engine libraries, its Android Java bridge,
+  the resource-preparation kits and Starling Visuals. Its third-party notices
+  ship in the staged `prepare-kit.zip`. Starling downloads Mojang assets to the
+  device at runtime under Mojang's terms; this repository and the distributed
+  APK contain **no** Mojang/Minecraft code, textures or assets. The application
   is not affiliated with, endorsed by, or validated by Mojang AB, Mojang
   Studios, or Microsoft. Minecraft is a trademark of Mojang AB / Microsoft.
+- **License:** MIT — full text in [`licenses/MIT.txt`](licenses/MIT.txt).
 
 ## 5. Android platform libraries (present in release builds) — Apache-2.0
 

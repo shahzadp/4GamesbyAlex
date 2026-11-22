@@ -51,14 +51,16 @@ obj/
 out/
 release/
 
-# --- Horizon native payload ------------------------------------------------
-# Staged by tools/fetch-horizon.ps1 from a hash-verified Horizon release, or
-# built by tools/build-horizon.ps1. Both files are large and reproducible, so
-# they stay out of git. A checkout without them still builds; the launcher
-# shows Horizon as "not staged" instead of starting an activity that would
-# fail on System.loadLibrary.
+# --- Starling native payload ------------------------------------------------
+# Staged by tools/fetch-starling.ps1 from the hash-verified 0.9.0 release:
+# ~267 MB of prebuilt Rust libraries plus the resource-preparation kits. They
+# are large and reproducible, so they stay out of git. A checkout without them
+# still builds; the fourth card simply has no game until they are staged.
 /app/src/main/jniLibs/
-/app/src/main/assets/engine-data.zip
+/app/src/main/assets/StarlingVisuals.zip
+/app/src/main/assets/lowbudget.zip
+/app/src/main/assets/prepare-kit.zip
+/app/src/main/assets/diagnostic-fonts/
 
 # --- Editors and OS --------------------------------------------------------
 *.log

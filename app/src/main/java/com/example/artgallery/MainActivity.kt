@@ -2,6 +2,7 @@ package com.example.artgallery
 
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,9 +13,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
-import com.example.artgallery.ui.home.HomeScreen
 import com.example.artgallery.theme.LauncherTheme
-import dev.horizon.android.HorizonActivity
+import com.example.artgallery.ui.home.HomeScreen
+import io.github.juanluci.starling.LauncherActivity
 
 /**
  * The launcher.
@@ -22,8 +23,9 @@ import dev.horizon.android.HorizonActivity
  * This used to be a WebView pointed at `assets/index.html`, which meant the home
  * screen was HTML and every game was a page inside it. It is Compose now: the
  * three browser games still come from that same bundle, but each one opens in
- * its own [GameWebViewActivity] at its URL hash, and Horizon opens as a native
- * activity instead of being squeezed into a WebView it was never built for.
+ * its own [GameWebViewActivity] at its URL hash. The fourth card starts the
+ * forked Starling client, which runs in its own process so a native crash (or
+ * its event loop ending the process) cannot take this launcher down.
  *
  * The web bundle's own launcher page is still in the APK. It is not reachable
  * from here on purpose; see [GameWebViewActivity] for how leaving a game comes
@@ -37,6 +39,10 @@ class MainActivity : ComponentActivity() {
 
   private var companionName by mutableStateOf("")
 
+  /** Starling ships only arm64 libraries; the other three games are universal. */
+  private val starlingSupported: Boolean
+    get() = Build.SUPPORTED_ABIS.any { it.equals("arm64-v8a", ignoreCase = true) }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
@@ -46,15 +52,15 @@ class MainActivity : ComponentActivity() {
     window.statusBarColor = Color.TRANSPARENT
     window.navigationBarColor = Color.TRANSPARENT
 
-    val horizonAvailable = HorizonNative.isAvailable(this)
     companionName = LauncherStore.readCompanionName(this)
+    AppUpdater.check(this)
 
     setContent {
       LauncherTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
           HomeScreen(
-            horizonAvailable = horizonAvailable,
             companionName = companionName,
+            starlingSupported = starlingSupported,
             onOpen = ::openGame,
           )
         }
@@ -76,11 +82,12 @@ class MainActivity : ComponentActivity() {
             .putExtra(GameCatalog.EXTRA_GAME_ID, game.id)
         )
 
-      GameKind.NativeHorizon ->
-        // HorizonNative being false means the card renders as "Coming soon!"
-        // and is not clickable, so this guard is belt and braces.
-        if (HorizonNative.isAvailable(this)) {
-          startActivity(Intent(this, HorizonActivity::class.java))
+      GameKind.NativeStarling ->
+        // The card is disabled without arm64; this is a belt-and-braces guard.
+        if (starlingSupported) {
+          // The launcher copies anything opened with Starling into its import
+          // inbox, then starts the game in the :starling process.
+          startActivity(Intent(this, LauncherActivity::class.java))
         }
     }
   }

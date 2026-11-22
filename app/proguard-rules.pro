@@ -23,21 +23,17 @@
 # The bridge is an inner class, so the outer class must survive too.
 -keep class com.example.artgallery.GameWebViewActivity { *; }
 
-# --- Horizon native client -------------------------------------------------
-# The Rust library exports its entry points under fixed JNI names:
-#   Java_dev_horizon_android_HorizonActivity_nativeDocumentResult
-#   Java_dev_horizon_android_HorizonDocumentsProvider_nativeCall
-#   Java_dev_horizon_android_HorizonDocumentsProvider_nativeOpen
-# JNI resolves those by package + class + method name, so R8 must not rename the
-# package, the classes or the native methods. A rename links cleanly and fails
-# only at the moment a world is saved.
--keep class dev.horizon.android.** { *; }
+# --- Starling native client -------------------------------------------------
+# The Rust library resolves its Java callbacks by package + class + method
+# name (Java_io_github_juanluci_starling_*). R8 must not rename that package,
+# the bridge classes or their native methods: a rename links cleanly and then
+# fails when the game calls back into Android.
+-keep class io.github.juanluci.starling.** { *; }
 -keepclasseswithmembernames,includedescriptorclasses class * {
     native <methods>;
 }
-
-# The platform instantiates the NativeActivity and the DocumentsProvider from
-# the manifest by name.
+# The platform instantiates the NativeActivity and the providers by manifest
+# name, so those classes have to keep theirs as well.
 -keep class * extends android.app.NativeActivity { *; }
 -keep class * extends android.content.ContentProvider { *; }
 

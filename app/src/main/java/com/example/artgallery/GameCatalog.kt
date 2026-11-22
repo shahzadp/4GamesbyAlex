@@ -1,22 +1,19 @@
 package com.example.artgallery
 
-import android.content.Context
-import java.io.File
-
 /**
  * The four games the launcher offers and how each one is hosted.
  *
- * Three of them are still the bundled web build: they load from
- * `assets/index.html` and are handed to [GameWebViewActivity]. The fourth,
- * Horizon, is a native Rust client that runs in its own process, so it is
- * started as a plain activity instead of being loaded into a WebView.
+ * Three of them are the bundled web build: they load from `assets/index.html`
+ * and are handed to [GameWebViewActivity]. The fourth is the forked Starling
+ * client: its engine and Java bridge ship inside this APK and run in their own
+ * process, started from the fourth card.
  */
 enum class GameKind {
   /** Runs inside [GameWebViewActivity] from the bundled web build. */
   Web,
 
-  /** Native Rust client, started as its own activity in the `:horizon` process. */
-  NativeHorizon,
+  /** Starts the forked Starling client in its own process. */
+  NativeStarling,
 }
 
 /**
@@ -60,35 +57,13 @@ object GameCatalog {
         kind = GameKind.Web,
       ),
       GameEntry(
-        id = "horizon",
-        title = "Horizon",
-        tagline = "Build your world",
-        accent = 0xFFEF4444,
-        kind = GameKind.NativeHorizon,
+        id = "starling",
+        title = "Starling",
+        tagline = "Tap to play",
+        accent = 0xFF8B5CF6,
+        kind = GameKind.NativeStarling,
       ),
     )
 
   fun byId(id: String?): GameEntry? = games.firstOrNull { it.id == id }
-}
-
-/**
- * Whether the Horizon payload is present in this build.
- *
- * `libhorizon_android.so` is not committed: `tools/fetch-horizon.ps1` stages it
- * from a verified Horizon release (or `tools/build-horizon.ps1` compiles it from
- * source). A checkout without that step still builds and runs; the card just
- * says the game is missing instead of starting an activity that would crash on
- * `System.loadLibrary`.
- *
- * The check reads `nativeLibraryDir` rather than calling `System.loadLibrary`,
- * because loading the library in the launcher process has side effects — it is
- * built to be loaded by the `:horizon` process only.
- */
-object HorizonNative {
-  private const val LIBRARY = "libhorizon_android.so"
-
-  fun isAvailable(context: Context): Boolean {
-    val directory = context.applicationInfo.nativeLibraryDir ?: return false
-    return File(directory, LIBRARY).isFile
-  }
 }

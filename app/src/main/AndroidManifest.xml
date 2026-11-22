@@ -1,26 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Lichess online play, the pet's API calls and Starling's sign-in/downloads. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The pet game's voice input. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- Horizon drives the phone vibrator for in-game events. -->
+    <!-- Starling resolves server SRV records through the active network's DNS. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Starling's gamepad and touch-control haptics. -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Horizon's save/export path on API 28 only; 29+ uses MediaStore/scoped
-         storage and needs no permission at all. -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- WorkService keeps sign-in and downloads alive while the player leaves the game. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Starling's game folder in shared storage, so worlds and packs are
+         visible in the Files app. Android 11+ grants this from Settings, which
+         Starling's setup opens; older versions use the scoped permissions. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- The in-game updater hands its downloaded APK to Android's installer. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-    <!-- Horizon can fall back between Vulkan and GLES, so neither is required.
-         Marking GLES 3.0 as required here would hide the whole app - chess,
-         flappy, the pet - from devices that cannot run one of the four games.
-         The Horizon activity checks what it needs at runtime instead. -->
-    <uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="false" />
-    <uses-feature android:glEsVersion="0x00030000" android:required="false" />
-    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <!-- Horizon's activity is sensorLandscape, which makes the store imply a
-         required landscape screen for the whole package. Marking it optional
-         keeps a portrait-only device from being refused the three games that
-         do not need it. -->
-    <uses-feature android:name="android.hardware.screen.landscape" android:required="false" />
+    <!-- Starling can fall back between Vulkan and GLES. Not required: the other
+         three games must stay visible on devices without Vulkan. -->
+    <uses-feature android:name="android.hardware.vulkan.version" android:version="0x400003" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -30,6 +34,7 @@
         android:supportsRtl="true"
         android:hardwareAccelerated="true"
         android:windowSoftInputMode="adjustResize"
+        android:requestLegacyExternalStorage="true"
         android:theme="@style/Theme.ArtGallery">
 
         <!-- The Compose launcher. Portrait, scrollable, no WebView. -->
@@ -72,41 +77,91 @@
             </intent-filter>
         </activity>
 
-        <!-- Horizon: a native Rust client, not a WebView.
-
-             It runs in its own :horizon process for two reasons:
-               1. Horizon ends its event loop with std::process::exit(0). In the
-                  launcher's process that would kill the app instead of
-                  returning to the Compose home screen.
-               2. A native client failure (driver, OOM) then takes down only the
-                  game, leaving the other three playable.
-
-             The class name is dev.horizon.android.HorizonActivity on purpose:
-             the Rust library exports its SAF callback under that exact JNI
-             name. See the class comment. -->
+        <!-- Starling: the Rust game is a NativeActivity in a process of its own.
+             Its event loop ends the process on exit, so keeping it out of the
+             launcher's process means the other three games survive a Starling
+             crash and returning to the launcher never kills the app. -->
         <activity
-            android:name="dev.horizon.android.HorizonActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|density|uiMode"
-            android:exported="false"
-            android:process=":horizon"
-            android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.ArtGallery.Horizon"
-            android:windowSoftInputMode="adjustResize">
-            <meta-data android:name="android.app.lib_name" android:value="horizon_android" />
+            android:name="io.github.juanluci.starling.LauncherActivity"
+            android:exported="true"
+            android:process=":launcher"
+            android:taskAffinity="${applicationId}.launcher"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.starling" />
+                <data android:pathPattern=".*\\..*\\.starling" />
+                <data android:pathPattern=".*\\.hmod" />
+                <data android:pathPattern=".*\\..*\\.hmod" />
+                <data android:pathPattern=".*\\.hnmod" />
+                <data android:pathPattern=".*\\..*\\.hnmod" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
         </activity>
 
-        <!-- Lets the Files app browse Horizon's saves. The authority is
-             ${applicationId}.documents, which is the string Horizon derives at
-             runtime from getPackageName(), so it keeps working under this app's
-             id. Pinned to :horizon so the native library never loads into the
-             launcher process. -->
+        <activity
+            android:name="io.github.juanluci.starling.GameActivity"
+            android:exported="true"
+            android:process=":starling"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            android:resizeableActivity="false"
+            android:theme="@style/Starling.Game"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|density|screenSize|smallestScreenSize|layoutDirection|colorMode|fontWeightAdjustment|grammaticalGender">
+            <meta-data android:name="android.app.lib_name" android:value="horizon_android" />
+            <meta-data android:name="android.app.func_name" android:value="starling_on_create" />
+        </activity>
+
+        <activity
+            android:name="io.github.juanluci.starling.DiagnosticsActivity"
+            android:exported="true"
+            android:process=":diagnostics"
+            android:theme="@style/Starling.Game"
+            android:hardwareAccelerated="false" />
+
+        <service
+            android:name="io.github.juanluci.starling.WorkService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- The diagnostic ZIP, shared through a content URI only. -->
         <provider
-            android:name="dev.horizon.android.HorizonDocumentsProvider"
+            android:name="io.github.juanluci.starling.UpdateProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
+        <!-- Starling's game folder in the Files app, in a process of its own so
+             a copy is not cut short when the game ends its process. -->
+        <provider
+            android:name="io.github.juanluci.starling.GameFolderProvider"
             android:authorities="${applicationId}.documents"
             android:exported="true"
+            android:process=":documents"
             android:grantUriPermissions="true"
-            android:permission="android.permission.MANAGE_DOCUMENTS"
-            android:process=":horizon">
+            android:permission="android.permission.MANAGE_DOCUMENTS">
             <intent-filter>
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>

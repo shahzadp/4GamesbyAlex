@@ -41,14 +41,16 @@ android {
         // Bumped for every release build: an installer treats a package with
         // the same version code as "already installed" and refuses to replace
         // it, so the fix builds would never reach the device.
+        // 45 / 1.40 = Starling forked in as the fourth game, with shared
+        // storage and in-app updating.
         // 44 / 1.39 = Flappy Bird gets a Customize button bundling ten
         // hand-painted cosmetic themes (Classic, Sunset Bay, Midnight Metro,
         // Halloween, Christmas, New Year, Valentine's, Easter, Candy Land,
         // Coral Lagoon). Each theme ships sky, bird, pipes and ground as a
         // matched set so they never clash. Flappy Bird renders on tap and
         // adds haptics, '+1' floater, NEW BEST ribbon, and static Classic Day.
-        versionCode = 44
-        versionName = "1.39"
+        versionCode = 45
+        versionName = "1.40"
     }
 
     signingConfigs {
@@ -111,14 +113,10 @@ android {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
       }
       jniLibs {
-        // Horizon ships as a prebuilt Rust .so. Legacy packaging extracts
-        // native libraries to the filesystem at install time, which is what
-        // android:extractNativeLibs="true" in the manifest requires and what
-        // NativeActivity needs when it loads libhorizon_android.so.
-        //
-        // It also keeps HorizonNative.isAvailable() honest: that check looks
-        // for the file in applicationInfo.nativeLibraryDir, which is only
-        // populated when the libraries are extracted.
+        // Starling is a prebuilt Rust NativeActivity. Its libraries must be
+        // extracted at install time so NativeActivity can load them, and the
+        // Java launchers it runs to prepare game files must be executable
+        // files on disk rather than entries inside the APK.
         useLegacyPackaging = true
       }
     }

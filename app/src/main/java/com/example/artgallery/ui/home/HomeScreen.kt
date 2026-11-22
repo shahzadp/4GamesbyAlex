@@ -56,7 +56,6 @@ import androidx.compose.ui.unit.sp
 import android.view.HapticFeedbackConstants
 import com.example.artgallery.GameCatalog
 import com.example.artgallery.GameEntry
-import com.example.artgallery.GameKind
 import com.example.artgallery.theme.LauncherTheme
 
 private val CardShape = RoundedCornerShape(26.dp)
@@ -72,15 +71,16 @@ private val Tagline = Color(0xFFB7A98F)
 /**
  * The app's home screen.
  *
- * @param horizonAvailable false when the native payload has not been staged into
- *   this build; Horizon shows up dimmed as "Coming soon!" rather than as an
- *   error a parent would have to explain.
+ * The fourth card starts the forked Starling client in its own process, and
+ * is dimmed on devices without its arm64 libraries.
+ *
+ * @param starlingSupported whether the device can run Starling's arm64 build.
  * @param companionName the name the player gave the virtual pet companion, or
  *   empty to fall back to "Virtual Pet".
  */
 @Composable
 fun HomeScreen(
-  horizonAvailable: Boolean,
+  starlingSupported: Boolean,
   companionName: String,
   onOpen: (GameEntry) -> Unit,
   modifier: Modifier = Modifier,
@@ -103,8 +103,8 @@ fun HomeScreen(
             GameCard(
               game = game,
               title = cardTitle(game, companionName),
-              tagline = cardTagline(game, companionName),
-              enabled = game.kind != GameKind.NativeHorizon || horizonAvailable,
+              tagline = cardTagline(game, companionName, starlingSupported),
+              enabled = game.id != "starling" || starlingSupported,
               onClick = {
                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 onOpen(game)
@@ -120,9 +120,14 @@ fun HomeScreen(
 private fun cardTitle(game: GameEntry, companionName: String): String =
   if (game.id == "pet" && companionName.isNotBlank()) companionName else game.title
 
-private fun cardTagline(game: GameEntry, companionName: String): String = when {
+private fun cardTagline(
+  game: GameEntry,
+  companionName: String,
+  starlingSupported: Boolean,
+): String = when {
   game.id == "pet" && companionName.isNotBlank() -> "Your little friend"
   game.id == "pet" -> "Name your friend"
+  game.id == "starling" && !starlingSupported -> "arm64 devices only"
   else -> game.tagline
 }
 
@@ -279,7 +284,7 @@ private fun GameCard(
       )
       Spacer(Modifier.height(3.dp))
       Text(
-        text = if (enabled) tagline else "Coming soon!",
+        text = tagline,
         color = (if (enabled) Tagline else Tagline.copy(alpha = 0.6f)).copy(alpha = contentAlpha),
         fontSize = 12.5.sp,
         fontWeight = FontWeight.Medium,
@@ -317,7 +322,7 @@ private fun tileGradient(gameId: String, accent: Color, enabled: Boolean): Pair<
     "flappy" -> Color(0xFF7FD1FF) to Color(0xFF2B83D6)
     "chess" -> Color(0xFFA6A8FF) to Color(0xFF494AC2)
     "pet" -> Color(0xFF5BF0B5) to Color(0xFF0EA25F)
-    "horizon" -> Color(0xFF8DEF6E) to Color(0xFF3E9C34)
+    "starling" -> Color(0xFFC4B5FD) to Color(0xFF6D28D9)
     else -> accent to accent.copy(alpha = 0.7f)
   }
 
@@ -403,34 +408,21 @@ private fun DrawScope.drawGameGlyph(gameId: String, s: Float, enabled: Boolean) 
       )
     }
 
-    "horizon" -> {
+    "starling" -> {
+      // A four-pointed star marks the slot waiting for its client.
       val cx = s * 0.5f
-      val top = Path().apply {
-        moveTo(cx, s * 0.06f)
-        lineTo(s * 0.88f, s * 0.26f)
-        lineTo(cx, s * 0.44f)
-        lineTo(s * 0.12f, s * 0.26f)
+      val cy = s * 0.5f
+      val outer = s * 0.4f
+      val inner = s * 0.1f
+      val shape = Path().apply {
+        moveTo(cx, cy - outer)
+        quadraticTo(cx, cy - inner, cx + inner, cy)
+        quadraticTo(cx, cy + inner, cx, cy + outer)
+        quadraticTo(cx, cy + inner, cx - inner, cy)
+        quadraticTo(cx, cy - inner, cx, cy - outer)
         close()
       }
-      val left = Path().apply {
-        moveTo(s * 0.12f, s * 0.26f)
-        lineTo(cx, s * 0.44f)
-        lineTo(cx, s * 0.88f)
-        lineTo(s * 0.12f, s * 0.66f)
-        close()
-      }
-      val right = Path().apply {
-        moveTo(cx, s * 0.44f)
-        lineTo(s * 0.88f, s * 0.26f)
-        lineTo(s * 0.88f, s * 0.66f)
-        lineTo(cx, s * 0.88f)
-        close()
-      }
-      val edge = Stroke(width = 2.4f, join = StrokeJoin.Round)
-      drawPath(top, Color(0xFFFAFAF5))
-      drawPath(left, Color(0xFFE0E0D8))
-      drawPath(right, Color(0xFFB4B4AB))
-      listOf(top, left, right).forEach { drawPath(it, Color(0xFF1C2415).copy(alpha = 0.35f), style = edge) }
+      drawPath(shape, w)
     }
   }
 }
@@ -461,11 +453,11 @@ private fun ChevronCircle() {
 @Preview(showBackground = true, backgroundColor = 0xFF05070F, widthDp = 380)
 @Composable
 private fun HomeScreenPreview() {
-  LauncherTheme { HomeScreen(horizonAvailable = true, companionName = "Nora", onOpen = {}) }
+  LauncherTheme { HomeScreen(starlingSupported = true, companionName = "Nora", onOpen = {}) }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF05070F, widthDp = 380)
 @Composable
-private fun HomeScreenMissingHorizonPreview() {
-  LauncherTheme { HomeScreen(horizonAvailable = false, companionName = "", onOpen = {}) }
+private fun HomeScreenNoStarlingPreview() {
+  LauncherTheme { HomeScreen(starlingSupported = false, companionName = "", onOpen = {}) }
 }
